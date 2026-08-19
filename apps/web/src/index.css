@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+/*
+  Tokens de identidad visual — Sunname ERP (CLAUDE.md §7).
+  Ningun color va hardcodeado en componentes: todo pasa por estos tokens,
+  para poder repintar branding de tenant en tickets/etiquetas sin tocar el chrome del sistema.
+*/
+:root {
+  --color-primary: #1e2a47; /* indigo profundo */
+  --color-accent: #c9a227; /* dorado apagado */
+  --color-ink: #2b2b2e; /* grafito — texto principal */
+  --color-surface: #f1efea; /* gris calido claro — fondo */
+  --color-success: #3b7a57; /* verde salvia */
+  --color-danger: #b23a34; /* terracota */
+}
+
+@theme {
+  --color-primary: var(--color-primary);
+  --color-accent: var(--color-accent);
+  --color-ink: var(--color-ink);
+  --color-surface: var(--color-surface);
+  --color-success: var(--color-success);
+  --color-danger: var(--color-danger);
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
