@@ -8,58 +8,60 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  // De quién es el `profile` que tenemos guardado ahora mismo (o null si
+  // ya sabemos que no hay ninguno). Comparar esto contra el usuario de la
+  // sesión actual, en vez de una bandera "profileLoading" separada, evita
+  // el hueco de un render entre "la sesión ya llegó" y "el efecto que
+  // pide el perfil todavía no corrió" -- ese hueco es justo lo que
+  // dejaba a un owner rebotando de /reportes o /usuarios a /caja: por un
+  // instante `loading` daba false con profile todavía en null.
+  const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
-  const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      console.log('[diag] getSession resolved', { hasSession: !!data.session })
       setSession(data.session)
       setSessionLoading(false)
     })
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log('[diag] onAuthStateChange', event, { hasSession: !!newSession })
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
+  const userId = session?.user.id ?? null
+
   useEffect(() => {
-    console.log('[diag] profile effect run', { hasSession: !!session })
-    if (!session) {
+    if (!userId) {
       setProfile(null)
-      setProfileLoading(false)
+      setProfileOwnerId(null)
       return
     }
 
     let cancelled = false
-    setProfileLoading(true)
     supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', userId)
       .single()
       .then(({ data, error }) => {
-        console.log('[diag] profile fetch resolved', { cancelled, hasData: !!data, role: data?.role, error: error?.message })
         if (cancelled) return
         if (error) console.error('No se pudo cargar el perfil:', error)
         setProfile(data)
-        setProfileLoading(false)
+        setProfileOwnerId(userId)
       })
 
     return () => {
       cancelled = true
     }
-  }, [session])
+  }, [userId])
 
-  // El "loading" general no puede bajar solo con la sesion resuelta: si hay
-  // sesion, hay que esperar tambien el perfil (rol) antes de dejar que las
-  // rutas decidan quien es admin -- si no, un refresh en /reportes o
-  // /usuarios rebota al admin de vuelta a /caja porque profile todavia es
-  // null en el primer render.
-  return { session, profile, loading: sessionLoading || profileLoading }
+  const profileSettled = profileOwnerId === userId
+  const loading = sessionLoading || (userId !== null && !profileSettled)
+
+  return { session, profile, loading }
 }
