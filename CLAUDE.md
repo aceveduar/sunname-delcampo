@@ -194,7 +194,7 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 - [x] Definir paleta de colores (§7). Tipografía aún pendiente (Fase 0).
 - [ ] Cuenta y **repositorio en GitHub** creados.
 - [ ] Decidir los puntos del §13.
-- [x] **Vertical piloto**: tienda de chiles, moles y semillas.
+- [x] **Vertical piloto**: **Del Campo** — tienda de chiles, moles y semillas.
 - [ ] (Fase 1) Catálogo real de productos del vertical piloto, con precios y unidades.
 - [ ] (Si aplica al vertical piloto) Modelo de hardware necesario y su documentación.
 - [ ] (Fase 4) Datos fiscales + contrato con un **PAC** para CFDI 4.0.
@@ -210,7 +210,7 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 4. **Multi-tenant**: decidido — **una base de datos por negocio**, con nota de diseño para poder migrar a esquema compartido si el costo por-tenant se vuelve un problema al crecer (§8).
 
 > ~~¿Offline-first vs online-first?~~ — Resuelto en §2: **online-first con resiliencia acotada en caja**.
-> ~~Vertical piloto para el MVP?~~ — Resuelto: **tienda de chiles, moles y semillas**.
+> ~~Vertical piloto para el MVP?~~ — Resuelto: **Del Campo**, tienda de chiles, moles y semillas.
 > ~~Modelo de licenciamiento/planes?~~ — Resuelto en §5.1: **suscripción por negocio (tenant), no por usuario**, sin formalizar tiers todavía (un solo tenant piloto por ahora).
 > ~~Nombre del producto y paleta de colores?~~ — Resuelto en §7: **Sunname ERP**, paleta índigo profundo + dorado apagado + neutrales + semánticos.
 
@@ -256,7 +256,7 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 | _(pendiente)_ | **Online-first** en lugar de offline-first, con cola local solo en caja                                                                                                           | La mayoría de los negocios objetivo tiene internet; simplifica arquitectura y es coherente con CFDI (Fase 4), que ya requiere conexión |
 | _(pendiente)_ | Identidad visual **genérica**, ya no ligada al negocio de chiles/moles                                                                                                            | El producto ya no es de un solo giro                                                                                                   |
 | _(pendiente)_ | Módulos iniciales: CRM, Compras, Inventario, Facturación, Caja                                                                                                                    | Cobertura base común a la mayoría de negocios, con opción de crecer                                                                    |
-| _(pendiente)_ | Vertical piloto del MVP: **tienda de chiles, moles y semillas**                                                                                                                   | Es el negocio ya conocido a detalle; permite levantar catálogo real rápido                                                             |
+| _(pendiente)_ | Vertical piloto del MVP: **Del Campo**, tienda de chiles, moles y semillas                                                                                                        | Es el negocio ya conocido a detalle; permite levantar catálogo real rápido                                                             |
 | _(pendiente)_ | El sistema se centra primero en **productos**; el modelo de **servicios** se aborda después de terminar el sistema de productos                                                   | Evitar sobre-diseñar el núcleo antes de tener el caso de producto resuelto y probado                                                   |
 | _(pendiente)_ | Licenciamiento: **suscripción por negocio (tenant)**, por paquete de módulos, sin tiers formales todavía                                                                          | Simplicidad para el MVP con un solo tenant; evita cobro por usuario o por transacción, que no encajan bien con un POS                  |
 | _(pendiente)_ | Sistema **a la medida, independiente de Odoo**                                                                                                                                    | Se ofrece como alternativa propia a negocios que no quieren Odoo                                                                       |
@@ -264,3 +264,6 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 | _(pendiente)_ | El vertical piloto (chiles/moles/semillas) usa la identidad de **Sunname ERP**, no la marca del negocio; el branding del negocio queda solo en tickets/etiquetas de cliente final | Separar identidad del producto vs. branding del tenant; evita repintar el sistema por cada cliente                                     |
 | _(pendiente)_ | Modularidad vía **límites de módulo + activación por configuración (`tenant_modules`)**, no un runtime de plugins de terceros                                                     | Suficiente para "fácil de integrar y quitar" en el MVP; un SDK de plugins real se evalúa después, con evidencia de varios verticales   |
 | _(pendiente)_ | **IA como módulo opcional**, con criterio de inclusión por valor real (no por tendencia)                                                                                          | Evitar IA forzada; se agrega solo cuando resuelve mejor un problema concreto que la alternativa sin IA                                 |
+| 2026-08-20    | Primer esquema de base de datos (`supabase/migrations/20260820130031_init_core.sql`): `profiles`+`user_role`, `tenant_modules`, catálogo (`products`, `product_categories`, `units_of_measure`), inventario (`inventory_movements` + vista `inventory_stock`), caja (`cash_sessions`, `sales`, `sale_items`, `sale_payments`, `payment_methods`) | Arranca Fase 1 (catálogo + caja básica + inventario básico) sobre el modelo "una base de datos por negocio" del §8; sin tabla/columna `tenant_id` porque el aislamiento ya lo da la base de datos |
+| 2026-08-20    | Permisos vía **RLS de Postgres basada en rol** almacenado en `profiles` (función `current_role_key()`), no roles nativos de Postgres/Supabase                                    | Permite alta de usuarios y roles desde la UI (§5) sin tocar roles a nivel de base de datos; deja lista la base para permisos granulares por módulo (§6) |
+| 2026-08-20    | Inventario modelado como **bitácora de movimientos inmutable** (`inventory_movements`, solo insert) + vista `inventory_stock` calculada, sin columna de saldo mantenida a mano    | Evita que el saldo de existencias se desincronice de su propio historial; el costo de recalcular por vista es aceptable al volumen del MVP |
