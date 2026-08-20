@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { NavLink } from 'react-router-dom'
-import { Boxes, LogOut, Package, Store } from 'lucide-react'
+import { BarChart3, Boxes, LogOut, Package, Store } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +24,13 @@ const ROLE_LABELS: Record<Profile['role'], string> = {
   viewer: 'Consulta',
 }
 
+const ADMIN_ROLES: Profile['role'][] = ['owner', 'local_admin']
+
 const NAV_ITEMS = [
-  { to: '/caja', label: 'Caja', icon: Store },
-  { to: '/catalogo', label: 'Catálogo', icon: Package },
-  { to: '/inventario', label: 'Inventario', icon: Boxes },
+  { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
+  { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
+  { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
+  { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
 ]
 
 function initials(name: string) {
@@ -49,6 +52,8 @@ export function AppShell({
   children: ReactNode
 }) {
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
+  const isAdmin = profile ? ADMIN_ROLES.includes(profile.role) : false
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,7 +62,7 @@ export function AppShell({
           <div className="flex items-center gap-8">
             <span className="text-sm font-semibold tracking-wide">Sunname ERP</span>
             <nav className="flex items-center gap-1">
-              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+              {visibleNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
