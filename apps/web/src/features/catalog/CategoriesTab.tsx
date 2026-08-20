@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { toTitleCase } from '@/lib/text'
 import { useCategories, type ProductCategory } from './useCategories'
 
 const NO_PARENT = 'none'
@@ -46,7 +47,7 @@ export function CategoriesTab() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const name = String(form.get('name') ?? '').trim()
+    const name = toTitleCase(String(form.get('name') ?? ''))
     const parent_id = parentId === NO_PARENT ? null : parentId
 
     const ok = editing

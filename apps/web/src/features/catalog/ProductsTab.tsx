@@ -21,13 +21,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { formatCurrency } from '@/lib/currency'
+import { toCode, toTitleCase } from '@/lib/text'
 import { useProducts, type Product } from './useProducts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
 
 const NO_CATEGORY = 'none'
-
-const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
 export function ProductsTab() {
   const { products, loading, createProduct, updateProduct, toggleActive } = useProducts()
@@ -67,9 +67,10 @@ export function ProductsTab() {
     if (!unitId) return
 
     const form = new FormData(event.currentTarget)
+    const sku = toCode(String(form.get('sku') ?? ''))
     const values = {
-      sku: String(form.get('sku') ?? '').trim() || null,
-      name: String(form.get('name') ?? '').trim(),
+      sku: sku || null,
+      name: toTitleCase(String(form.get('name') ?? '')),
       description: String(form.get('description') ?? '').trim() || null,
       category_id: categoryId === NO_CATEGORY ? null : categoryId,
       unit_id: unitId,
@@ -126,7 +127,7 @@ export function ProductsTab() {
               <TableCell>{product.sku ?? '—'}</TableCell>
               <TableCell>{categoryName(product.category_id)}</TableCell>
               <TableCell>{unitCode(product.unit_id)}</TableCell>
-              <TableCell>{currency.format(product.price)}</TableCell>
+              <TableCell>{formatCurrency(product.price)}</TableCell>
               <TableCell>
                 <Badge variant={product.active ? 'default' : 'secondary'}>
                   {product.active ? 'Activo' : 'Inactivo'}

@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { toCode, toTitleCase } from '@/lib/text'
 import { useUnits, type UnitOfMeasure } from './useUnits'
 
 export function UnitsTab() {
@@ -32,8 +33,8 @@ export function UnitsTab() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const code = String(form.get('code') ?? '').trim()
-    const name = String(form.get('name') ?? '').trim()
+    const code = toCode(String(form.get('code') ?? ''))
+    const name = toTitleCase(String(form.get('name') ?? ''))
 
     const ok = editing
       ? await updateUnit(editing.id, { code, name })
