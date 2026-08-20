@@ -465,6 +465,15 @@ export type Database = {
       }
     }
     Functions: {
+      create_sale: {
+        Args: {
+          p_cash_session_id: string
+          p_client_uuid: string
+          p_items: Json
+          p_payments: Json
+        }
+        Returns: string
+      }
       current_role_key: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
