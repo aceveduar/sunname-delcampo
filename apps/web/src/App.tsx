@@ -7,12 +7,15 @@ import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
 import { PurchasingPage } from '@/features/purchasing/PurchasingPage'
 import { UsersPage } from '@/features/users/UsersPage'
-import { isAdminRole } from '@/lib/roles'
+import { SettingsPage } from '@/features/settings/SettingsPage'
+import { useTenantModules } from '@/features/settings/useTenantModules'
+import { isAdminRole, isOwnerRole } from '@/lib/roles'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
 
 function App() {
   const { session, profile, loading } = useAuth()
+  const { isEnabled: isModuleEnabled } = useTenantModules(!!session)
 
   if (loading) {
     return (
@@ -32,18 +35,28 @@ function App() {
   }
 
   const isAdmin = isAdminRole(profile?.role)
+  const isOwner = isOwnerRole(profile?.role)
 
   return (
-    <AppShell session={session} profile={profile}>
+    <AppShell session={session} profile={profile} isModuleEnabled={isModuleEnabled}>
       <Routes>
         <Route path="/" element={<Navigate to="/caja" replace />} />
         <Route path="/caja" element={<CajaPage />} />
         <Route path="/catalogo" element={<CatalogPage role={profile?.role ?? null} />} />
         <Route path="/inventario" element={<InventoryPage role={profile?.role ?? null} />} />
-        <Route path="/clientes" element={<CustomersPage />} />
+        <Route
+          path="/clientes"
+          element={isModuleEnabled('crm') ? <CustomersPage /> : <Navigate to="/caja" replace />}
+        />
         <Route
           path="/compras"
-          element={isAdmin ? <PurchasingPage /> : <Navigate to="/caja" replace />}
+          element={
+            isAdmin && isModuleEnabled('purchasing') ? (
+              <PurchasingPage />
+            ) : (
+              <Navigate to="/caja" replace />
+            )
+          }
         />
         <Route
           path="/reportes"
@@ -52,6 +65,10 @@ function App() {
         <Route
           path="/usuarios"
           element={isAdmin ? <UsersPage currentUserId={session.user.id} /> : <Navigate to="/caja" replace />}
+        />
+        <Route
+          path="/configuracion"
+          element={isOwner ? <SettingsPage /> : <Navigate to="/caja" replace />}
         />
         <Route path="*" element={<Navigate to="/caja" replace />} />
       </Routes>

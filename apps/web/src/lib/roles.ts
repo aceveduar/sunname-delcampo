@@ -15,3 +15,7 @@ export const ADMIN_ROLES: Role[] = ['owner', 'local_admin']
 export function isAdminRole(role: Role | null | undefined) {
   return role != null && ADMIN_ROLES.includes(role)
 }
+
+export function isOwnerRole(role: Role | null | undefined) {
+  return role === 'owner'
+}

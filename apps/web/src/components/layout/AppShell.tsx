@@ -1,7 +1,18 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link, NavLink } from 'react-router-dom'
-import { BarChart3, Boxes, Contact, LogOut, Menu, Package, ShoppingCart, Store, Users } from 'lucide-react'
+import {
+  BarChart3,
+  Boxes,
+  Contact,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  ShoppingCart,
+  Store,
+  Users,
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,18 +24,27 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
-import { isAdminRole, ROLE_LABELS } from '@/lib/roles'
+import { isAdminRole, isOwnerRole, ROLE_LABELS } from '@/lib/roles'
+import type { ModuleKey } from '@/features/settings/useTenantModules'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
-const NAV_ITEMS = [
+const NAV_ITEMS: {
+  to: string
+  label: string
+  icon: typeof Store
+  adminOnly: boolean
+  ownerOnly?: boolean
+  moduleKey?: ModuleKey
+}[] = [
   { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
   { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
   { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
-  { to: '/clientes', label: 'Clientes', icon: Contact, adminOnly: false },
-  { to: '/compras', label: 'Compras', icon: ShoppingCart, adminOnly: true },
+  { to: '/clientes', label: 'Clientes', icon: Contact, adminOnly: false, moduleKey: 'crm' },
+  { to: '/compras', label: 'Compras', icon: ShoppingCart, adminOnly: true, moduleKey: 'purchasing' },
   { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
   { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
+  { to: '/configuracion', label: 'Configuración', icon: Settings, adminOnly: true, ownerOnly: true },
 ]
 
 function initials(name: string) {
@@ -39,15 +59,23 @@ function initials(name: string) {
 export function AppShell({
   session,
   profile,
+  isModuleEnabled,
   children,
 }: {
   session: Session
   profile: Profile | null
+  isModuleEnabled: (key: ModuleKey) => boolean
   children: ReactNode
 }) {
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
   const isAdmin = isAdminRole(profile?.role)
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
+  const isOwner = isOwnerRole(profile?.role)
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) =>
+      (!item.adminOnly || isAdmin) &&
+      (!item.ownerOnly || isOwner) &&
+      (!item.moduleKey || isModuleEnabled(item.moduleKey)),
+  )
 
   return (
     <div className="min-h-screen bg-background">
