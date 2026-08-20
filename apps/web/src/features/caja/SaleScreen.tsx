@@ -1,0 +1,254 @@
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Minus, Plus, Search, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { formatCurrency } from '@/lib/currency'
+import { supabase } from '@/lib/supabase'
+import { useProducts, type Product } from '@/features/catalog/useProducts'
+import { usePaymentMethods } from './usePaymentMethods'
+
+type CartLine = { product: Product; quantity: number }
+
+export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
+  const { products } = useProducts()
+  const paymentMethods = usePaymentMethods()
+
+  const [search, setSearch] = useState('')
+  const [cart, setCart] = useState<CartLine[]>([])
+  const [paymentMethodId, setPaymentMethodId] = useState('')
+  const [cashReceived, setCashReceived] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const results = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return []
+    return products
+      .filter(
+        (p) =>
+          p.active &&
+          (p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query)),
+      )
+      .slice(0, 20)
+  }, [products, search])
+
+  const total = cart.reduce((sum, line) => sum + line.product.price * line.quantity, 0)
+
+  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId)
+  const received = Number(cashReceived || 0)
+  const change = selectedMethod?.code === 'cash' ? received - total : null
+
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((line) => line.product.id === product.id)
+      if (existing) {
+        return prev.map((line) =>
+          line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line,
+        )
+      }
+      return [...prev, { product, quantity: 1 }]
+    })
+  }
+
+  const setQuantity = (productId: string, quantity: number) => {
+    setCart((prev) =>
+      quantity <= 0
+        ? prev.filter((line) => line.product.id !== productId)
+        : prev.map((line) => (line.product.id === productId ? { ...line, quantity } : line)),
+    )
+  }
+
+  const removeLine = (productId: string) => {
+    setCart((prev) => prev.filter((line) => line.product.id !== productId))
+  }
+
+  const resetSale = () => {
+    setCart([])
+    setCashReceived('')
+    setPaymentMethodId('')
+  }
+
+  const handleCheckout = async () => {
+    if (cart.length === 0 || !paymentMethodId) return
+    setSubmitting(true)
+
+    const { error } = await supabase.rpc('create_sale', {
+      p_client_uuid: crypto.randomUUID(),
+      p_cash_session_id: cashSessionId,
+      p_items: cart.map((line) => ({
+        product_id: line.product.id,
+        quantity: line.quantity,
+        unit_price: line.product.price,
+      })),
+      p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
+    })
+
+    setSubmitting(false)
+
+    if (error) {
+      toast.error('No se pudo registrar la venta', { description: error.message })
+      return
+    }
+
+    toast.success('Venta registrada')
+    resetSale()
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar producto por nombre o SKU…"
+            className="pl-8"
+            autoFocus
+          />
+        </div>
+
+        {search.trim() === '' ? (
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            Escribe para buscar un producto y agregarlo a la venta.
+          </p>
+        ) : results.length === 0 ? (
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            No se encontraron productos para "{search}".
+          </p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {results.map((product) => (
+              <button
+                key={product.id}
+                onClick={() => addToCart(product)}
+                className="hover:bg-muted flex flex-col items-start gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors"
+              >
+                <span className="font-medium">{product.name}</span>
+                <span className="text-muted-foreground text-sm">{formatCurrency(product.price)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Card className="h-fit lg:sticky lg:top-20">
+        <CardHeader>
+          <CardTitle>Venta actual</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {cart.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Aún no hay productos en la venta.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {cart.map((line) => (
+                <div key={line.product.id} className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{line.product.name}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {formatCurrency(line.product.price)} c/u
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => setQuantity(line.product.id, line.quantity - 1)}
+                    >
+                      <Minus />
+                    </Button>
+                    <span className="w-6 text-center text-sm">{line.quantity}</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => setQuantity(line.product.id, line.quantity + 1)}
+                    >
+                      <Plus />
+                    </Button>
+                  </div>
+                  <span className="w-16 text-right text-sm font-medium">
+                    {formatCurrency(line.product.price * line.quantity)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => removeLine(line.product.id)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-t border-border pt-3 text-base font-semibold">
+            <span>Total</span>
+            <span>{formatCurrency(total)}</span>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Select
+              items={paymentMethods.map((m) => ({ value: m.id, label: m.name }))}
+              value={paymentMethodId}
+              onValueChange={(value) => setPaymentMethodId(value ?? '')}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Método de pago" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentMethods.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedMethod?.code === 'cash' && (
+            <div className="flex flex-col gap-1.5">
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Efectivo recibido"
+                value={cashReceived}
+                onChange={(event) => setCashReceived(event.target.value)}
+              />
+              {change !== null && cashReceived !== '' && (
+                <p className={change < 0 ? 'text-destructive text-sm' : 'text-success text-sm'}>
+                  {change < 0
+                    ? `Falta ${formatCurrency(Math.abs(change))}`
+                    : `Cambio: ${formatCurrency(change)}`}
+                </p>
+              )}
+            </div>
+          )}
+
+          <Button
+            onClick={handleCheckout}
+            disabled={
+              cart.length === 0 ||
+              !paymentMethodId ||
+              submitting ||
+              (selectedMethod?.code === 'cash' && received < total)
+            }
+          >
+            {submitting ? 'Cobrando…' : `Cobrar ${formatCurrency(total)}`}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

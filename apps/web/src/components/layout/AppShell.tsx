@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { NavLink } from 'react-router-dom'
-import { LogOut, Package } from 'lucide-react'
+import { LogOut, Package, Store } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -23,7 +24,10 @@ const ROLE_LABELS: Record<Profile['role'], string> = {
   viewer: 'Consulta',
 }
 
-const NAV_ITEMS = [{ to: '/catalogo', label: 'Catálogo', icon: Package }]
+const NAV_ITEMS = [
+  { to: '/caja', label: 'Caja', icon: Store },
+  { to: '/catalogo', label: 'Catálogo', icon: Package },
+]
 
 function initials(name: string) {
   return name
@@ -83,12 +87,14 @@ export function AppShell({
               <span className="hidden sm:inline">{displayName}</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <p className="font-medium">{displayName}</p>
-                <p className="text-muted-foreground text-xs font-normal">
-                  {profile ? ROLE_LABELS[profile.role] : '—'}
-                </p>
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <p className="font-medium">{displayName}</p>
+                  <p className="text-muted-foreground text-xs font-normal">
+                    {profile ? ROLE_LABELS[profile.role] : '—'}
+                  </p>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => supabase.auth.signOut()} variant="destructive">
                 <LogOut /> Cerrar sesión

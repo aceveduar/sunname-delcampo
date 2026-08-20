@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
+import { CajaPage } from '@/features/caja/CajaPage'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
 
@@ -27,9 +28,10 @@ function App() {
   return (
     <AppShell session={session} profile={profile}>
       <Routes>
-        <Route path="/" element={<Navigate to="/catalogo" replace />} />
+        <Route path="/" element={<Navigate to="/caja" replace />} />
+        <Route path="/caja" element={<CajaPage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
-        <Route path="*" element={<Navigate to="/catalogo" replace />} />
+        <Route path="*" element={<Navigate to="/caja" replace />} />
       </Routes>
     </AppShell>
   )
