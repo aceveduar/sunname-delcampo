@@ -40,11 +40,29 @@ const NAV_ITEMS: {
   { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
   { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
   { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
-  { to: '/clientes', label: 'Clientes', icon: Contact, adminOnly: false, moduleKey: 'crm' },
-  { to: '/compras', label: 'Compras', icon: ShoppingCart, adminOnly: true, moduleKey: 'purchasing' },
+  {
+    to: '/clientes',
+    label: 'Clientes',
+    icon: Contact,
+    adminOnly: false,
+    moduleKey: 'crm',
+  },
+  {
+    to: '/compras',
+    label: 'Compras',
+    icon: ShoppingCart,
+    adminOnly: true,
+    moduleKey: 'purchasing',
+  },
   { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
   { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
-  { to: '/configuracion', label: 'Configuración', icon: Settings, adminOnly: true, ownerOnly: true },
+  {
+    to: '/configuracion',
+    label: 'Configuración',
+    icon: Settings,
+    adminOnly: true,
+    ownerOnly: true,
+  },
 ]
 
 function initials(name: string) {
@@ -78,11 +96,13 @@ export function AppShell({
   )
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <header className="bg-sidebar text-sidebar-foreground">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        <div className="flex h-14 items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-8">
-            <span className="text-sm font-semibold tracking-wide">Sunname ERP</span>
+            <span className="text-sm font-semibold tracking-wide">
+              Sunname ERP
+            </span>
             <nav className="hidden items-center gap-1 md:flex">
               {visibleNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
@@ -107,7 +127,7 @@ export function AppShell({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button className="flex items-center justify-center rounded-md p-2 hover:bg-sidebar-accent md:hidden" />
+                  <button className="hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 md:hidden" />
                 }
               >
                 <Menu className="size-5" />
@@ -127,7 +147,7 @@ export function AppShell({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent" />
+                  <button className="hover:bg-sidebar-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-sm" />
                 }
               >
                 <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-6 items-center justify-center rounded-full text-xs font-semibold">
@@ -145,7 +165,10 @@ export function AppShell({
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => supabase.auth.signOut()} variant="destructive">
+                <DropdownMenuItem
+                  onClick={() => supabase.auth.signOut()}
+                  variant="destructive"
+                >
                   <LogOut /> Cerrar sesión
                 </DropdownMenuItem>
               </DropdownMenuContent>
