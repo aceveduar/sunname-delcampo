@@ -56,5 +56,5 @@ export function useProfiles() {
     [refresh],
   )
 
-  return { profiles, loading, updateRole, toggleActive }
+  return { profiles, loading, refresh, updateRole, toggleActive }
 }
