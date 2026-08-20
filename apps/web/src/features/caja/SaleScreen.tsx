@@ -14,19 +14,26 @@ import {
 import { formatCurrency } from '@/lib/currency'
 import { supabase } from '@/lib/supabase'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
+import { useCustomers } from '@/features/crm/useCustomers'
 import { usePaymentMethods } from './usePaymentMethods'
 
 type CartLine = { product: Product; quantity: number }
 
+const NO_CUSTOMER = 'none'
+
 export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const { products } = useProducts()
   const paymentMethods = usePaymentMethods()
+  const { customers } = useCustomers()
 
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [paymentMethodId, setPaymentMethodId] = useState('')
   const [cashReceived, setCashReceived] = useState('')
+  const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [submitting, setSubmitting] = useState(false)
+
+  const activeCustomers = customers.filter((c) => c.active)
 
   const results = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -91,6 +98,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     setCart([])
     setCashReceived('')
     setPaymentMethodId('')
+    setCustomerId(NO_CUSTOMER)
   }
 
   const handleCheckout = async () => {
@@ -106,6 +114,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
         unit_price: line.product.price,
       })),
       p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
+      p_customer_id: customerId === NO_CUSTOMER ? undefined : customerId,
     })
 
     setSubmitting(false)
@@ -213,6 +222,29 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
           <div className="flex items-center justify-between border-t border-border pt-3 text-base font-semibold">
             <span>Total</span>
             <span>{formatCurrency(total)}</span>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Select
+              items={[
+                { value: NO_CUSTOMER, label: 'Sin cliente' },
+                ...activeCustomers.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              value={customerId}
+              onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sin cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
+                {activeCustomers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5">

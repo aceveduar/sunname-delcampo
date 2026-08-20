@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link, NavLink } from 'react-router-dom'
-import { BarChart3, Boxes, LogOut, Menu, Package, ShoppingCart, Store, Users } from 'lucide-react'
+import { BarChart3, Boxes, Contact, LogOut, Menu, Package, ShoppingCart, Store, Users } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
   { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
   { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
+  { to: '/clientes', label: 'Clientes', icon: Contact, adminOnly: false },
   { to: '/compras', label: 'Compras', icon: ShoppingCart, adminOnly: true },
   { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
   { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },

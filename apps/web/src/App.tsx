@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { CajaPage } from '@/features/caja/CajaPage'
+import { CustomersPage } from '@/features/crm/CustomersPage'
 import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
 import { PurchasingPage } from '@/features/purchasing/PurchasingPage'
@@ -39,6 +40,7 @@ function App() {
         <Route path="/caja" element={<CajaPage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/inventario" element={<InventoryPage role={profile?.role ?? null} />} />
+        <Route path="/clientes" element={<CustomersPage />} />
         <Route
           path="/compras"
           element={isAdmin ? <PurchasingPage /> : <Navigate to="/caja" replace />}

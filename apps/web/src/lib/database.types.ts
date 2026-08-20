@@ -90,6 +90,36 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          active: boolean
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       inventory_movements: {
         Row: {
           created_at: string
@@ -458,6 +488,7 @@ export type Database = {
           cash_session_id: string
           client_uuid: string
           created_at: string
+          customer_id: string | null
           id: string
           sold_by: string
           status: Database["public"]["Enums"]["sale_status"]
@@ -468,6 +499,7 @@ export type Database = {
           cash_session_id: string
           client_uuid: string
           created_at?: string
+          customer_id?: string | null
           id?: string
           sold_by: string
           status?: Database["public"]["Enums"]["sale_status"]
@@ -478,6 +510,7 @@ export type Database = {
           cash_session_id?: string
           client_uuid?: string
           created_at?: string
+          customer_id?: string | null
           id?: string
           sold_by?: string
           status?: Database["public"]["Enums"]["sale_status"]
@@ -490,6 +523,13 @@ export type Database = {
             columns: ["cash_session_id"]
             isOneToOne: false
             referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -599,6 +639,7 @@ export type Database = {
         Args: {
           p_cash_session_id: string
           p_client_uuid: string
+          p_customer_id?: string
           p_items: Json
           p_payments: Json
         }
