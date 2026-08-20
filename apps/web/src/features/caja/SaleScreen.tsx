@@ -314,7 +314,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
 
           <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
             <span>Total</span>
-            <span>{formatCurrency(total)}</span>
+            <span className="text-brand-gold">{formatCurrency(total)}</span>
           </div>
 
           <div className="flex flex-col gap-1.5">

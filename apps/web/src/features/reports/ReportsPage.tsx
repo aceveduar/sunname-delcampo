@@ -2,7 +2,14 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { formatCurrency } from '@/lib/currency'
 import { useSalesReport } from './useSalesReport'
 import { useSales } from './useSales'
@@ -49,7 +56,11 @@ export function ReportsPage() {
   const { sales, voidSale } = useSales(from, to)
 
   const handleVoid = async (saleId: string, total: number) => {
-    if (!window.confirm(`¿Anular esta venta de ${formatCurrency(total)}? Repone el inventario vendido.`)) {
+    if (
+      !window.confirm(
+        `¿Anular esta venta de ${formatCurrency(total)}? Repone el inventario vendido.`,
+      )
+    ) {
       return
     }
     const ok = await voidSale(saleId)
@@ -60,8 +71,10 @@ export function ReportsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Reportes</h1>
-          <p className="text-muted-foreground text-sm">Ventas e historial de caja del periodo.</p>
+          <h1 className="text-foreground text-2xl font-semibold">Reportes</h1>
+          <p className="text-muted-foreground text-sm">
+            Ventas e historial de caja del periodo.
+          </p>
         </div>
         <div className="flex gap-2">
           {PRESETS.map((p) => (
@@ -80,13 +93,19 @@ export function ReportsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">Total vendido</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Total vendido
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{formatCurrency(report.totalAmount)}</CardContent>
+          <CardContent className="text-brand-gold text-2xl font-semibold">
+            {formatCurrency(report.totalAmount)}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">Utilidad</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Utilidad
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex items-baseline gap-2 text-2xl font-semibold">
             {formatCurrency(report.margin)}
@@ -97,15 +116,23 @@ export function ReportsPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">Ventas</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Ventas
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{report.saleCount}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {report.saleCount}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">Ticket promedio</CardTitle>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Ticket promedio
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{formatCurrency(report.avgTicket)}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {formatCurrency(report.avgTicket)}
+          </CardContent>
         </Card>
       </div>
 
@@ -116,14 +143,18 @@ export function ReportsPage() {
           </CardHeader>
           <CardContent>
             {report.byPaymentMethod.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Sin ventas en este periodo.</p>
+              <p className="text-muted-foreground text-sm">
+                Sin ventas en este periodo.
+              </p>
             ) : (
               <Table>
                 <TableBody>
                   {report.byPaymentMethod.map((row) => (
                     <TableRow key={row.name}>
                       <TableCell>{row.name}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(row.amount)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -138,7 +169,9 @@ export function ReportsPage() {
           </CardHeader>
           <CardContent>
             {report.topProducts.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Sin ventas en este periodo.</p>
+              <p className="text-muted-foreground text-sm">
+                Sin ventas en este periodo.
+              </p>
             ) : (
               <Table>
                 <TableBody>
@@ -146,7 +179,9 @@ export function ReportsPage() {
                     <TableRow key={row.name}>
                       <TableCell>{row.name}</TableCell>
                       <TableCell>{row.quantity}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(row.amount)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -162,7 +197,9 @@ export function ReportsPage() {
         </CardHeader>
         <CardContent>
           {sales.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Sin ventas en este periodo.</p>
+            <p className="text-muted-foreground text-sm">
+              Sin ventas en este periodo.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -181,7 +218,11 @@ export function ReportsPage() {
                     <TableCell>{sale.soldBy}</TableCell>
                     <TableCell>{formatCurrency(sale.total)}</TableCell>
                     <TableCell>
-                      <Badge variant={sale.status === 'voided' ? 'secondary' : 'default'}>
+                      <Badge
+                        variant={
+                          sale.status === 'voided' ? 'secondary' : 'default'
+                        }
+                      >
                         {sale.status === 'voided' ? 'Anulada' : 'Completada'}
                       </Badge>
                     </TableCell>
@@ -210,7 +251,9 @@ export function ReportsPage() {
         </CardHeader>
         <CardContent>
           {report.cashSessions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No hay cortes de caja cerrados en este periodo.</p>
+            <p className="text-muted-foreground text-sm">
+              No hay cortes de caja cerrados en este periodo.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -229,10 +272,16 @@ export function ReportsPage() {
                   <TableRow key={session.id}>
                     <TableCell>{formatDateTime(session.closedAt)}</TableCell>
                     <TableCell>{session.openedBy}</TableCell>
-                    <TableCell>{formatCurrency(session.openingAmount)}</TableCell>
+                    <TableCell>
+                      {formatCurrency(session.openingAmount)}
+                    </TableCell>
                     <TableCell>{formatCurrency(session.cashSales)}</TableCell>
-                    <TableCell>{formatCurrency(session.expectedClosing)}</TableCell>
-                    <TableCell>{formatCurrency(session.closingAmount)}</TableCell>
+                    <TableCell>
+                      {formatCurrency(session.expectedClosing)}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(session.closingAmount)}
+                    </TableCell>
                     <TableCell
                       className={`text-right font-medium ${
                         session.difference === 0
@@ -242,7 +291,9 @@ export function ReportsPage() {
                             : 'text-brand-gold'
                       }`}
                     >
-                      {session.difference === 0 ? 'Cuadra' : formatCurrency(session.difference)}
+                      {session.difference === 0
+                        ? 'Cuadra'
+                        : formatCurrency(session.difference)}
                     </TableCell>
                   </TableRow>
                 ))}

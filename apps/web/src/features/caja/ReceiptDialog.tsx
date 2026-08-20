@@ -83,7 +83,7 @@ export function ReceiptDialog({
 
           <div className="flex items-center justify-between text-base font-semibold">
             <span>Total</span>
-            <span>{formatCurrency(receipt.total)}</span>
+            <span className="text-brand-gold">{formatCurrency(receipt.total)}</span>
           </div>
 
           <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
