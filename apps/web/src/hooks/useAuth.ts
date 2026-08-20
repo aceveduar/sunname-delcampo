@@ -37,8 +37,10 @@ export function useAuth() {
       .select('*')
       .eq('id', session.user.id)
       .single()
-      .then(({ data }) => {
-        if (!cancelled) setProfile(data)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) console.error('No se pudo cargar el perfil:', error)
+        setProfile(data)
       })
 
     return () => {
