@@ -1,0 +1,36 @@
+name: Respaldo de base de datos
+
+on:
+  schedule:
+    # Todos los lunes 09:00 UTC (~03:00 hora CDMX)
+    - cron: '0 9 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Enlazar proyecto
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref pancbbjhhovxjnzyentb --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+      - name: Generar respaldo (esquema + datos)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db dump --linked --password "${{ secrets.SUPABASE_DB_PASSWORD }}" --file backup.sql
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-del-campo-${{ github.run_id }}
+          path: backup.sql
+          retention-days: 90
