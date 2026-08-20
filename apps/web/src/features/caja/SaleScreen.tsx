@@ -19,6 +19,7 @@ import { useCustomers } from '@/features/crm/useCustomers'
 import { usePaymentMethods } from './usePaymentMethods'
 import { GranelDialog } from './GranelDialog'
 import { granelTotalFromWeightKg } from '@/lib/granel'
+import { ReceiptDialog, type ReceiptData } from './ReceiptDialog'
 
 type CartLine = { product: Product; quantity: number }
 
@@ -36,6 +37,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [submitting, setSubmitting] = useState(false)
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null)
 
   const activeCustomers = customers.filter((c) => c.active)
 
@@ -133,7 +135,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     if (cart.length === 0 || !paymentMethodId) return
     setSubmitting(true)
 
-    const { error } = await supabase.rpc('create_sale', {
+    const { data: saleId, error } = await supabase.rpc('create_sale', {
       p_client_uuid: crypto.randomUUID(),
       p_cash_session_id: cashSessionId,
       p_items: cart.map((line) => ({
@@ -152,6 +154,23 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     }
 
     toast.success('Venta registrada')
+    setReceipt({
+      saleId: saleId as string,
+      createdAt: new Date().toISOString(),
+      lines: cart.map((line) => ({
+        name: line.product.name,
+        detail: line.product.sold_by_weight
+          ? `${Math.round(line.quantity * 1000)} g`
+          : `${line.quantity} x ${formatCurrency(line.product.price)}`,
+        total: lineTotal(line),
+      })),
+      total,
+      paymentMethodName: selectedMethod?.name ?? '—',
+      cashReceived: selectedMethod?.code === 'cash' ? received : null,
+      change: selectedMethod?.code === 'cash' ? change : null,
+      customerName:
+        customerId === NO_CUSTOMER ? null : (customers.find((c) => c.id === customerId)?.name ?? null),
+    })
     resetSale()
   }
 
@@ -352,6 +371,8 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
           setGranelProduct(null)
         }}
       />
+
+      <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} />
     </div>
   )
 }

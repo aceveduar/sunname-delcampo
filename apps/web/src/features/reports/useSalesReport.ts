@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 
@@ -24,24 +24,20 @@ export function useSalesReport(from: string, to: string) {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [cashSessions, setCashSessions] = useState<CashSessionRow[]>([])
 
-  useEffect(() => {
-    let cancelled = false
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data: sales, error: salesError } = await supabase
+      .from('sales')
+      .select('id, total')
+      .eq('status', 'completed')
+      .gte('created_at', from)
+      .lte('created_at', to)
 
-    async function load() {
-      setLoading(true)
-
-      const { data: sales, error: salesError } = await supabase
-        .from('sales')
-        .select('id, total')
-        .eq('status', 'completed')
-        .gte('created_at', from)
-        .lte('created_at', to)
-
-      if (salesError) {
-        toast.error('No se pudieron cargar las ventas', { description: salesError.message })
-        if (!cancelled) setLoading(false)
-        return
-      }
+    if (salesError) {
+      toast.error('No se pudieron cargar las ventas', { description: salesError.message })
+      setLoading(false)
+      return
+    }
 
       const saleIds = (sales ?? []).map((s) => s.id)
       const total = (sales ?? []).reduce((sum, s) => sum + s.total, 0)
@@ -137,20 +133,17 @@ export function useSalesReport(from: string, to: string) {
         })
       }
 
-      if (cancelled) return
       setTotalAmount(total)
       setSaleCount(sales?.length ?? 0)
       setByPaymentMethod(payments)
       setTopProducts(products)
       setCashSessions(sessionRows)
       setLoading(false)
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
   }, [from, to])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   return {
     loading,
@@ -160,5 +153,6 @@ export function useSalesReport(from: string, to: string) {
     byPaymentMethod,
     topProducts,
     cashSessions,
+    refresh: load,
   }
 }

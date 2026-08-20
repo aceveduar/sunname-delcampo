@@ -750,6 +750,10 @@ export type Database = {
         Args: { p_purchase_order_id: string }
         Returns: undefined
       }
+      void_sale: {
+        Args: { p_reason?: string; p_sale_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       cash_session_status: "open" | "closed"

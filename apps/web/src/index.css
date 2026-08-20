@@ -105,3 +105,19 @@
     font-family: var(--font-sans);
   }
 }
+
+/* Ticket de venta: al imprimir, solo se ve el contenido del recibo
+   (#receipt-print-area), nunca el resto del chrome de la app. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print-area,
+  #receipt-print-area * {
+    visibility: visible;
+  }
+  #receipt-print-area {
+    position: fixed;
+    inset: 0;
+  }
+}
