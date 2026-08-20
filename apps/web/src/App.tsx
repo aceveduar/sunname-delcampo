@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { AppShell } from '@/components/layout/AppShell'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { CajaPage } from '@/features/caja/CajaPage'
@@ -15,9 +16,15 @@ import { useAuth } from './hooks/useAuth'
 
 function App() {
   const { session, profile, loading } = useAuth()
-  const { isEnabled: isModuleEnabled } = useTenantModules(!!session)
+  const { isEnabled: isModuleEnabled, loading: modulesLoading } =
+    useTenantModules(!!session)
 
-  if (loading) {
+  // Ambos deben terminar de cargar antes de decidir cualquier redirect --
+  // igual que con el perfil en useAuth, decidir con isModuleEnabled() en
+  // false por default (mientras carga) manda a /caja de vuelta a alguien
+  // que sí tiene el módulo activo, con solo entrar directo a la URL o
+  // refrescar la página.
+  if (loading || (session && modulesLoading)) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
         <p className="text-muted-foreground">Cargando…</p>
@@ -27,9 +34,18 @@ function App() {
 
   if (!session) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
+      <main className="bg-background flex min-h-screen flex-col items-center justify-center gap-6 p-8">
         <h1 className="text-primary text-3xl font-semibold">Sunname ERP</h1>
-        <LoginForm />
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <p className="text-muted-foreground text-sm">
+              Entra con tu cuenta para continuar.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <LoginForm />
+          </CardContent>
+        </Card>
       </main>
     )
   }
@@ -38,15 +54,31 @@ function App() {
   const isOwner = isOwnerRole(profile?.role)
 
   return (
-    <AppShell session={session} profile={profile} isModuleEnabled={isModuleEnabled}>
+    <AppShell
+      session={session}
+      profile={profile}
+      isModuleEnabled={isModuleEnabled}
+    >
       <Routes>
         <Route path="/" element={<Navigate to="/caja" replace />} />
         <Route path="/caja" element={<CajaPage />} />
-        <Route path="/catalogo" element={<CatalogPage role={profile?.role ?? null} />} />
-        <Route path="/inventario" element={<InventoryPage role={profile?.role ?? null} />} />
+        <Route
+          path="/catalogo"
+          element={<CatalogPage role={profile?.role ?? null} />}
+        />
+        <Route
+          path="/inventario"
+          element={<InventoryPage role={profile?.role ?? null} />}
+        />
         <Route
           path="/clientes"
-          element={isModuleEnabled('crm') ? <CustomersPage /> : <Navigate to="/caja" replace />}
+          element={
+            isModuleEnabled('crm') ? (
+              <CustomersPage />
+            ) : (
+              <Navigate to="/caja" replace />
+            )
+          }
         />
         <Route
           path="/compras"
@@ -64,7 +96,13 @@ function App() {
         />
         <Route
           path="/usuarios"
-          element={isAdmin ? <UsersPage currentUserId={session.user.id} /> : <Navigate to="/caja" replace />}
+          element={
+            isAdmin ? (
+              <UsersPage currentUserId={session.user.id} />
+            ) : (
+              <Navigate to="/caja" replace />
+            )
+          }
         />
         <Route
           path="/configuracion"

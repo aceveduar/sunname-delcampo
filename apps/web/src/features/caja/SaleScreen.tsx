@@ -48,14 +48,19 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       .filter(
         (p) =>
           p.active &&
-          (p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query)),
+          (p.name.toLowerCase().includes(query) ||
+            p.sku?.toLowerCase().includes(query)),
       )
       .slice(0, 20)
   }, [products, search])
 
   const lineTotal = (line: CartLine) =>
     line.product.sold_by_weight
-      ? granelTotalFromWeightKg(line.quantity, line.product.price, line.product.price_per_100g ?? 0)
+      ? granelTotalFromWeightKg(
+          line.quantity,
+          line.product.price,
+          line.product.price_per_100g ?? 0,
+        )
       : line.product.price * line.quantity
 
   const total = cart.reduce((sum, line) => sum + lineTotal(line), 0)
@@ -75,7 +80,9 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       const existing = prev.find((line) => line.product.id === product.id)
       if (existing) {
         return prev.map((line) =>
-          line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line,
+          line.product.id === product.id
+            ? { ...line, quantity: line.quantity + 1 }
+            : line,
         )
       }
       return [...prev, { product, quantity: 1 }]
@@ -94,7 +101,9 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     setCart((prev) =>
       quantity <= 0
         ? prev.filter((line) => line.product.id !== productId)
-        : prev.map((line) => (line.product.id === productId ? { ...line, quantity } : line)),
+        : prev.map((line) =>
+            line.product.id === productId ? { ...line, quantity } : line,
+          ),
     )
   }
 
@@ -110,7 +119,9 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     const query = search.trim().toLowerCase()
     if (!query) return
 
-    const scanned = products.find((p) => p.active && p.sku?.toLowerCase() === query)
+    const scanned = products.find(
+      (p) => p.active && p.sku?.toLowerCase() === query,
+    )
     if (!scanned) return
 
     event.preventDefault()
@@ -169,7 +180,9 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       cashReceived: selectedMethod?.code === 'cash' ? received : null,
       change: selectedMethod?.code === 'cash' ? change : null,
       customerName:
-        customerId === NO_CUSTOMER ? null : (customers.find((c) => c.id === customerId)?.name ?? null),
+        customerId === NO_CUSTOMER
+          ? null
+          : (customers.find((c) => c.id === customerId)?.name ?? null),
     })
     resetSale()
   }
@@ -203,13 +216,13 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
               <button
                 key={product.id}
                 onClick={() => handleProductClick(product)}
-                className="hover:bg-muted flex items-center gap-2.5 rounded-lg border border-border bg-card p-3 text-left transition-colors"
+                className="hover:bg-muted border-border bg-card flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors"
               >
                 {product.image_url && (
                   <img
                     src={product.image_url}
                     alt=""
-                    className="size-10 shrink-0 rounded-md border border-border object-cover"
+                    className="border-border size-10 shrink-0 rounded-md border object-cover"
                   />
                 )}
                 <div className="flex flex-col items-start gap-0.5">
@@ -232,13 +245,20 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {cart.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aún no hay productos en la venta.</p>
+            <p className="text-muted-foreground text-sm">
+              Aún no hay productos en la venta.
+            </p>
           ) : (
             <div className="flex flex-col gap-3">
               {cart.map((line, index) => (
-                <div key={`${line.product.id}-${index}`} className="flex items-center gap-2">
+                <div
+                  key={`${line.product.id}-${index}`}
+                  className="flex items-center gap-2"
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{line.product.name}</p>
+                    <p className="truncate text-sm font-medium">
+                      {line.product.name}
+                    </p>
                     <p className="text-muted-foreground text-xs">
                       {line.product.sold_by_weight
                         ? `${Math.round(line.quantity * 1000)} g`
@@ -251,16 +271,22 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
                         type="button"
                         variant="outline"
                         size="icon-sm"
-                        onClick={() => setQuantity(line.product.id, line.quantity - 1)}
+                        onClick={() =>
+                          setQuantity(line.product.id, line.quantity - 1)
+                        }
                       >
                         <Minus />
                       </Button>
-                      <span className="w-6 text-center text-sm">{line.quantity}</span>
+                      <span className="w-6 text-center text-sm">
+                        {line.quantity}
+                      </span>
                       <Button
                         type="button"
                         variant="outline"
                         size="icon-sm"
-                        onClick={() => setQuantity(line.product.id, line.quantity + 1)}
+                        onClick={() =>
+                          setQuantity(line.product.id, line.quantity + 1)
+                        }
                       >
                         <Plus />
                       </Button>
@@ -286,7 +312,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-t border-border pt-3 text-base font-semibold">
+          <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
             <span>Total</span>
             <span>{formatCurrency(total)}</span>
           </div>
@@ -316,7 +342,10 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
 
           <div className="flex flex-col gap-1.5">
             <Select
-              items={paymentMethods.map((m) => ({ value: m.id, label: m.name }))}
+              items={paymentMethods.map((m) => ({
+                value: m.id,
+                label: m.name,
+              }))}
               value={paymentMethodId}
               onValueChange={(value) => setPaymentMethodId(value ?? '')}
             >
@@ -339,12 +368,19 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
                 type="number"
                 step="0.01"
                 min="0"
+                autoComplete="off"
                 placeholder="Efectivo recibido"
                 value={cashReceived}
                 onChange={(event) => setCashReceived(event.target.value)}
               />
               {change !== null && cashReceived !== '' && (
-                <p className={change < 0 ? 'text-destructive text-sm' : 'text-success text-sm'}>
+                <p
+                  className={
+                    change < 0
+                      ? 'text-destructive text-sm'
+                      : 'text-success text-sm'
+                  }
+                >
                   {change < 0
                     ? `Falta ${formatCurrency(Math.abs(change))}`
                     : `Cambio: ${formatCurrency(change)}`}

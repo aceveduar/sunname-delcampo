@@ -33,7 +33,9 @@ export function GranelDialog({
 
   const weightFromGrams = Number(grams || 0) / 1000
   const totalFromGrams =
-    weightFromGrams > 0 ? granelTotalFromWeightKg(weightFromGrams, pricePerKg, pricePer100g) : 0
+    weightFromGrams > 0
+      ? granelTotalFromWeightKg(weightFromGrams, pricePerKg, pricePer100g)
+      : 0
 
   const weightFromAmount =
     Number(amount || 0) > 0
@@ -71,7 +73,8 @@ export function GranelDialog({
         </DialogHeader>
 
         <p className="text-muted-foreground text-sm">
-          {formatCurrency(pricePerKg)}/kg · {formatCurrency(pricePer100g)}/100g (menos de 1kg)
+          {formatCurrency(pricePerKg)}/kg · {formatCurrency(pricePer100g)}/100g
+          (menos de 1kg)
         </p>
 
         <Tabs defaultValue="peso">
@@ -93,6 +96,7 @@ export function GranelDialog({
                 min="1"
                 step="1"
                 autoFocus
+                autoComplete="off"
                 value={grams}
                 onChange={(event) => setGrams(event.target.value)}
                 placeholder="130"
@@ -101,7 +105,10 @@ export function GranelDialog({
             <p className="text-sm font-medium">
               Total: {formatCurrency(totalFromGrams)}
             </p>
-            <Button onClick={handleConfirmGrams} disabled={weightFromGrams <= 0}>
+            <Button
+              onClick={handleConfirmGrams}
+              disabled={weightFromGrams <= 0}
+            >
               Agregar
             </Button>
           </TabsContent>
@@ -115,6 +122,7 @@ export function GranelDialog({
                 min="1"
                 step="0.5"
                 autoFocus
+                autoComplete="off"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 placeholder="20"
@@ -123,7 +131,10 @@ export function GranelDialog({
             <p className="text-sm font-medium">
               Peso a pesar: {Math.round(weightFromAmount * 1000)} g
             </p>
-            <Button onClick={handleConfirmAmount} disabled={weightFromAmount <= 0}>
+            <Button
+              onClick={handleConfirmAmount}
+              disabled={weightFromAmount <= 0}
+            >
               Agregar
             </Button>
           </TabsContent>

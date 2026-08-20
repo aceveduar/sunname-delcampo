@@ -1,4 +1,10 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
 import { toast } from 'sonner'
 import { ImageOff, LayoutGrid, Plus, TableIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -76,6 +82,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [view, setView] = useState<'table' | 'cards'>(() =>
     window.innerWidth < 640 ? 'cards' : 'table',
   )
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const activeUnits = units.filter((u) => u.active)
   const activeCategories = categories.filter((c) => c.active)
@@ -197,8 +204,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
-          Productos que vendes, con su precio, categoría y
-          unidad.
+          Productos que vendes, con su precio, categoría y unidad.
         </p>
         {canManage && (
           <Button
@@ -438,13 +444,22 @@ export function ProductsTab({ role }: { role: Role | null }) {
                   </div>
                 )}
                 <div className="flex flex-col gap-1.5">
-                  <Input
+                  <input
+                    ref={imageInputRef}
                     id="product-image"
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
-                    className="max-w-56"
+                    className="hidden"
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    {imagePreview ? 'Cambiar foto' : 'Subir foto'}
+                  </Button>
                   {imagePreview && (
                     <Button
                       type="button"
