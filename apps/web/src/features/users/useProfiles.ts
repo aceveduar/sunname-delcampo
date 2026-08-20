@@ -39,6 +39,20 @@ export function useProfiles() {
     [refresh],
   )
 
+  const updateFullName = useCallback(
+    async (id: string, fullName: string) => {
+      const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', id)
+      if (error) {
+        toast.error('No se pudo actualizar el nombre', { description: error.message })
+        return false
+      }
+      toast.success('Nombre actualizado')
+      await refresh()
+      return true
+    },
+    [refresh],
+  )
+
   const toggleActive = useCallback(
     async (profile: Profile) => {
       const { error } = await supabase
@@ -56,5 +70,5 @@ export function useProfiles() {
     [refresh],
   )
 
-  return { profiles, loading, refresh, updateRole, toggleActive }
+  return { profiles, loading, refresh, updateRole, updateFullName, toggleActive }
 }

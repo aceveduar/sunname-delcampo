@@ -1,5 +1,15 @@
+import { useState, type FormEvent } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -10,8 +20,9 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Database } from '@/lib/database.types'
 import { ROLE_LABELS } from '@/lib/roles'
+import { toTitleCase } from '@/lib/text'
 import { InviteUserDialog } from './InviteUserDialog'
-import { useProfiles } from './useProfiles'
+import { useProfiles, type Profile } from './useProfiles'
 
 type Role = Database['public']['Enums']['user_role']
 
@@ -21,7 +32,18 @@ const ROLE_ITEMS = (Object.keys(ROLE_LABELS) as Role[]).map((role) => ({
 }))
 
 export function UsersPage({ currentUserId }: { currentUserId: string }) {
-  const { profiles, loading, refresh, updateRole, toggleActive } = useProfiles()
+  const { profiles, loading, refresh, updateRole, updateFullName, toggleActive } = useProfiles()
+  const [editingName, setEditingName] = useState<Profile | null>(null)
+
+  const handleSubmitName = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingName) return
+    const form = new FormData(event.currentTarget)
+    const fullName = toTitleCase(String(form.get('full_name') ?? ''))
+    if (!fullName) return
+    const ok = await updateFullName(editingName.id, fullName)
+    if (ok) setEditingName(null)
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,7 +104,10 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     {profile.active ? 'Activo' : 'Inactivo'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="flex justify-end gap-2 text-right">
+                  <Button variant="ghost" size="sm" onClick={() => setEditingName(profile)}>
+                    Editar nombre
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -97,6 +122,29 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
           })}
         </TableBody>
       </Table>
+
+      <Dialog open={editingName !== null} onOpenChange={(open) => !open && setEditingName(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar nombre</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitName} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-full-name">Nombre completo</Label>
+              <Input
+                id="edit-full-name"
+                name="full_name"
+                defaultValue={editingName?.full_name}
+                required
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit">Guardar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
