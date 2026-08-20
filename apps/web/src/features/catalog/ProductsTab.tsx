@@ -71,7 +71,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [view, setView] = useState<'table' | 'cards'>('table')
+  // En pantallas chicas la tabla obliga a hacer scroll lateral para ver
+  // precio/estado/acciones; tarjetas en 2 columnas se ve todo sin cortes.
+  const [view, setView] = useState<'table' | 'cards'>(() =>
+    window.innerWidth < 640 ? 'cards' : 'table',
+  )
 
   const activeUnits = units.filter((u) => u.active)
   const activeCategories = categories.filter((c) => c.active)
