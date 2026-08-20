@@ -4,6 +4,8 @@ import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { CajaPage } from '@/features/caja/CajaPage'
 import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
+import { UsersPage } from '@/features/users/UsersPage'
+import { isAdminRole } from '@/lib/roles'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
 
@@ -27,7 +29,7 @@ function App() {
     )
   }
 
-  const isAdmin = profile?.role === 'owner' || profile?.role === 'local_admin'
+  const isAdmin = isAdminRole(profile?.role)
 
   return (
     <AppShell session={session} profile={profile}>
@@ -39,6 +41,10 @@ function App() {
         <Route
           path="/reportes"
           element={isAdmin ? <ReportsPage /> : <Navigate to="/caja" replace />}
+        />
+        <Route
+          path="/usuarios"
+          element={isAdmin ? <UsersPage currentUserId={session.user.id} /> : <Navigate to="/caja" replace />}
         />
         <Route path="*" element={<Navigate to="/caja" replace />} />
       </Routes>

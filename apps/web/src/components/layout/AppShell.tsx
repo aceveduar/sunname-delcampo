@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { NavLink } from 'react-router-dom'
-import { BarChart3, Boxes, LogOut, Package, Store } from 'lucide-react'
+import { BarChart3, Boxes, LogOut, Package, Store, Users } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,24 +13,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
+import { isAdminRole, ROLE_LABELS } from '@/lib/roles'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
-
-const ROLE_LABELS: Record<Profile['role'], string> = {
-  owner: 'Propietario',
-  local_admin: 'Administrador de local',
-  cashier: 'Cajero',
-  accountant: 'Contador',
-  viewer: 'Consulta',
-}
-
-const ADMIN_ROLES: Profile['role'][] = ['owner', 'local_admin']
 
 const NAV_ITEMS = [
   { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
   { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
   { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
   { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
+  { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
 ]
 
 function initials(name: string) {
@@ -52,7 +44,7 @@ export function AppShell({
   children: ReactNode
 }) {
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
-  const isAdmin = profile ? ADMIN_ROLES.includes(profile.role) : false
+  const isAdmin = isAdminRole(profile?.role)
   const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
 
   return (
