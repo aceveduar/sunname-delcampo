@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 export type CashSession = Database['public']['Tables']['cash_sessions']['Row']
@@ -20,7 +21,7 @@ export function useCashSession() {
       .maybeSingle()
 
     if (error) {
-      toast.error('No se pudo cargar el estado de caja', { description: error.message })
+      reportError('No se pudo cargar el estado de caja', error)
     } else {
       setSession(data)
     }
@@ -43,7 +44,7 @@ export function useCashSession() {
         .insert({ opened_by: user.id, opening_amount: openingAmount })
 
       if (error) {
-        toast.error('No se pudo abrir la caja', { description: error.message })
+        reportError('No se pudo abrir la caja', error)
         return false
       }
       toast.success('Caja abierta')
@@ -71,7 +72,7 @@ export function useCashSession() {
         .eq('id', session.id)
 
       if (error) {
-        toast.error('No se pudo cerrar la caja', { description: error.message })
+        reportError('No se pudo cerrar la caja', error)
         return false
       }
       toast.success('Caja cerrada')

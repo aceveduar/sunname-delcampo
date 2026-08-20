@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/currency'
+import { reportError } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
 import { useCustomers } from '@/features/crm/useCustomers'
@@ -120,7 +121,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     setSubmitting(false)
 
     if (error) {
-      toast.error('No se pudo registrar la venta', { description: error.message })
+      reportError('No se pudo registrar la venta', error)
       return
     }
 
