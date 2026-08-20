@@ -50,7 +50,7 @@ export function SuppliersTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">Proveedores de Del Campo.</p>
+        <p className="text-muted-foreground text-sm">Tus proveedores.</p>
         <Button onClick={openCreate} size="sm">
           <Plus /> Nuevo proveedor
         </Button>

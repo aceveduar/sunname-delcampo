@@ -50,7 +50,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Usuarios</h1>
-          <p className="text-muted-foreground text-sm">Roles y acceso del equipo de Del Campo.</p>
+          <p className="text-muted-foreground text-sm">Roles y acceso de tu equipo.</p>
         </div>
         <InviteUserDialog onInvited={refresh} />
       </div>

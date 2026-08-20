@@ -1,6 +1,13 @@
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
+import { useTenantSettings } from '@/features/settings/useTenantSettings'
 
 export type ReceiptLine = { name: string; detail: string; total: number }
 
@@ -32,6 +39,8 @@ export function ReceiptDialog({
   receipt: ReceiptData | null
   onClose: () => void
 }) {
+  const { businessName } = useTenantSettings()
+
   if (!receipt) return null
 
   return (
@@ -43,21 +52,31 @@ export function ReceiptDialog({
 
         <div id="receipt-print-area" className="flex flex-col gap-3 text-sm">
           <div className="text-center">
-            <p className="text-base font-semibold">Del Campo</p>
+            <p className="text-base font-semibold">{businessName}</p>
             <p className="text-muted-foreground text-xs">
-              {formatDateTime(receipt.createdAt)} · Folio {receipt.saleId.slice(0, 8)}
+              {formatDateTime(receipt.createdAt)} · Folio{' '}
+              {receipt.saleId.slice(0, 8)}
             </p>
-            {receipt.customerName && <p className="text-muted-foreground text-xs">Cliente: {receipt.customerName}</p>}
+            {receipt.customerName && (
+              <p className="text-muted-foreground text-xs">
+                Cliente: {receipt.customerName}
+              </p>
+            )}
           </div>
 
-          <div className="flex flex-col gap-1 border-y border-dashed border-border py-2">
+          <div className="border-border flex flex-col gap-1 border-y border-dashed py-2">
             {receipt.lines.map((line, index) => (
-              <div key={index} className="flex items-baseline justify-between gap-2">
+              <div
+                key={index}
+                className="flex items-baseline justify-between gap-2"
+              >
                 <div className="min-w-0">
                   <p className="truncate">{line.name}</p>
                   <p className="text-muted-foreground text-xs">{line.detail}</p>
                 </div>
-                <span className="shrink-0 font-medium">{formatCurrency(line.total)}</span>
+                <span className="shrink-0 font-medium">
+                  {formatCurrency(line.total)}
+                </span>
               </div>
             ))}
           </div>
@@ -86,7 +105,9 @@ export function ReceiptDialog({
             )}
           </div>
 
-          <p className="text-muted-foreground text-center text-xs">Gracias por su compra</p>
+          <p className="text-muted-foreground text-center text-xs">
+            Gracias por su compra
+          </p>
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">

@@ -625,6 +625,24 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_settings: {
+        Row: {
+          business_name: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          business_name?: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       units_of_measure: {
         Row: {
           active: boolean

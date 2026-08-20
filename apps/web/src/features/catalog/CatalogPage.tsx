@@ -12,7 +12,7 @@ export function CatalogPage({ role }: { role: Role | null }) {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Catálogo</h1>
         <p className="text-muted-foreground text-sm">
-          Productos, categorías y unidades de medida de Del Campo.
+          Productos, categorías y unidades de medida.
         </p>
       </div>
 

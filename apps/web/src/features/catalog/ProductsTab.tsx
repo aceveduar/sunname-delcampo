@@ -197,7 +197,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
-          Productos que se venden en Del Campo, con su precio, categoría y
+          Productos que vendes, con su precio, categoría y
           unidad.
         </p>
         {canManage && (

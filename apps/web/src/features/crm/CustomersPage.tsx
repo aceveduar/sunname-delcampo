@@ -50,7 +50,7 @@ export function CustomersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Clientes</h1>
-          <p className="text-muted-foreground text-sm">Clientes de Del Campo.</p>
+          <p className="text-muted-foreground text-sm">Tus clientes.</p>
         </div>
         <Button onClick={openCreate} size="sm">
           <Plus /> Nuevo cliente
