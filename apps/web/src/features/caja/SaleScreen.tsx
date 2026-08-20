@@ -203,14 +203,23 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
               <button
                 key={product.id}
                 onClick={() => handleProductClick(product)}
-                className="hover:bg-muted flex flex-col items-start gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors"
+                className="hover:bg-muted flex items-center gap-2.5 rounded-lg border border-border bg-card p-3 text-left transition-colors"
               >
-                <span className="font-medium">{product.name}</span>
-                <span className="text-muted-foreground text-sm">
-                  {product.sold_by_weight
-                    ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
-                    : formatCurrency(product.price)}
-                </span>
+                {product.image_url && (
+                  <img
+                    src={product.image_url}
+                    alt=""
+                    className="size-10 shrink-0 rounded-md border border-border object-cover"
+                  />
+                )}
+                <div className="flex flex-col items-start gap-0.5">
+                  <span className="font-medium">{product.name}</span>
+                  <span className="text-muted-foreground text-sm">
+                    {product.sold_by_weight
+                      ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
+                      : formatCurrency(product.price)}
+                  </span>
+                </div>
               </button>
             ))}
           </div>

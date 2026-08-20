@@ -1,11 +1,13 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Plus } from 'lucide-react'
+import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { toast } from 'sonner'
+import { ImageOff, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { supabase } from '@/lib/supabase'
 import {
   Select,
   SelectContent,
@@ -50,6 +52,10 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [trackInventory, setTrackInventory] = useState(true)
   const [soldByWeight, setSoldByWeight] = useState(false)
   const [search, setSearch] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [removeImage, setRemoveImage] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const activeUnits = units.filter((u) => u.active)
   const activeCategories = categories.filter((c) => c.active)
@@ -72,6 +78,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
     setUnitId(activeUnits[0]?.id ?? '')
     setTrackInventory(true)
     setSoldByWeight(false)
+    setImageFile(null)
+    setImagePreview(null)
+    setRemoveImage(false)
     setDialogOpen(true)
   }
 
@@ -83,7 +92,24 @@ export function ProductsTab({ role }: { role: Role | null }) {
     setUnitId(product.unit_id)
     setTrackInventory(product.track_inventory)
     setSoldByWeight(product.sold_by_weight)
+    setImageFile(null)
+    setImagePreview(product.image_url)
+    setRemoveImage(false)
     setDialogOpen(true)
+  }
+
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setRemoveImage(false)
+  }
+
+  const handleRemoveImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    setRemoveImage(true)
   }
 
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? '—'
@@ -93,7 +119,30 @@ export function ProductsTab({ role }: { role: Role | null }) {
     event.preventDefault()
     if (!unitId) return
 
-    const form = new FormData(event.currentTarget)
+    // event.currentTarget deja de ser válido en cuanto el handler cruza un
+    // await (el navegador lo limpia al terminar el despacho síncrono del
+    // evento) -- hay que capturarlo antes de subir la imagen.
+    const formEl = event.currentTarget
+
+    let imageUrl = removeImage ? null : (editing?.image_url ?? null)
+
+    if (imageFile) {
+      setUploading(true)
+      const ext = imageFile.name.split('.').pop() ?? 'jpg'
+      const path = `${crypto.randomUUID()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(path, imageFile)
+      setUploading(false)
+
+      if (uploadError) {
+        toast.error('No se pudo subir la imagen', { description: uploadError.message })
+        return
+      }
+      imageUrl = supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl
+    }
+
+    const form = new FormData(formEl)
     const sku = toCode(String(form.get('sku') ?? ''))
     const values = {
       sku: sku || null,
@@ -106,6 +155,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
       track_inventory: trackInventory,
       sold_by_weight: soldByWeight,
       price_per_100g: soldByWeight ? Number(form.get('price_per_100g') ?? 0) : null,
+      image_url: imageUrl,
     }
 
     const ok = editing ? await updateProduct(editing.id, values) : await createProduct(values)
@@ -142,6 +192,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12"></TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Categoría</TableHead>
@@ -154,7 +205,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
         <TableBody>
           {!loading && filteredProducts.length === 0 && (
             <TableRow>
-              <TableCell colSpan={canManage ? 7 : 6} className="text-muted-foreground text-center">
+              <TableCell colSpan={canManage ? 8 : 7} className="text-muted-foreground text-center">
                 {products.length === 0
                   ? 'Aún no hay productos en el catálogo.'
                   : `No se encontraron productos para "${search}".`}
@@ -163,6 +214,19 @@ export function ProductsTab({ role }: { role: Role | null }) {
           )}
           {pageItems.map((product) => (
             <TableRow key={product.id}>
+              <TableCell>
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt=""
+                    className="size-9 rounded-md border border-border object-cover"
+                  />
+                ) : (
+                  <div className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-md border border-border">
+                    <ImageOff className="size-4" />
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="font-medium">{product.name}</TableCell>
               <TableCell>{product.sku ?? '—'}</TableCell>
               <TableCell>{categoryName(product.category_id)}</TableCell>
@@ -211,6 +275,37 @@ export function ProductsTab({ role }: { role: Role | null }) {
             <DialogTitle>{editing ? 'Editar producto' : 'Nuevo producto'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="product-image">Foto (opcional)</Label>
+              <div className="flex items-center gap-3">
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt=""
+                    className="size-16 shrink-0 rounded-md border border-border object-cover"
+                  />
+                ) : (
+                  <div className="bg-muted text-muted-foreground flex size-16 shrink-0 items-center justify-center rounded-md border border-border">
+                    <ImageOff className="size-5" />
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5">
+                  <Input
+                    id="product-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="max-w-56"
+                  />
+                  {imagePreview && (
+                    <Button type="button" variant="ghost" size="sm" onClick={handleRemoveImage}>
+                      Quitar foto
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-name">Nombre</Label>
               <Input
@@ -356,8 +451,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={!unitId}>
-                {editing ? 'Guardar cambios' : 'Crear producto'}
+              <Button type="submit" disabled={!unitId || uploading}>
+                {uploading ? 'Subiendo imagen…' : editing ? 'Guardar cambios' : 'Crear producto'}
               </Button>
             </DialogFooter>
           </form>

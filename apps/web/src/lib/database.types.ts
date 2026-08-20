@@ -236,6 +236,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           name: string
           price: number
           price_per_100g: number | null
@@ -252,6 +253,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name: string
           price?: number
           price_per_100g?: number | null
@@ -268,6 +270,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           price?: number
           price_per_100g?: number | null
@@ -674,6 +677,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string | null
+          image_url: string | null
           name: string | null
           price: number | null
           price_per_100g: number | null
@@ -689,6 +693,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string | null
+          image_url?: string | null
           name?: string | null
           price?: number | null
           price_per_100g?: number | null
@@ -704,6 +709,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string | null
+          image_url?: string | null
           name?: string | null
           price?: number | null
           price_per_100g?: number | null
