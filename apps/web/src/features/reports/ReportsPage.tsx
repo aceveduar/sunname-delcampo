@@ -77,12 +77,23 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-muted-foreground text-sm font-normal">Total vendido</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">{formatCurrency(report.totalAmount)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-normal">Utilidad</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-baseline gap-2 text-2xl font-semibold">
+            {formatCurrency(report.margin)}
+            <span className="text-muted-foreground text-sm font-normal">
+              {report.marginPercent.toFixed(0)}%
+            </span>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader>

@@ -19,6 +19,7 @@ type CashSessionRow = {
 export function useSalesReport(from: string, to: string) {
   const [loading, setLoading] = useState(true)
   const [totalAmount, setTotalAmount] = useState(0)
+  const [totalCost, setTotalCost] = useState(0)
   const [saleCount, setSaleCount] = useState(0)
   const [byPaymentMethod, setByPaymentMethod] = useState<PaymentBreakdown[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
@@ -44,6 +45,7 @@ export function useSalesReport(from: string, to: string) {
 
       let payments: PaymentBreakdown[] = []
       let products: TopProduct[] = []
+      let cost = 0
 
       if (saleIds.length > 0) {
         const [{ data: paymentRows }, { data: itemRows }] = await Promise.all([
@@ -51,7 +53,10 @@ export function useSalesReport(from: string, to: string) {
             .from('sale_payments')
             .select('amount, payment_method:payment_methods(name)')
             .in('sale_id', saleIds),
-          supabase.from('sale_items').select('quantity, subtotal, product:products(name)').in('sale_id', saleIds),
+          supabase
+            .from('sale_items')
+            .select('quantity, subtotal, product_id, product:products(name)')
+            .in('sale_id', saleIds),
         ])
 
         const paymentMap = new Map<string, number>()
@@ -72,6 +77,15 @@ export function useSalesReport(from: string, to: string) {
           productMap.set(name, entry)
         }
         products = [...productMap.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 10)
+
+        // El costo es admin-only (CLAUDE.md §6) -- seguro pedirlo aquí porque
+        // Reportes ya está gateado a owner/local_admin a nivel de ruta.
+        const productIds = [...new Set((itemRows ?? []).map((r) => r.product_id))]
+        if (productIds.length > 0) {
+          const { data: costRows } = await supabase.from('products').select('id, cost').in('id', productIds)
+          const costMap = new Map((costRows ?? []).map((p) => [p.id, p.cost]))
+          cost = (itemRows ?? []).reduce((sum, r) => sum + r.quantity * (costMap.get(r.product_id) ?? 0), 0)
+        }
       }
 
       const { data: sessions } = await supabase
@@ -134,6 +148,7 @@ export function useSalesReport(from: string, to: string) {
       }
 
       setTotalAmount(total)
+      setTotalCost(cost)
       setSaleCount(sales?.length ?? 0)
       setByPaymentMethod(payments)
       setTopProducts(products)
@@ -145,9 +160,14 @@ export function useSalesReport(from: string, to: string) {
     load()
   }, [load])
 
+  const margin = totalAmount - totalCost
+
   return {
     loading,
     totalAmount,
+    totalCost,
+    margin,
+    marginPercent: totalAmount ? (margin / totalAmount) * 100 : 0,
     saleCount,
     avgTicket: saleCount ? totalAmount / saleCount : 0,
     byPaymentMethod,
