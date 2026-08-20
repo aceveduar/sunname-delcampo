@@ -81,6 +81,26 @@ export default {
       return Response.json({ message: error.message }, { status: 400 });
     }
 
+    // handle_new_user() siempre crea el perfil como 'cashier' sin importar
+    // los metadatos del signup (cierra el hueco de autorregistro como
+    // owner -- ver CLAUDE.md, auditoría de seguridad 2026-08-20). El rol
+    // real elegido aquí solo se aplica en este segundo paso, ya con la
+    // autorización de este endpoint validada arriba (solo owner/local_admin
+    // llegan hasta aquí, y ya se validó que no autoinviten a otro owner).
+    if (role !== "cashier") {
+      const { error: roleError } = await ctx.supabaseAdmin
+        .from("profiles")
+        .update({ role })
+        .eq("id", data.user!.id);
+
+      if (roleError) {
+        return Response.json(
+          { message: `Se invitó al usuario pero no se pudo asignar el rol: ${roleError.message}` },
+          { status: 500 },
+        );
+      }
+    }
+
     return Response.json({ user_id: data.user?.id });
   }),
 };

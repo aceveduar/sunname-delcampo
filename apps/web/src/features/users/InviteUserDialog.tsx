@@ -54,9 +54,13 @@ export function InviteUserDialog({ onInvited }: { onInvited: () => void | Promis
     setSubmitting(false)
 
     if (error || data?.message) {
-      toast.error('No se pudo invitar al usuario', {
-        description: data?.message ?? error?.message,
-      })
+      // El SDK solo trae un mensaje genérico en `error.message`
+      // ("Edge Function returned a non-2xx status code") -- el mensaje
+      // real que puso la función va en el cuerpo de la respuesta, que
+      // hay que leer aparte de `error.context`.
+      const detail =
+        data?.message ?? (await (error as { context?: Response })?.context?.json().catch(() => null))?.message ?? error?.message
+      toast.error('No se pudo invitar al usuario', { description: detail })
       return
     }
 
