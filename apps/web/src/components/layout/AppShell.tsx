@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { NavLink } from 'react-router-dom'
-import { BarChart3, Boxes, LogOut, Package, Store, Users } from 'lucide-react'
+import { Link, NavLink } from 'react-router-dom'
+import { BarChart3, Boxes, LogOut, Menu, Package, Store, Users } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +53,7 @@ export function AppShell({
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-8">
             <span className="text-sm font-semibold tracking-wide">Sunname ERP</span>
-            <nav className="flex items-center gap-1">
+            <nav className="hidden items-center gap-1 md:flex">
               {visibleNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
@@ -73,32 +73,54 @@ export function AppShell({
             </nav>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent" />
-              }
-            >
-              <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-6 items-center justify-center rounded-full text-xs font-semibold">
-                {initials(displayName)}
-              </span>
-              <span className="hidden sm:inline">{displayName}</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  <p className="font-medium">{displayName}</p>
-                  <p className="text-muted-foreground text-xs font-normal">
-                    {profile ? ROLE_LABELS[profile.role] : '—'}
-                  </p>
-                </DropdownMenuLabel>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => supabase.auth.signOut()} variant="destructive">
-                <LogOut /> Cerrar sesión
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button className="flex items-center justify-center rounded-md p-2 hover:bg-sidebar-accent md:hidden" />
+                }
+              >
+                <Menu className="size-5" />
+                <span className="sr-only">Menú</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuGroup>
+                  {visibleNavItems.map(({ to, label, icon: Icon }) => (
+                    <DropdownMenuItem key={to} render={<Link to={to} />}>
+                      <Icon /> {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent" />
+                }
+              >
+                <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-6 items-center justify-center rounded-full text-xs font-semibold">
+                  {initials(displayName)}
+                </span>
+                <span className="hidden sm:inline">{displayName}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <p className="font-medium">{displayName}</p>
+                    <p className="text-muted-foreground text-xs font-normal">
+                      {profile ? ROLE_LABELS[profile.role] : '—'}
+                    </p>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => supabase.auth.signOut()} variant="destructive">
+                  <LogOut /> Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
