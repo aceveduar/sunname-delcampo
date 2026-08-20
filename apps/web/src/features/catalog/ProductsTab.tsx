@@ -164,8 +164,11 @@ export function ProductsTab() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-sku">SKU (opcional)</Label>
+              <Label htmlFor="product-sku">SKU / código de barras (opcional)</Label>
               <Input id="product-sku" name="sku" defaultValue={editing?.sku ?? ''} placeholder="MOL-001" />
+              <p className="text-muted-foreground text-xs">
+                Si escaneas este código en Caja, el producto se agrega solo a la venta.
+              </p>
             </div>
 
             <div className="flex flex-col gap-1.5">

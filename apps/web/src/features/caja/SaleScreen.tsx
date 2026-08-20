@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -70,6 +70,23 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     setCart((prev) => prev.filter((line) => line.product.id !== productId))
   }
 
+  // Un lector de código de barras "escribe" el código y manda Enter — si
+  // lo que se acaba de teclear coincide exacto con un SKU, se agrega
+  // directo al carrito sin que el cajero tenga que buscar ni hacer clic.
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return
+    const query = search.trim().toLowerCase()
+    if (!query) return
+
+    const scanned = products.find((p) => p.active && p.sku?.toLowerCase() === query)
+    if (!scanned) return
+
+    event.preventDefault()
+    addToCart(scanned)
+    toast.success(`Agregado: ${scanned.name}`)
+    setSearch('')
+  }
+
   const resetSale = () => {
     setCart([])
     setCashReceived('')
@@ -110,7 +127,8 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar producto por nombre o SKU…"
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Buscar producto, o escanear su código de barras…"
             className="pl-8"
             autoFocus
           />
