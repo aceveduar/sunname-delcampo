@@ -13,13 +13,15 @@ export function useAuth() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
+      console.log('[diag] getSession resolved', { hasSession: !!data.session })
       setSession(data.session)
       setSessionLoading(false)
     })
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log('[diag] onAuthStateChange', event, { hasSession: !!newSession })
       setSession(newSession)
     })
 
@@ -27,6 +29,7 @@ export function useAuth() {
   }, [])
 
   useEffect(() => {
+    console.log('[diag] profile effect run', { hasSession: !!session })
     if (!session) {
       setProfile(null)
       setProfileLoading(false)
@@ -41,6 +44,7 @@ export function useAuth() {
       .eq('id', session.user.id)
       .single()
       .then(({ data, error }) => {
+        console.log('[diag] profile fetch resolved', { cancelled, hasData: !!data, role: data?.role, error: error?.message })
         if (cancelled) return
         if (error) console.error('No se pudo cargar el perfil:', error)
         setProfile(data)
