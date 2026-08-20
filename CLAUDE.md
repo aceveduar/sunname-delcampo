@@ -50,7 +50,7 @@ Módulos previstos desde ahora, con posibilidad de agregar más a futuro sin rom
 - **Inventario** — existencias, movimientos, múltiples unidades de medida, alertas de stock.
 - **Facturación** — cotizaciones, notas de venta, factura fiscal (CFDI 4.0 en fase avanzada).
 - **Caja** — apertura/cierre de caja, cobros, métodos de pago, arqueo.
-- _(Futuro, no bloqueante para el MVP)_: contabilidad, citas/agenda (útil para dentista/doctor), órdenes de trabajo/servicio, reportes avanzados, multi-almacén, **IA** (ver §14 — módulo opcional, no forma parte del núcleo).
+- _(Futuro, no bloqueante para el MVP)_: contabilidad, citas/agenda (útil para dentista/doctor), órdenes de trabajo/servicio, reportes avanzados, multi-almacén, **fotos de producto en Catálogo** (ayuda sobre todo en giros con muchas variantes parecidas, como Del Campo — chile Ancho/Guajillo/Pasilla en distintas presentaciones; técnicamente es solo un bucket de Supabase Storage + columna `image_url`, no requiere tocar lo ya construido), **IA** (ver §14 — módulo opcional, no forma parte del núcleo).
 
 Cada módulo debe poder activarse o desactivarse por negocio/tenant, y el núcleo no debe asumir que todos los módulos están presentes.
 
