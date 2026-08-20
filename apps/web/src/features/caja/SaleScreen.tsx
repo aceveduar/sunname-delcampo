@@ -17,6 +17,8 @@ import { supabase } from '@/lib/supabase'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
 import { useCustomers } from '@/features/crm/useCustomers'
 import { usePaymentMethods } from './usePaymentMethods'
+import { GranelDialog } from './GranelDialog'
+import { granelTotalFromWeightKg } from '@/lib/granel'
 
 type CartLine = { product: Product; quantity: number }
 
@@ -33,6 +35,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const [cashReceived, setCashReceived] = useState('')
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [submitting, setSubmitting] = useState(false)
+  const [granelProduct, setGranelProduct] = useState<Product | null>(null)
 
   const activeCustomers = customers.filter((c) => c.active)
 
@@ -48,13 +51,24 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       .slice(0, 20)
   }, [products, search])
 
-  const total = cart.reduce((sum, line) => sum + line.product.price * line.quantity, 0)
+  const lineTotal = (line: CartLine) =>
+    line.product.sold_by_weight
+      ? granelTotalFromWeightKg(line.quantity, line.product.price, line.product.price_per_100g ?? 0)
+      : line.product.price * line.quantity
+
+  const total = cart.reduce((sum, line) => sum + lineTotal(line), 0)
 
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId)
   const received = Number(cashReceived || 0)
   const change = selectedMethod?.code === 'cash' ? received - total : null
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, weightKg?: number) => {
+    if (product.sold_by_weight) {
+      // El peso siempre se captura exacto (báscula o monto pedido) --
+      // no tiene sentido "sumar 1" a un producto que se pesa.
+      setCart((prev) => [...prev, { product, quantity: weightKg ?? 0 }])
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((line) => line.product.id === product.id)
       if (existing) {
@@ -64,6 +78,14 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       }
       return [...prev, { product, quantity: 1 }]
     })
+  }
+
+  const handleProductClick = (product: Product) => {
+    if (product.sold_by_weight) {
+      setGranelProduct(product)
+      return
+    }
+    addToCart(product)
   }
 
   const setQuantity = (productId: string, quantity: number) => {
@@ -90,6 +112,11 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     if (!scanned) return
 
     event.preventDefault()
+    if (scanned.sold_by_weight) {
+      setGranelProduct(scanned)
+      setSearch('')
+      return
+    }
     addToCart(scanned)
     toast.success(`Agregado: ${scanned.name}`)
     setSearch('')
@@ -112,7 +139,6 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       p_items: cart.map((line) => ({
         product_id: line.product.id,
         quantity: line.quantity,
-        unit_price: line.product.price,
       })),
       p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
       p_customer_id: customerId === NO_CUSTOMER ? undefined : customerId,
@@ -157,11 +183,15 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             {results.map((product) => (
               <button
                 key={product.id}
-                onClick={() => addToCart(product)}
+                onClick={() => handleProductClick(product)}
                 className="hover:bg-muted flex flex-col items-start gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors"
               >
                 <span className="font-medium">{product.name}</span>
-                <span className="text-muted-foreground text-sm">{formatCurrency(product.price)}</span>
+                <span className="text-muted-foreground text-sm">
+                  {product.sold_by_weight
+                    ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
+                    : formatCurrency(product.price)}
+                </span>
               </button>
             ))}
           </div>
@@ -177,41 +207,49 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             <p className="text-muted-foreground text-sm">Aún no hay productos en la venta.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {cart.map((line) => (
-                <div key={line.product.id} className="flex items-center gap-2">
+              {cart.map((line, index) => (
+                <div key={`${line.product.id}-${index}`} className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{line.product.name}</p>
                     <p className="text-muted-foreground text-xs">
-                      {formatCurrency(line.product.price)} c/u
+                      {line.product.sold_by_weight
+                        ? `${Math.round(line.quantity * 1000)} g`
+                        : `${formatCurrency(line.product.price)} c/u`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      onClick={() => setQuantity(line.product.id, line.quantity - 1)}
-                    >
-                      <Minus />
-                    </Button>
-                    <span className="w-6 text-center text-sm">{line.quantity}</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      onClick={() => setQuantity(line.product.id, line.quantity + 1)}
-                    >
-                      <Plus />
-                    </Button>
-                  </div>
+                  {!line.product.sold_by_weight && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => setQuantity(line.product.id, line.quantity - 1)}
+                      >
+                        <Minus />
+                      </Button>
+                      <span className="w-6 text-center text-sm">{line.quantity}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => setQuantity(line.product.id, line.quantity + 1)}
+                      >
+                        <Plus />
+                      </Button>
+                    </div>
+                  )}
                   <span className="w-16 text-right text-sm font-medium">
-                    {formatCurrency(line.product.price * line.quantity)}
+                    {formatCurrency(lineTotal(line))}
                   </span>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => removeLine(line.product.id)}
+                    onClick={() =>
+                      line.product.sold_by_weight
+                        ? setCart((prev) => prev.filter((_, i) => i !== index))
+                        : removeLine(line.product.id)
+                    }
                   >
                     <Trash2 />
                   </Button>
@@ -300,6 +338,20 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
           </Button>
         </CardContent>
       </Card>
+
+      <GranelDialog
+        product={granelProduct}
+        onOpenChange={(open) => {
+          if (!open) setGranelProduct(null)
+        }}
+        onConfirm={(weightKg) => {
+          if (granelProduct) {
+            addToCart(granelProduct, weightKg)
+            toast.success(`Agregado: ${granelProduct.name}`)
+          }
+          setGranelProduct(null)
+        }}
+      />
     </div>
   )
 }

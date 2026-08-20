@@ -48,6 +48,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
   const [trackInventory, setTrackInventory] = useState(true)
+  const [soldByWeight, setSoldByWeight] = useState(false)
   const [search, setSearch] = useState('')
 
   const activeUnits = units.filter((u) => u.active)
@@ -70,6 +71,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
     setCategoryId(NO_CATEGORY)
     setUnitId(activeUnits[0]?.id ?? '')
     setTrackInventory(true)
+    setSoldByWeight(false)
     setDialogOpen(true)
   }
 
@@ -80,6 +82,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
     setCategoryId(product.category_id ?? NO_CATEGORY)
     setUnitId(product.unit_id)
     setTrackInventory(product.track_inventory)
+    setSoldByWeight(product.sold_by_weight)
     setDialogOpen(true)
   }
 
@@ -101,6 +104,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
       price: Number(form.get('price') ?? 0),
       cost: Number(form.get('cost') ?? 0),
       track_inventory: trackInventory,
+      sold_by_weight: soldByWeight,
+      price_per_100g: soldByWeight ? Number(form.get('price_per_100g') ?? 0) : null,
     }
 
     const ok = editing ? await updateProduct(editing.id, values) : await createProduct(values)
@@ -162,7 +167,16 @@ export function ProductsTab({ role }: { role: Role | null }) {
               <TableCell>{product.sku ?? '—'}</TableCell>
               <TableCell>{categoryName(product.category_id)}</TableCell>
               <TableCell>{unitCode(product.unit_id)}</TableCell>
-              <TableCell>{formatCurrency(product.price)}</TableCell>
+              <TableCell>
+                {product.sold_by_weight ? (
+                  <span>
+                    {formatCurrency(product.price)}/kg ·{' '}
+                    {formatCurrency(product.price_per_100g ?? 0)}/100g
+                  </span>
+                ) : (
+                  formatCurrency(product.price)
+                )}
+              </TableCell>
               <TableCell>
                 <Badge variant={product.active ? 'default' : 'secondary'}>
                   {product.active ? 'Activo' : 'Inactivo'}
@@ -273,7 +287,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-price">Precio de venta</Label>
+                <Label htmlFor="product-price">
+                  {soldByWeight ? 'Precio por kilo' : 'Precio de venta'}
+                </Label>
                 <Input
                   id="product-price"
                   name="price"
@@ -285,7 +301,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-cost">Costo</Label>
+                <Label htmlFor="product-cost">Costo{soldByWeight ? ' por kilo' : ''}</Label>
                 <Input
                   key={editing?.id ?? 'new'}
                   id="product-cost"
@@ -298,6 +314,36 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 />
               </div>
             </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">Vende a granel (por peso)</p>
+                <p className="text-muted-foreground text-xs">
+                  En Caja se cobra por gramos pedidos o por monto en pesos, no por pieza.
+                  Requiere unidad kg.
+                </p>
+              </div>
+              <Switch checked={soldByWeight} onCheckedChange={setSoldByWeight} />
+            </div>
+
+            {soldByWeight && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="product-price-per-100g">Precio de menudeo (100g)</Label>
+                <Input
+                  id="product-price-per-100g"
+                  name="price_per_100g"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={editing?.price_per_100g ?? 0}
+                  required
+                />
+                <p className="text-muted-foreground text-xs">
+                  Tarifa para cuando se pide menos de 1kg. Se aplica el precio por kilo desde 1kg
+                  en adelante.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
               <div>

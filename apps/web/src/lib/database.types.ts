@@ -238,7 +238,9 @@ export type Database = {
           id: string
           name: string
           price: number
+          price_per_100g: number | null
           sku: string | null
+          sold_by_weight: boolean
           track_inventory: boolean
           unit_id: string
           updated_at: string
@@ -252,7 +254,9 @@ export type Database = {
           id?: string
           name: string
           price?: number
+          price_per_100g?: number | null
           sku?: string | null
+          sold_by_weight?: boolean
           track_inventory?: boolean
           unit_id: string
           updated_at?: string
@@ -266,7 +270,9 @@ export type Database = {
           id?: string
           name?: string
           price?: number
+          price_per_100g?: number | null
           sku?: string | null
+          sold_by_weight?: boolean
           track_inventory?: boolean
           unit_id?: string
           updated_at?: string
@@ -670,7 +676,9 @@ export type Database = {
           id: string | null
           name: string | null
           price: number | null
+          price_per_100g: number | null
           sku: string | null
+          sold_by_weight: boolean | null
           track_inventory: boolean | null
           unit_id: string | null
           updated_at: string | null
@@ -683,7 +691,9 @@ export type Database = {
           id?: string | null
           name?: string | null
           price?: number | null
+          price_per_100g?: number | null
           sku?: string | null
+          sold_by_weight?: boolean | null
           track_inventory?: boolean | null
           unit_id?: string | null
           updated_at?: string | null
@@ -696,7 +706,9 @@ export type Database = {
           id?: string | null
           name?: string | null
           price?: number | null
+          price_per_100g?: number | null
           sku?: string | null
+          sold_by_weight?: boolean | null
           track_inventory?: boolean | null
           unit_id?: string | null
           updated_at?: string | null
