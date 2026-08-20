@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { CajaPage } from '@/features/caja/CajaPage'
+import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
 
@@ -31,6 +32,7 @@ function App() {
         <Route path="/" element={<Navigate to="/caja" replace />} />
         <Route path="/caja" element={<CajaPage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
+        <Route path="/inventario" element={<InventoryPage role={profile?.role ?? null} />} />
         <Route path="*" element={<Navigate to="/caja" replace />} />
       </Routes>
     </AppShell>

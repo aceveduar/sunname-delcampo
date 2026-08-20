@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { NavLink } from 'react-router-dom'
-import { LogOut, Package, Store } from 'lucide-react'
+import { Boxes, LogOut, Package, Store } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,7 @@ const ROLE_LABELS: Record<Profile['role'], string> = {
 const NAV_ITEMS = [
   { to: '/caja', label: 'Caja', icon: Store },
   { to: '/catalogo', label: 'Catálogo', icon: Package },
+  { to: '/inventario', label: 'Inventario', icon: Boxes },
 ]
 
 function initials(name: string) {
