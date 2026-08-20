@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sunname ERP</title>
+    <script type="text/javascript">
+      // GitHub Pages sirve archivos estáticos y no sabe qué hacer con rutas
+      // internas de la SPA (p. ej. /sunname-delcampo/caja) — cualquier ruta
+      // que no sea un archivo real cae aquí. Redirige codificando la ruta
+      // real en la query string; index.html la reconstruye al cargar.
+      // Patrón estándar: https://github.com/rafgraph/spa-github-pages
+      var pathSegmentsToKeep = 1 // "/sunname-delcampo"
+
+      var l = window.location
+      l.replace(
+        l.protocol +
+          '//' +
+          l.hostname +
+          (l.port ? ':' + l.port : '') +
+          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') +
+          '/?/' +
+          l.pathname
+            .slice(1)
+            .split('/')
+            .slice(pathSegmentsToKeep)
+            .join('/')
+            .replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash,
+      )
+    </script>
+  </head>
+  <body></body>
+</html>
