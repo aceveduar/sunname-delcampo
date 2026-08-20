@@ -278,6 +278,103 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_order_items: {
+        Row: {
+          id: string
+          product_id: string
+          purchase_order_id: string
+          quantity: number
+          subtotal: number
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          purchase_order_id: string
+          quantity: number
+          subtotal: number
+          unit_cost: number
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          purchase_order_id?: string
+          quantity?: number
+          subtotal?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          received_at: string | null
+          received_by: string | null
+          status: Database["public"]["Enums"]["purchase_order_status"]
+          supplier_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_order_status"]
+          supplier_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_order_status"]
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           id: string
@@ -404,6 +501,39 @@ export type Database = {
           },
         ]
       }
+      suppliers: {
+        Row: {
+          active: boolean
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       tenant_modules: {
         Row: {
           config: Json
@@ -478,10 +608,15 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      receive_purchase_order: {
+        Args: { p_purchase_order_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       cash_session_status: "open" | "closed"
       inventory_movement_type: "in" | "out" | "adjustment"
+      purchase_order_status: "draft" | "ordered" | "received" | "cancelled"
       sale_status: "completed" | "voided"
       user_role: "owner" | "local_admin" | "cashier" | "accountant" | "viewer"
     }
@@ -616,6 +751,7 @@ export const Constants = {
     Enums: {
       cash_session_status: ["open", "closed"],
       inventory_movement_type: ["in", "out", "adjustment"],
+      purchase_order_status: ["draft", "ordered", "received", "cancelled"],
       sale_status: ["completed", "voided"],
       user_role: ["owner", "local_admin", "cashier", "accountant", "viewer"],
     },

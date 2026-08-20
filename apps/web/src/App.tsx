@@ -4,6 +4,7 @@ import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { CajaPage } from '@/features/caja/CajaPage'
 import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
+import { PurchasingPage } from '@/features/purchasing/PurchasingPage'
 import { UsersPage } from '@/features/users/UsersPage'
 import { isAdminRole } from '@/lib/roles'
 import { LoginForm } from './components/LoginForm'
@@ -38,6 +39,10 @@ function App() {
         <Route path="/caja" element={<CajaPage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/inventario" element={<InventoryPage role={profile?.role ?? null} />} />
+        <Route
+          path="/compras"
+          element={isAdmin ? <PurchasingPage /> : <Navigate to="/caja" replace />}
+        />
         <Route
           path="/reportes"
           element={isAdmin ? <ReportsPage /> : <Navigate to="/caja" replace />}
