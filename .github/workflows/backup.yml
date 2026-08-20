@@ -24,13 +24,23 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref pancbbjhhovxjnzyentb --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
 
-      - name: Generar respaldo (esquema + datos)
+      - name: Generar respaldo de esquema
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase db dump --linked --password "${{ secrets.SUPABASE_DB_PASSWORD }}" --file backup.sql
+        run: supabase db dump --linked --password "${{ secrets.SUPABASE_DB_PASSWORD }}" --file schema.sql
+
+      - name: Generar respaldo de datos
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        # supabase db dump sin --data-only solo trae el esquema (tablas,
+        # políticas, funciones) -- los datos reales (productos, ventas,
+        # clientes) necesitan esta segunda pasada aparte.
+        run: supabase db dump --linked --data-only --password "${{ secrets.SUPABASE_DB_PASSWORD }}" --file data.sql
 
       - uses: actions/upload-artifact@v4
         with:
           name: respaldo-del-campo-${{ github.run_id }}
-          path: backup.sql
+          path: |
+            schema.sql
+            data.sql
           retention-days: 90
