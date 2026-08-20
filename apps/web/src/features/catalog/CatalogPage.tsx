@@ -1,9 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { Database } from '@/lib/database.types'
 import { ProductsTab } from './ProductsTab'
 import { CategoriesTab } from './CategoriesTab'
 import { UnitsTab } from './UnitsTab'
 
-export function CatalogPage() {
+type Role = Database['public']['Enums']['user_role']
+
+export function CatalogPage({ role }: { role: Role | null }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -20,7 +23,7 @@ export function CatalogPage() {
           <TabsTrigger value="units">Unidades</TabsTrigger>
         </TabsList>
         <TabsContent value="products">
-          <ProductsTab />
+          <ProductsTab role={role} />
         </TabsContent>
         <TabsContent value="categories">
           <CategoriesTab />

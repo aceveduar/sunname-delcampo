@@ -38,7 +38,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/caja" replace />} />
         <Route path="/caja" element={<CajaPage />} />
-        <Route path="/catalogo" element={<CatalogPage />} />
+        <Route path="/catalogo" element={<CatalogPage role={profile?.role ?? null} />} />
         <Route path="/inventario" element={<InventoryPage role={profile?.role ?? null} />} />
         <Route path="/clientes" element={<CustomersPage />} />
         <Route

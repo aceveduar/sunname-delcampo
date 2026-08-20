@@ -25,18 +25,25 @@ import { PaginationControls } from '@/components/PaginationControls'
 import { formatCurrency } from '@/lib/currency'
 import { toCode, toTitleCase } from '@/lib/text'
 import { usePagination } from '@/lib/usePagination'
+import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
 
 const NO_CATEGORY = 'none'
 
-export function ProductsTab() {
-  const { products, loading, createProduct, updateProduct, toggleActive } = useProducts()
+type Role = Database['public']['Enums']['user_role']
+const CAN_MANAGE_PRODUCTS: Role[] = ['owner', 'local_admin']
+
+export function ProductsTab({ role }: { role: Role | null }) {
+  const { products, loading, createProduct, updateProduct, toggleActive, fetchCost } = useProducts()
   const { categories } = useCategories()
   const { units } = useUnits()
 
+  const canManage = role !== null && CAN_MANAGE_PRODUCTS.includes(role)
+
   const [editing, setEditing] = useState<Product | null>(null)
+  const [editingCost, setEditingCost] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
@@ -59,14 +66,17 @@ export function ProductsTab() {
 
   const openCreate = () => {
     setEditing(null)
+    setEditingCost(0)
     setCategoryId(NO_CATEGORY)
     setUnitId(activeUnits[0]?.id ?? '')
     setTrackInventory(true)
     setDialogOpen(true)
   }
 
-  const openEdit = (product: Product) => {
+  const openEdit = async (product: Product) => {
+    const cost = await fetchCost(product.id)
     setEditing(product)
+    setEditingCost(cost ?? 0)
     setCategoryId(product.category_id ?? NO_CATEGORY)
     setUnitId(product.unit_id)
     setTrackInventory(product.track_inventory)
@@ -103,9 +113,11 @@ export function ProductsTab() {
         <p className="text-muted-foreground text-sm">
           Productos que se venden en Del Campo, con su precio, categoría y unidad.
         </p>
-        <Button onClick={openCreate} size="sm" disabled={activeUnits.length === 0}>
-          <Plus /> Nuevo producto
-        </Button>
+        {canManage && (
+          <Button onClick={openCreate} size="sm" disabled={activeUnits.length === 0}>
+            <Plus /> Nuevo producto
+          </Button>
+        )}
       </div>
 
       {activeUnits.length === 0 && (
@@ -131,13 +143,13 @@ export function ProductsTab() {
             <TableHead>Unidad</TableHead>
             <TableHead>Precio</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            {canManage && <TableHead className="text-right">Acciones</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {!loading && filteredProducts.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-muted-foreground text-center">
+              <TableCell colSpan={canManage ? 7 : 6} className="text-muted-foreground text-center">
                 {products.length === 0
                   ? 'Aún no hay productos en el catálogo.'
                   : `No se encontraron productos para "${search}".`}
@@ -156,14 +168,16 @@ export function ProductsTab() {
                   {product.active ? 'Activo' : 'Inactivo'}
                 </Badge>
               </TableCell>
-              <TableCell className="flex justify-end gap-2 text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(product)}>
-                  Editar
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => toggleActive(product)}>
-                  {product.active ? 'Desactivar' : 'Activar'}
-                </Button>
-              </TableCell>
+              {canManage && (
+                <TableCell className="flex justify-end gap-2 text-right">
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(product)}>
+                    Editar
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => toggleActive(product)}>
+                    {product.active ? 'Desactivar' : 'Activar'}
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -273,12 +287,13 @@ export function ProductsTab() {
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="product-cost">Costo</Label>
                 <Input
+                  key={editing?.id ?? 'new'}
                   id="product-cost"
                   name="cost"
                   type="number"
                   step="0.01"
                   min="0"
-                  defaultValue={editing?.cost ?? 0}
+                  defaultValue={editingCost}
                   required
                 />
               </div>
