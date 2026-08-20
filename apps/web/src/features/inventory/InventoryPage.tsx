@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import { PaginationControls } from '@/components/PaginationControls'
 import { useUnits } from '@/features/catalog/useUnits'
 import type { Database } from '@/lib/database.types'
+import { usePagination } from '@/lib/usePagination'
 import { useInventoryStock } from './useInventoryStock'
 import { useRegisterMovement } from './useRegisterMovement'
 import { NewMovementDialog } from './NewMovementDialog'
@@ -30,6 +32,9 @@ export function InventoryPage({ role }: { role: Role | null }) {
         row.product.sku?.toLowerCase().includes(query),
     )
   }, [rows, search])
+
+  const { pageItems, page, setPage, totalPages, totalItems, pageSize } =
+    usePagination(filteredRows)
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,7 +74,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
               </TableCell>
             </TableRow>
           )}
-          {filteredRows.map((row) => (
+          {pageItems.map((row) => (
             <TableRow key={row.product.id}>
               <TableCell className="font-medium">{row.product.name}</TableCell>
               <TableCell>{row.product.sku ?? '—'}</TableCell>
@@ -92,6 +97,14 @@ export function InventoryPage({ role }: { role: Role | null }) {
           ))}
         </TableBody>
       </Table>
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
     </div>
   )
 }

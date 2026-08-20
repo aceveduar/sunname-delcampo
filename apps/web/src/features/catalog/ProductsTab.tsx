@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,8 +21,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { PaginationControls } from '@/components/PaginationControls'
 import { formatCurrency } from '@/lib/currency'
 import { toCode, toTitleCase } from '@/lib/text'
+import { usePagination } from '@/lib/usePagination'
 import { useProducts, type Product } from './useProducts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
@@ -39,9 +41,21 @@ export function ProductsTab() {
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
   const [trackInventory, setTrackInventory] = useState(true)
+  const [search, setSearch] = useState('')
 
   const activeUnits = units.filter((u) => u.active)
   const activeCategories = categories.filter((c) => c.active)
+
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return products
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query),
+    )
+  }, [products, search])
+
+  const { pageItems, page, setPage, totalPages, totalItems, pageSize } =
+    usePagination(filteredProducts)
 
   const openCreate = () => {
     setEditing(null)
@@ -101,6 +115,13 @@ export function ProductsTab() {
         </p>
       )}
 
+      <Input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Buscar producto por nombre o SKU…"
+        className="max-w-sm"
+      />
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -114,14 +135,16 @@ export function ProductsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {!loading && products.length === 0 && (
+          {!loading && filteredProducts.length === 0 && (
             <TableRow>
               <TableCell colSpan={7} className="text-muted-foreground text-center">
-                Aún no hay productos en el catálogo.
+                {products.length === 0
+                  ? 'Aún no hay productos en el catálogo.'
+                  : `No se encontraron productos para "${search}".`}
               </TableCell>
             </TableRow>
           )}
-          {products.map((product) => (
+          {pageItems.map((product) => (
             <TableRow key={product.id}>
               <TableCell className="font-medium">{product.name}</TableCell>
               <TableCell>{product.sku ?? '—'}</TableCell>
@@ -145,6 +168,14 @@ export function ProductsTab() {
           ))}
         </TableBody>
       </Table>
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
