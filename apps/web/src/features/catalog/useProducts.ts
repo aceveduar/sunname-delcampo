@@ -23,17 +23,7 @@ export function useProducts() {
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    console.log('[diag] products refresh start')
-    const { data, error, status, statusText } = await supabase
-      .from('product_catalog')
-      .select('*')
-      .order('name')
-    console.log('[diag] products refresh result', {
-      status,
-      statusText,
-      error,
-      count: data?.length,
-    })
+    const { data, error } = await supabase.from('product_catalog').select('*').order('name')
     if (error) {
       toast.error('No se pudieron cargar los productos', { description: error.message })
     } else {
