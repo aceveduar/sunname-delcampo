@@ -98,32 +98,34 @@ export function AppShell({
   return (
     <div className="bg-background min-h-screen">
       <header className="bg-sidebar text-sidebar-foreground">
-        <div className="flex h-14 items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-8">
-            <span className="text-sm font-semibold tracking-wide">
-              Sunname ERP
-            </span>
-            <nav className="hidden items-center gap-1 md:flex">
-              {visibleNavItems.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                    }`
-                  }
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </NavLink>
-              ))}
-            </nav>
-          </div>
+        <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6">
+          <span className="justify-self-start text-sm font-semibold tracking-wide">
+            Sunname ERP
+          </span>
 
-          <div className="flex items-center gap-1">
+          {/* Centrada a propósito: así se ve igual de intencional con 3
+              módulos activos que con 8 -- no se amontona a la izquierda
+              dejando un vacío grande de un solo lado. */}
+          <nav className="hidden items-center gap-1 justify-self-center md:flex">
+            {visibleNavItems.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  }`
+                }
+              >
+                <Icon className="size-4" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-1 justify-self-end">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -153,7 +155,9 @@ export function AppShell({
                 <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-6 items-center justify-center rounded-full text-xs font-semibold">
                   {initials(displayName)}
                 </span>
-                <span className="hidden sm:inline">{displayName}</span>
+                <span className="hidden max-w-48 truncate sm:inline">
+                  {displayName}
+                </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuGroup>

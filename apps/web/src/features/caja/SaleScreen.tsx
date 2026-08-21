@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,13 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Un cajero escaneando seguido no debe tener que volver a hacer clic en
+  // el buscador después de cada producto -- el foco regresa solo.
+  const refocusSearch = () => {
+    setTimeout(() => searchInputRef.current?.focus(), 0)
+  }
 
   const activeCustomers = customers.filter((c) => c.active)
 
@@ -95,6 +102,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       return
     }
     addToCart(product)
+    refocusSearch()
   }
 
   const setQuantity = (productId: string, quantity: number) => {
@@ -193,6 +201,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
         <div className="relative">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
+            ref={searchInputRef}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             onKeyDown={handleSearchKeyDown}
@@ -414,6 +423,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             toast.success(`Agregado: ${granelProduct.name}`)
           }
           setGranelProduct(null)
+          refocusSearch()
         }}
       />
 
