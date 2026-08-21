@@ -427,224 +427,230 @@ export function ProductsTab({ role }: { role: Role | null }) {
           </DialogHeader>
           <form
             onSubmit={handleSubmit}
-            className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1"
+            className="flex max-h-[70vh] flex-col overflow-hidden"
           >
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-image">Foto (opcional)</Label>
-              <div className="flex items-center gap-3">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt=""
-                    className="border-border size-16 shrink-0 rounded-md border object-cover"
-                  />
-                ) : (
-                  <div className="bg-muted text-muted-foreground border-border flex size-16 shrink-0 items-center justify-center rounded-md border">
-                    <ImageOff className="size-5" />
-                  </div>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  <input
-                    ref={imageInputRef}
-                    id="product-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => imageInputRef.current?.click()}
-                  >
-                    {imagePreview ? 'Cambiar foto' : 'Subir foto'}
-                  </Button>
-                  {imagePreview && (
+            <div className="-mx-1 flex flex-col gap-4 overflow-x-hidden overflow-y-auto px-1 py-1">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="product-image">Foto (opcional)</Label>
+                <div className="flex items-center gap-3">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt=""
+                      className="border-border size-16 shrink-0 rounded-md border object-cover"
+                    />
+                  ) : (
+                    <div className="bg-muted text-muted-foreground border-border flex size-16 shrink-0 items-center justify-center rounded-md border">
+                      <ImageOff className="size-5" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <input
+                      ref={imageInputRef}
+                      id="product-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={handleRemoveImage}
+                      onClick={() => imageInputRef.current?.click()}
                     >
-                      Quitar foto
+                      {imagePreview ? 'Cambiar foto' : 'Subir foto'}
                     </Button>
-                  )}
+                    {imagePreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRemoveImage}
+                      >
+                        Quitar foto
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-name">Nombre</Label>
-              <Input
-                id="product-name"
-                name="name"
-                defaultValue={editing?.name}
-                placeholder="Mole rojo"
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-sku">
-                SKU / código de barras (opcional)
-              </Label>
-              <Input
-                id="product-sku"
-                name="sku"
-                defaultValue={editing?.sku ?? ''}
-                placeholder="MOL-001"
-              />
-              <p className="text-muted-foreground text-xs">
-                Si escaneas este código en Caja, el producto se agrega solo a la
-                venta.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-description">
-                Descripción (opcional)
-              </Label>
-              <Textarea
-                id="product-description"
-                name="description"
-                defaultValue={editing?.description ?? ''}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Categoría</Label>
-                <Select
-                  items={[
-                    { value: NO_CATEGORY, label: 'Sin categoría' },
-                    ...activeCategories.map((c) => ({
-                      value: c.id,
-                      label: c.name,
-                    })),
-                  ]}
-                  value={categoryId}
-                  onValueChange={(value) => setCategoryId(value ?? NO_CATEGORY)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sin categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
-                    {activeCategories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Unidad</Label>
-                <Select
-                  items={activeUnits.map((u) => ({
-                    value: u.id,
-                    label: `${u.code} — ${u.name}`,
-                  }))}
-                  value={unitId}
-                  onValueChange={(value) => setUnitId(value ?? '')}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Unidad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeUnits.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.code} — {u.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-price">
-                  {soldByWeight ? 'Precio por kilo' : 'Precio de venta'}
-                </Label>
+                <Label htmlFor="product-name">Nombre</Label>
                 <Input
-                  id="product-price"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  defaultValue={editing?.price ?? 0}
+                  id="product-name"
+                  name="name"
+                  defaultValue={editing?.name}
+                  placeholder="Mole rojo"
                   required
                 />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-cost">
-                  Costo{soldByWeight ? ' por kilo' : ''}
+                <Label htmlFor="product-sku">
+                  SKU / código de barras (opcional)
                 </Label>
                 <Input
-                  key={editing?.id ?? 'new'}
-                  id="product-cost"
-                  name="cost"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  defaultValue={editingCost}
-                  required
+                  id="product-sku"
+                  name="sku"
+                  defaultValue={editing?.sku ?? ''}
+                  placeholder="MOL-001"
+                />
+                <p className="text-muted-foreground text-xs">
+                  Si escaneas este código en Caja, el producto se agrega solo a
+                  la venta.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="product-description">
+                  Descripción (opcional)
+                </Label>
+                <Textarea
+                  id="product-description"
+                  name="description"
+                  defaultValue={editing?.description ?? ''}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Categoría</Label>
+                  <Select
+                    items={[
+                      { value: NO_CATEGORY, label: 'Sin categoría' },
+                      ...activeCategories.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                      })),
+                    ]}
+                    value={categoryId}
+                    onValueChange={(value) =>
+                      setCategoryId(value ?? NO_CATEGORY)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sin categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
+                      {activeCategories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label>Unidad</Label>
+                  <Select
+                    items={activeUnits.map((u) => ({
+                      value: u.id,
+                      label: `${u.code} — ${u.name}`,
+                    }))}
+                    value={unitId}
+                    onValueChange={(value) => setUnitId(value ?? '')}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Unidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeUnits.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.code} — {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="product-price">
+                    {soldByWeight ? 'Precio por kilo' : 'Precio de venta'}
+                  </Label>
+                  <Input
+                    id="product-price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    defaultValue={editing?.price ?? 0}
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="product-cost">
+                    Costo{soldByWeight ? ' por kilo' : ''}
+                  </Label>
+                  <Input
+                    key={editing?.id ?? 'new'}
+                    id="product-cost"
+                    name="cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    defaultValue={editingCost}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium">
+                    Vende a granel (por peso)
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    En Caja se cobra por gramos pedidos o por monto en pesos, no
+                    por pieza. Requiere unidad kg.
+                  </p>
+                </div>
+                <Switch
+                  checked={soldByWeight}
+                  onCheckedChange={setSoldByWeight}
+                />
+              </div>
+
+              {soldByWeight && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="product-price-per-100g">
+                    Precio de menudeo (100g)
+                  </Label>
+                  <Input
+                    id="product-price-per-100g"
+                    name="price_per_100g"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    defaultValue={editing?.price_per_100g ?? 0}
+                    required
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Tarifa para cuando se pide menos de 1kg. Se aplica el precio
+                    por kilo desde 1kg en adelante.
+                  </p>
+                </div>
+              )}
+
+              <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium">Controlar inventario</p>
+                  <p className="text-muted-foreground text-xs">
+                    Descuenta existencias en cada venta y aparece en Inventario.
+                  </p>
+                </div>
+                <Switch
+                  checked={trackInventory}
+                  onCheckedChange={setTrackInventory}
                 />
               </div>
             </div>
 
-            <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">Vende a granel (por peso)</p>
-                <p className="text-muted-foreground text-xs">
-                  En Caja se cobra por gramos pedidos o por monto en pesos, no
-                  por pieza. Requiere unidad kg.
-                </p>
-              </div>
-              <Switch
-                checked={soldByWeight}
-                onCheckedChange={setSoldByWeight}
-              />
-            </div>
-
-            {soldByWeight && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-price-per-100g">
-                  Precio de menudeo (100g)
-                </Label>
-                <Input
-                  id="product-price-per-100g"
-                  name="price_per_100g"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  defaultValue={editing?.price_per_100g ?? 0}
-                  required
-                />
-                <p className="text-muted-foreground text-xs">
-                  Tarifa para cuando se pide menos de 1kg. Se aplica el precio
-                  por kilo desde 1kg en adelante.
-                </p>
-              </div>
-            )}
-
-            <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">Controlar inventario</p>
-                <p className="text-muted-foreground text-xs">
-                  Descuenta existencias en cada venta y aparece en Inventario.
-                </p>
-              </div>
-              <Switch
-                checked={trackInventory}
-                onCheckedChange={setTrackInventory}
-              />
-            </div>
-
-            <DialogFooter>
+            <DialogFooter className="border-border shrink-0 border-t pt-4">
               <Button type="submit" disabled={!unitId || uploading}>
                 {uploading
                   ? 'Subiendo imagen…'
