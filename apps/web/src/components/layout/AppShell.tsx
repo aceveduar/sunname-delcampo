@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   Boxes,
@@ -88,6 +88,7 @@ export function AppShell({
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
   const isAdmin = isAdminRole(profile?.role)
   const isOwner = isOwnerRole(profile?.role)
+  const location = useLocation()
   const visibleNavItems = NAV_ITEMS.filter(
     (item) =>
       (!item.adminOnly || isAdmin) &&
@@ -137,11 +138,22 @@ export function AppShell({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuGroup>
-                  {visibleNavItems.map(({ to, label, icon: Icon }) => (
-                    <DropdownMenuItem key={to} render={<Link to={to} />}>
-                      <Icon /> {label}
-                    </DropdownMenuItem>
-                  ))}
+                  {visibleNavItems.map(({ to, label, icon: Icon }) => {
+                    const isActive = location.pathname === to
+                    return (
+                      <DropdownMenuItem
+                        key={to}
+                        render={<Link to={to} />}
+                        className={
+                          isActive
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground focus:bg-sidebar-primary focus:text-sidebar-primary-foreground'
+                            : undefined
+                        }
+                      >
+                        <Icon /> {label}
+                      </DropdownMenuItem>
+                    )
+                  })}
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
