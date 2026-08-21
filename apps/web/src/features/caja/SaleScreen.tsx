@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,6 +39,16 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Cada negocio marca cuál es su método de pago más usado (es_default en
+  // payment_methods, configurable por tenant) -- no se asume "efectivo"
+  // en el código, se lee de los datos de cada negocio.
+  const defaultMethodId =
+    paymentMethods.find((m) => m.is_default)?.id ?? paymentMethods[0]?.id ?? ''
+
+  useEffect(() => {
+    if (!paymentMethodId && defaultMethodId) setPaymentMethodId(defaultMethodId)
+  }, [defaultMethodId, paymentMethodId])
 
   // Una búsqueda = un producto agregado = listo para la siguiente -- igual
   // sea por clic o por escaneo, el buscador se limpia y recupera el foco
@@ -148,7 +158,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const resetSale = () => {
     setCart([])
     setCashReceived('')
-    setPaymentMethodId('')
+    setPaymentMethodId(defaultMethodId)
     setCustomerId(NO_CUSTOMER)
   }
 

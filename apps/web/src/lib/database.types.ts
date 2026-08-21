@@ -183,18 +183,21 @@ export type Database = {
           active: boolean
           code: string
           id: string
+          is_default: boolean
           name: string
         }
         Insert: {
           active?: boolean
           code: string
           id?: string
+          is_default?: boolean
           name: string
         }
         Update: {
           active?: boolean
           code?: string
           id?: string
+          is_default?: boolean
           name?: string
         }
         Relationships: []
