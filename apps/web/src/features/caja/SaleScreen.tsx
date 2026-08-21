@@ -40,9 +40,11 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Un cajero escaneando seguido no debe tener que volver a hacer clic en
-  // el buscador después de cada producto -- el foco regresa solo.
-  const refocusSearch = () => {
+  // Una búsqueda = un producto agregado = listo para la siguiente -- igual
+  // sea por clic o por escaneo, el buscador se limpia y recupera el foco
+  // solo, sin que el cajero tenga que volver a tocarlo entre productos.
+  const afterAdd = () => {
+    setSearch('')
     setTimeout(() => searchInputRef.current?.focus(), 0)
   }
 
@@ -102,7 +104,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       return
     }
     addToCart(product)
-    refocusSearch()
+    afterAdd()
   }
 
   const setQuantity = (productId: string, quantity: number) => {
@@ -140,7 +142,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     }
     addToCart(scanned)
     toast.success(`Agregado: ${scanned.name}`)
-    setSearch('')
+    afterAdd()
   }
 
   const resetSale = () => {
@@ -423,7 +425,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             toast.success(`Agregado: ${granelProduct.name}`)
           }
           setGranelProduct(null)
-          refocusSearch()
+          afterAdd()
         }}
       />
 
