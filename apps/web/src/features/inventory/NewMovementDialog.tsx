@@ -1,4 +1,9 @@
-import { useState, type ComponentProps, type FormEvent, type ReactNode } from 'react'
+import {
+  useState,
+  type ComponentProps,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,6 +33,7 @@ export function NewMovementDialog({
   triggerVariant = 'default',
   triggerSize = 'default',
   rows,
+  unitCode,
   initialProductId,
   onRegister,
 }: {
@@ -35,6 +41,7 @@ export function NewMovementDialog({
   triggerVariant?: ComponentProps<typeof Button>['variant']
   triggerSize?: ComponentProps<typeof Button>['size']
   rows: StockRow[]
+  unitCode: (unitId: string) => string
   initialProductId?: string
   onRegister: (values: {
     productId: string
@@ -46,10 +53,18 @@ export function NewMovementDialog({
   const [open, setOpen] = useState(false)
   const [productId, setProductId] = useState(initialProductId ?? '')
   const [type, setType] = useState<MovementType>('in')
-  const [direction, setDirection] = useState<'increase' | 'decrease'>('increase')
+  const [direction, setDirection] = useState<'increase' | 'decrease'>(
+    'increase',
+  )
   const [submitting, setSubmitting] = useState(false)
 
-  const lockedProduct = rows.find((r) => r.product.id === initialProductId)?.product
+  const lockedProduct = rows.find(
+    (r) => r.product.id === initialProductId,
+  )?.product
+  const selectedProduct = rows.find((r) => r.product.id === productId)?.product
+  const selectedUnitCode = selectedProduct
+    ? unitCode(selectedProduct.unit_id)
+    : ''
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
@@ -67,7 +82,10 @@ export function NewMovementDialog({
 
     const form = new FormData(event.currentTarget)
     const rawQuantity = Math.abs(Number(form.get('quantity') ?? 0))
-    const quantity = type === 'adjustment' && direction === 'decrease' ? -rawQuantity : rawQuantity
+    const quantity =
+      type === 'adjustment' && direction === 'decrease'
+        ? -rawQuantity
+        : rawQuantity
     const notes = String(form.get('notes') ?? '').trim() || null
 
     const ok = await onRegister({ productId, type, quantity, notes })
@@ -77,7 +95,9 @@ export function NewMovementDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant={triggerVariant} size={triggerSize} />}>
+      <DialogTrigger
+        render={<Button variant={triggerVariant} size={triggerSize} />}
+      >
         {triggerLabel}
       </DialogTrigger>
       <DialogContent>
@@ -94,7 +114,10 @@ export function NewMovementDialog({
             <div className="flex flex-col gap-1.5">
               <Label>Producto</Label>
               <Select
-                items={rows.map((r) => ({ value: r.product.id, label: r.product.name }))}
+                items={rows.map((r) => ({
+                  value: r.product.id,
+                  label: r.product.name,
+                }))}
                 value={productId}
                 onValueChange={(value) => setProductId(value ?? '')}
               >
@@ -159,13 +182,26 @@ export function NewMovementDialog({
           )}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="quantity">Cantidad</Label>
-            <Input id="quantity" name="quantity" type="number" step="0.001" min="0.001" required />
+            <Label htmlFor="quantity">
+              Cantidad{selectedUnitCode ? ` (${selectedUnitCode})` : ''}
+            </Label>
+            <Input
+              id="quantity"
+              name="quantity"
+              type="number"
+              step="0.001"
+              min="0.001"
+              required
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">Nota (opcional)</Label>
-            <Textarea id="notes" name="notes" placeholder="Motivo del movimiento" />
+            <Textarea
+              id="notes"
+              name="notes"
+              placeholder="Motivo del movimiento"
+            />
           </div>
 
           <DialogFooter>

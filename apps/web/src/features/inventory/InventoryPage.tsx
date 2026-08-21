@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { PaginationControls } from '@/components/PaginationControls'
 import { useUnits } from '@/features/catalog/useUnits'
@@ -21,7 +28,8 @@ export function InventoryPage({ role }: { role: Role | null }) {
 
   const canRegister = role !== null && CAN_REGISTER_MOVEMENTS.includes(role)
 
-  const unitCode = (unitId: string) => units.find((u) => u.id === unitId)?.code ?? ''
+  const unitCode = (unitId: string) =>
+    units.find((u) => u.id === unitId)?.code ?? ''
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -40,13 +48,18 @@ export function InventoryPage({ role }: { role: Role | null }) {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Inventario</h1>
+          <h1 className="text-foreground text-2xl font-semibold">Inventario</h1>
           <p className="text-muted-foreground text-sm">
             Existencias de productos que llevan control de inventario.
           </p>
         </div>
         {canRegister && (
-          <NewMovementDialog triggerLabel="Nuevo movimiento" rows={rows} onRegister={registerMovement} />
+          <NewMovementDialog
+            triggerLabel="Nuevo movimiento"
+            rows={rows}
+            unitCode={unitCode}
+            onRegister={registerMovement}
+          />
         )}
       </div>
 
@@ -63,13 +76,18 @@ export function InventoryPage({ role }: { role: Role | null }) {
             <TableHead>Producto</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Existencia</TableHead>
-            {canRegister && <TableHead className="text-right">Acciones</TableHead>}
+            {canRegister && (
+              <TableHead className="text-right">Acciones</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {!loading && filteredRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={canRegister ? 4 : 3} className="text-muted-foreground text-center">
+              <TableCell
+                colSpan={canRegister ? 4 : 3}
+                className="text-muted-foreground text-center"
+              >
                 No hay productos con control de inventario que coincidan.
               </TableCell>
             </TableRow>
@@ -78,7 +96,11 @@ export function InventoryPage({ role }: { role: Role | null }) {
             <TableRow key={row.product.id}>
               <TableCell className="font-medium">{row.product.name}</TableCell>
               <TableCell>{row.product.sku ?? '—'}</TableCell>
-              <TableCell className={row.quantityOnHand <= 0 ? 'text-destructive' : undefined}>
+              <TableCell
+                className={
+                  row.quantityOnHand <= 0 ? 'text-destructive' : undefined
+                }
+              >
                 {row.quantityOnHand} {unitCode(row.product.unit_id)}
               </TableCell>
               {canRegister && (
@@ -88,6 +110,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
                     triggerVariant="ghost"
                     triggerSize="sm"
                     rows={rows}
+                    unitCode={unitCode}
                     initialProductId={row.product.id}
                     onRegister={registerMovement}
                   />
