@@ -106,17 +106,28 @@
   }
 }
 
-/* Ticket de venta: al imprimir, solo se ve el contenido del recibo
-   (#receipt-print-area), nunca el resto del chrome de la app. */
+/* Ticket de venta y etiquetas de producto: al imprimir, solo se ve el
+   elemento marcado con [data-print-area], nunca el resto del chrome de
+   la app. */
 @media print {
+  /* El diálogo (ticket/etiqueta) se porta fuera de #root (verificado:
+     printAreaInsideRoot === false), así que #root se puede ocultar por
+     completo sin arriesgar el contenido que sí se imprime. Es necesario:
+     visibility:hidden por sí solo NO saca el contenido del flujo, así que
+     la altura real de una página larga de fondo (ej. la tabla de
+     Catálogo) seguía contando para la paginación e imprimía una página
+     extra en blanco/duplicada después de la primera. */
+  #root {
+    display: none;
+  }
   body * {
     visibility: hidden;
   }
-  #receipt-print-area,
-  #receipt-print-area * {
+  [data-print-area],
+  [data-print-area] * {
     visibility: visible;
   }
-  #receipt-print-area {
+  [data-print-area] {
     position: fixed;
     inset: 0;
   }

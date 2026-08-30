@@ -50,7 +50,7 @@ export function ReceiptDialog({
           <DialogTitle>Venta registrada</DialogTitle>
         </DialogHeader>
 
-        <div id="receipt-print-area" className="flex flex-col gap-3 text-sm">
+        <div data-print-area className="flex flex-col gap-3 text-sm">
           <div className="text-center">
             <p className="text-base font-semibold">{businessName}</p>
             <p className="text-muted-foreground text-xs">

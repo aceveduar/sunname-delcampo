@@ -142,7 +142,14 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     const scanned = products.find(
       (p) => p.active && p.sku?.toLowerCase() === query,
     )
-    if (!scanned) return
+    if (!scanned) {
+      // Si tampoco hay coincidencias parciales por nombre, lo más probable
+      // es que se haya escaneado un código que no está dado de alta.
+      if (results.length === 0) {
+        toast.error('Código no reconocido: ningún producto lo tiene registrado.')
+      }
+      return
+    }
 
     event.preventDefault()
     if (scanned.sold_by_weight) {

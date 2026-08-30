@@ -45,6 +45,7 @@ import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
+import { LabelPrintDialog } from './LabelPrintDialog'
 
 const NO_CATEGORY = 'none'
 
@@ -68,6 +69,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [editing, setEditing] = useState<Product | null>(null)
   const [editingCost, setEditingCost] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // Se guarda el id, no el objeto: así, cuando se genera un código dentro
+  // del diálogo, el refresh de useProducts trae el producto actualizado y
+  // el diálogo lo ve sin quedarse con el snapshot viejo (sin SKU).
+  const [labelProductId, setLabelProductId] = useState<string | null>(null)
+  const labelProduct = products.find((p) => p.id === labelProductId) ?? null
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
   const [trackInventory, setTrackInventory] = useState(true)
@@ -302,7 +308,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
                   )}
                 </p>
                 {canManage && (
-                  <div className="border-border mt-2 flex gap-2 border-t pt-2">
+                  <div className="border-border mt-2 flex flex-wrap gap-2 border-t pt-2">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -316,6 +322,13 @@ export function ProductsTab({ role }: { role: Role | null }) {
                       onClick={() => toggleActive(product)}
                     >
                       {product.active ? 'Desactivar' : 'Activar'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLabelProductId(product.id)}
+                    >
+                      Etiqueta
                     </Button>
                   </div>
                 )}
@@ -401,6 +414,13 @@ export function ProductsTab({ role }: { role: Role | null }) {
                       onClick={() => toggleActive(product)}
                     >
                       {product.active ? 'Desactivar' : 'Activar'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLabelProductId(product.id)}
+                    >
+                      Etiqueta
                     </Button>
                   </TableCell>
                 )}
@@ -662,6 +682,14 @@ export function ProductsTab({ role }: { role: Role | null }) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <LabelPrintDialog
+        product={labelProduct}
+        onOpenChange={(open) => {
+          if (!open) setLabelProductId(null)
+        }}
+        onAssignSku={(id, sku) => updateProduct(id, { sku })}
+      />
     </div>
   )
 }
