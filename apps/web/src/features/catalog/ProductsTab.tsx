@@ -359,7 +359,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     <img
                       src={product.image_url}
                       alt=""
-                      className="border-border size-9 rounded-md border object-cover"
+                      className="border-border size-9 min-w-9 rounded-md border object-cover"
                     />
                   ) : (
                     <div className="bg-muted text-muted-foreground border-border flex size-9 items-center justify-center rounded-md border">
