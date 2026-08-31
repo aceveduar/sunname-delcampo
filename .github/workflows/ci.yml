@@ -30,8 +30,25 @@ jobs:
 
       - run: pnpm test
 
+  db-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Corre contra una Supabase local levantada por Docker (ya viene
+      # instalado en los runners de GitHub Actions) -- nunca contra el
+      # proyecto real. Aplica todas las migraciones desde cero y luego
+      # las pruebas pgTAP de supabase/tests/database/.
+      - run: supabase start
+
+      - run: supabase test db
+
   deploy:
-    needs: check
+    needs: [check, db-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
