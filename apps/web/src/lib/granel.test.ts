@@ -42,4 +42,17 @@ describe('granelWeightKgFromAmount', () => {
     // $440 a $220/kg -> exactamente 2kg.
     expect(granelWeightKgFromAmount(440, PRICE_PER_KG, PRICE_PER_100G)).toBe(2)
   })
+
+  it('regresión: nunca produce Infinity/NaN cuando el producto no tiene precio', () => {
+    // price_per_100g en 0 es un estado real (producto todavía sin
+    // cotizar) -- dividir un monto entre 0 da Infinity en JS, y de ahí
+    // NaN en el total. Infinity/NaN no son JSON válido: al mandarlos a
+    // create_sale se volvían null en silencio y la base rechazaba la
+    // venta con un error que no explicaba nada del problema real
+    // (bug real, 2026-08-31).
+    const weightKg = granelWeightKgFromAmount(50, 0, 0)
+    expect(weightKg).toBe(0)
+    expect(Number.isFinite(weightKg)).toBe(true)
+    expect(granelTotalFromWeightKg(weightKg, 0, 0)).toBe(0)
+  })
 })

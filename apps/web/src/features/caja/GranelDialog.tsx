@@ -30,6 +30,11 @@ export function GranelDialog({
 
   const pricePerKg = product.price
   const pricePer100g = product.price_per_100g ?? 0
+  // Sin esto, un producto todavía sin precio (normal mientras se sigue
+  // cargando el catálogo real) dejaba pesar/cobrar como si costara $0,
+  // y en la pestaña "por monto" el cálculo (monto ÷ precio) se rompía
+  // por completo (Infinity/NaN) -- bug real encontrado en vivo, 2026-08-31.
+  const hasPrice = pricePer100g > 0
 
   const weightFromGrams = Number(grams || 0) / 1000
   const totalFromGrams =
@@ -72,12 +77,19 @@ export function GranelDialog({
           <DialogTitle>{product.name}</DialogTitle>
         </DialogHeader>
 
-        <p className="text-muted-foreground text-sm">
-          {formatCurrency(pricePerKg)}/kg · {formatCurrency(pricePer100g)}/100g
-          (menos de 1kg)
-        </p>
+        {hasPrice ? (
+          <p className="text-muted-foreground text-sm">
+            {formatCurrency(pricePerKg)}/kg · {formatCurrency(pricePer100g)}
+            /100g (menos de 1kg)
+          </p>
+        ) : (
+          <p className="text-destructive text-sm font-medium">
+            Este producto todavía no tiene precio -- agrégalo en Catálogo
+            antes de venderlo.
+          </p>
+        )}
 
-        <Tabs defaultValue="peso">
+        <Tabs defaultValue="peso" className={hasPrice ? undefined : 'hidden'}>
           <TabsList className="w-full">
             <TabsTrigger value="peso" className="flex-1">
               Por peso
