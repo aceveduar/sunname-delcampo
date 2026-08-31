@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from '@/lib/currency'
 import { reportError } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
+import { useCategories } from '@/features/catalog/useCategories'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
 import { useCustomers } from '@/features/crm/useCustomers'
 import { usePaymentMethods } from './usePaymentMethods'
@@ -29,8 +30,14 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const { products } = useProducts()
   const paymentMethods = usePaymentMethods()
   const { customers } = useCustomers()
+  const { categories } = useCategories()
 
   const [search, setSearch] = useState('')
+  // Filtro secundario, opcional -- para cuando el cliente pide "algo de
+  // especias" sin saber el nombre exacto. No cambia en nada la búsqueda
+  // por texto de siempre: en 'all' (su default) el comportamiento es
+  // idéntico al de antes de que existiera este filtro.
+  const [filterCategory, setFilterCategory] = useState('all')
   const [cart, setCart] = useState<CartLine[]>([])
   const [paymentMethodId, setPaymentMethodId] = useState('')
   const [cashReceived, setCashReceived] = useState('')
@@ -59,19 +66,22 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   }
 
   const activeCustomers = customers.filter((c) => c.active)
+  const activeCategories = categories.filter((c) => c.active)
 
   const results = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return []
+    if (!query && filterCategory === 'all') return []
     return products
       .filter(
         (p) =>
           p.active &&
-          (p.name.toLowerCase().includes(query) ||
+          (filterCategory === 'all' || p.category_id === filterCategory) &&
+          (!query ||
+            p.name.toLowerCase().includes(query) ||
             p.sku?.toLowerCase().includes(query)),
       )
       .slice(0, 20)
-  }, [products, search])
+  }, [products, search, filterCategory])
 
   const lineTotal = (line: CartLine) =>
     line.product.sold_by_weight
@@ -217,26 +227,51 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
-            ref={searchInputRef}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Buscar producto o código de barras…"
-            className="pl-8"
-            autoFocus
-          />
+        <div className="flex flex-wrap gap-2">
+          <div className="relative min-w-[200px] flex-1">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <Input
+              ref={searchInputRef}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Buscar producto o código de barras…"
+              className="pl-8"
+              autoFocus
+            />
+          </div>
+
+          <Select
+            items={[
+              { value: 'all', label: 'Todas las categorías' },
+              ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+            value={filterCategory}
+            onValueChange={(value) => setFilterCategory(value ?? 'all')}
+          >
+            <SelectTrigger className="w-full shrink-0 sm:w-48">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              {activeCategories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {search.trim() === '' ? (
+        {search.trim() === '' && filterCategory === 'all' ? (
           <p className="text-muted-foreground py-8 text-center text-sm">
             Escribe para buscar un producto y agregarlo a la venta.
           </p>
         ) : results.length === 0 ? (
           <p className="text-muted-foreground py-8 text-center text-sm">
-            No se encontraron productos para "{search}".
+            {search.trim()
+              ? `No se encontraron productos para "${search}".`
+              : 'No hay productos activos en esta categoría.'}
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
