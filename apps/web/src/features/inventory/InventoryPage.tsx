@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ImageOff } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -121,6 +122,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12"></TableHead>
             <TableHead>Producto</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Existencia</TableHead>
@@ -133,7 +135,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
           {!loading && filteredRows.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={canRegister ? 4 : 3}
+                colSpan={canRegister ? 5 : 4}
                 className="text-muted-foreground text-center"
               >
                 No hay productos con control de inventario que coincidan.
@@ -142,6 +144,19 @@ export function InventoryPage({ role }: { role: Role | null }) {
           )}
           {pageItems.map((row) => (
             <TableRow key={row.product.id}>
+              <TableCell>
+                {row.product.image_url ? (
+                  <img
+                    src={row.product.image_url}
+                    alt=""
+                    className="border-border size-9 min-w-9 rounded-md border object-cover"
+                  />
+                ) : (
+                  <div className="bg-muted text-muted-foreground border-border flex size-9 items-center justify-center rounded-md border">
+                    <ImageOff className="size-4" />
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="font-medium">{row.product.name}</TableCell>
               <TableCell>{row.product.sku ?? '—'}</TableCell>
               <TableCell
