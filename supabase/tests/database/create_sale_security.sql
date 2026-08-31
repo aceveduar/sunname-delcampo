@@ -6,7 +6,7 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(7);
+select plan(9);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
@@ -112,7 +112,34 @@ select is(
   'El precio guardado en sale_items es el del catálogo ($50), nunca el unit_price forjado ($1) que traía el item'
 );
 
--- Test 6: un cajero no puede usar la caja de otro (o una ya cerrada).
+-- Test 7: un cajero no puede insertar directo en sale_items (reusa la
+-- venta real que ya creó la Prueba 5 -- necesita un sale_id existente
+-- para no confundir un error de llave foránea con el de RLS que se
+-- quiere probar aquí).
+select throws_like(
+  $$insert into sale_items (sale_id, product_id, quantity, unit_price, subtotal)
+    values (
+      (select id from sales where sold_by = '00000000-0000-0000-0000-000000000002' limit 1),
+      '00000000-0000-0000-0000-000000000001',
+      1, 50, 50
+    )$$,
+  '%row-level security%',
+  'Un cajero no puede insertar directo en sale_items'
+);
+
+-- Test 8: un cajero no puede insertar directo en sale_payments.
+select throws_like(
+  $$insert into sale_payments (sale_id, payment_method_id, amount)
+    values (
+      (select id from sales where sold_by = '00000000-0000-0000-0000-000000000002' limit 1),
+      (select id from payment_methods where code = 'cash'),
+      50
+    )$$,
+  '%row-level security%',
+  'Un cajero no puede insertar directo en sale_payments'
+);
+
+-- Test 9: un cajero no puede usar la caja de otro (o una ya cerrada).
 select throws_like(
   $$select create_sale(
       gen_random_uuid(),
