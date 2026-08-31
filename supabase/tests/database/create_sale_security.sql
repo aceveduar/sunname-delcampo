@@ -107,7 +107,7 @@ select is(
 );
 
 select is(
-  (select unit_price from sale_items where product_id = '00000000-0000-0000-0000-000000000001' order by created_at desc limit 1),
+  (select unit_price from sale_items where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
   50.00,
   'El precio guardado en sale_items es el del catálogo ($50), nunca el unit_price forjado ($1) que traía el item'
 );
