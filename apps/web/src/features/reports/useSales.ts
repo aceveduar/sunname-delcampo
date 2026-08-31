@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { reportError } from '@/lib/errors'
 import type { Database } from '@/lib/database.types'
 
 type SaleStatus = Database['public']['Enums']['sale_status']
@@ -51,7 +52,11 @@ export function useSales(from: string, to: string) {
     async (id: string) => {
       const { error } = await supabase.rpc('void_sale', { p_sale_id: id })
       if (error) {
-        toast.error('No se pudo anular la venta', { description: error.message })
+        // Anular una venta revierte inventario real y corrige un registro
+        // financiero ya cerrado -- CLAUDE.md §14.2 exige aviso explícito
+        // (Sentry + toast) para este tipo de operación, igual que abrir/
+        // cerrar caja y registrar una venta.
+        reportError('No se pudo anular la venta', error)
         return false
       }
       toast.success('Venta anulada')

@@ -34,6 +34,8 @@ const ROLE_ITEMS = (Object.keys(ROLE_LABELS) as Role[]).map((role) => ({
 export function UsersPage({ currentUserId }: { currentUserId: string }) {
   const { profiles, loading, refresh, updateRole, updateFullName, toggleActive } = useProfiles()
   const [editingName, setEditingName] = useState<Profile | null>(null)
+  const currentUserRole =
+    profiles.find((p) => p.id === currentUserId)?.role ?? null
 
   const handleSubmitName = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -52,7 +54,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
           <h1 className="text-2xl font-semibold text-foreground">Usuarios</h1>
           <p className="text-muted-foreground text-sm">Roles y acceso de tu equipo.</p>
         </div>
-        <InviteUserDialog onInvited={refresh} />
+        <InviteUserDialog onInvited={refresh} currentUserRole={currentUserRole} />
       </div>
 
       <Table>

@@ -66,9 +66,12 @@ export default {
       return Response.json({ message: `Rol inválido: ${role}` }, { status: 400 });
     }
 
-    if (role === "owner" && callerRole !== "owner") {
+    // Un administrador de local solo tiene alcance de "gestión de
+    // cajeros" (CLAUDE.md §6) -- no puede invitar a otro administrador,
+    // a un propietario, ni a ningún otro rol con más privilegios que él.
+    if (callerRole !== "owner" && role !== "cashier") {
       return Response.json(
-        { message: "Solo un propietario puede invitar a otro propietario" },
+        { message: "Un administrador de local solo puede invitar cajeros" },
         { status: 403 },
       );
     }
@@ -81,6 +84,13 @@ export default {
       return Response.json({ message: error.message }, { status: 400 });
     }
 
+    if (!data.user) {
+      return Response.json(
+        { message: "El usuario se invitó pero la respuesta no incluyó su id" },
+        { status: 500 },
+      );
+    }
+
     // handle_new_user() siempre crea el perfil como 'cashier' sin importar
     // los metadatos del signup (cierra el hueco de autorregistro como
     // owner -- ver CLAUDE.md, auditoría de seguridad 2026-08-20). El rol
@@ -91,7 +101,7 @@ export default {
       const { error: roleError } = await ctx.supabaseAdmin
         .from("profiles")
         .update({ role })
-        .eq("id", data.user!.id);
+        .eq("id", data.user.id);
 
       if (roleError) {
         return Response.json(
@@ -101,6 +111,6 @@ export default {
       }
     }
 
-    return Response.json({ user_id: data.user?.id });
+    return Response.json({ user_id: data.user.id });
   }),
 };

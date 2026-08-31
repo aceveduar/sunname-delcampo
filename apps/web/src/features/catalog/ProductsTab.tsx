@@ -96,6 +96,14 @@ export function ProductsTab({ role }: { role: Role | null }) {
 
   const activeUnits = units.filter((u) => u.active)
   const activeCategories = categories.filter((c) => c.active)
+  // La lista de unidades se ordena alfabéticamente por nombre -- sin esto,
+  // cualquier unidad que quede primera en ese orden (ej. "Costal") se
+  // convierte en el default de todo producto nuevo, sin relación alguna
+  // con qué tan común es esa unidad. "Pieza" es el default neutral más
+  // razonable para un producto genérico; si el negocio no la tiene dada
+  // de alta, cae a la primera unidad disponible.
+  const defaultUnitId =
+    activeUnits.find((u) => u.code === 'PZA')?.id ?? activeUnits[0]?.id ?? ''
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -129,7 +137,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
     setEditing(null)
     setEditingCost(0)
     setCategoryId(NO_CATEGORY)
-    setUnitId(activeUnits[0]?.id ?? '')
+    setUnitId(defaultUnitId)
     setTrackInventory(true)
     setSoldByWeight(false)
     setImageFile(null)

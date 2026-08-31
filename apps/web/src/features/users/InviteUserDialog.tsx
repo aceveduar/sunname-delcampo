@@ -25,14 +25,25 @@ import type { Database } from '@/lib/database.types'
 
 type Role = Database['public']['Enums']['user_role']
 
-const ROLE_ITEMS = (Object.keys(ROLE_LABELS) as Role[])
-  .filter((role) => role !== 'owner')
-  .map((role) => ({ value: role, label: ROLE_LABELS[role] }))
-
-export function InviteUserDialog({ onInvited }: { onInvited: () => void | Promise<void> }) {
+export function InviteUserDialog({
+  onInvited,
+  currentUserRole,
+}: {
+  onInvited: () => void | Promise<void>
+  currentUserRole: Role | null
+}) {
   const [open, setOpen] = useState(false)
   const [role, setRole] = useState<Role>('cashier')
   const [submitting, setSubmitting] = useState(false)
+
+  // Un administrador de local solo tiene alcance de "gestión de cajeros"
+  // (CLAUDE.md §6) -- el servidor ya lo exige (invite-user edge function),
+  // pero mostrarle solo "Cajero" aquí evita que intente algo que de todos
+  // modos va a rechazar.
+  const roleItems = (Object.keys(ROLE_LABELS) as Role[])
+    .filter((r) => r !== 'owner')
+    .filter((r) => currentUserRole === 'owner' || r === 'cashier')
+    .map((r) => ({ value: r, label: ROLE_LABELS[r] }))
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
@@ -90,7 +101,7 @@ export function InviteUserDialog({ onInvited }: { onInvited: () => void | Promis
           <div className="flex flex-col gap-1.5">
             <Label>Rol</Label>
             <Select
-              items={ROLE_ITEMS}
+              items={roleItems}
               value={role}
               onValueChange={(value) => value && setRole(value as Role)}
             >
@@ -98,7 +109,7 @@ export function InviteUserDialog({ onInvited }: { onInvited: () => void | Promis
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ROLE_ITEMS.map((item) => (
+                {roleItems.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
                   </SelectItem>
