@@ -8,7 +8,15 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { PaginationControls } from '@/components/PaginationControls'
+import { useCategories } from '@/features/catalog/useCategories'
 import { useUnits } from '@/features/catalog/useUnits'
 import type { Database } from '@/lib/database.types'
 import { usePagination } from '@/lib/usePagination'
@@ -19,27 +27,42 @@ import { NewMovementDialog } from './NewMovementDialog'
 type Role = Database['public']['Enums']['user_role']
 
 const CAN_REGISTER_MOVEMENTS: Role[] = ['owner', 'local_admin']
+const NO_CATEGORY = 'none'
 
 export function InventoryPage({ role }: { role: Role | null }) {
   const { rows, loading, refresh } = useInventoryStock()
   const { units } = useUnits()
+  const { categories } = useCategories()
   const registerMovement = useRegisterMovement(refresh)
   const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('all')
 
   const canRegister = role !== null && CAN_REGISTER_MOVEMENTS.includes(role)
+  const activeCategories = categories.filter((c) => c.active)
 
   const unitCode = (unitId: string) =>
     units.find((u) => u.id === unitId)?.code ?? ''
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return rows
-    return rows.filter(
-      (row) =>
-        row.product.name.toLowerCase().includes(query) ||
-        row.product.sku?.toLowerCase().includes(query),
-    )
-  }, [rows, search])
+    return rows.filter((row) => {
+      if (
+        query &&
+        !row.product.name.toLowerCase().includes(query) &&
+        !row.product.sku?.toLowerCase().includes(query)
+      )
+        return false
+      if (filterCategory === NO_CATEGORY && row.product.category_id)
+        return false
+      if (
+        filterCategory !== 'all' &&
+        filterCategory !== NO_CATEGORY &&
+        row.product.category_id !== filterCategory
+      )
+        return false
+      return true
+    })
+  }, [rows, search, filterCategory])
 
   const { pageItems, page, setPage, totalPages, totalItems, pageSize } =
     usePagination(filteredRows)
@@ -63,12 +86,37 @@ export function InventoryPage({ role }: { role: Role | null }) {
         )}
       </div>
 
-      <Input
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Buscar producto por nombre o SKU…"
-        className="max-w-sm"
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Buscar producto por nombre o SKU…"
+          className="max-w-sm"
+        />
+
+        <Select
+          items={[
+            { value: 'all', label: 'Todas las categorías' },
+            { value: NO_CATEGORY, label: 'Sin categoría' },
+            ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          value={filterCategory}
+          onValueChange={(value) => setFilterCategory(value ?? 'all')}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todas las categorías" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las categorías</SelectItem>
+            <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
+            {activeCategories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <Table>
         <TableHeader>

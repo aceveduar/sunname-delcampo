@@ -79,6 +79,10 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [trackInventory, setTrackInventory] = useState(true)
   const [soldByWeight, setSoldByWeight] = useState(false)
   const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all')
+  const [filterGranel, setFilterGranel] = useState<'all' | 'yes' | 'no'>('all')
+  const [filterNoPrice, setFilterNoPrice] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
@@ -95,13 +99,28 @@ export function ProductsTab({ role }: { role: Role | null }) {
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return products
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.sku?.toLowerCase().includes(query),
-    )
-  }, [products, search])
+    return products.filter((p) => {
+      if (
+        query &&
+        !p.name.toLowerCase().includes(query) &&
+        !p.sku?.toLowerCase().includes(query)
+      )
+        return false
+      if (filterCategory === NO_CATEGORY && p.category_id) return false
+      if (
+        filterCategory !== 'all' &&
+        filterCategory !== NO_CATEGORY &&
+        p.category_id !== filterCategory
+      )
+        return false
+      if (filterActive === 'active' && !p.active) return false
+      if (filterActive === 'inactive' && p.active) return false
+      if (filterGranel === 'yes' && !p.sold_by_weight) return false
+      if (filterGranel === 'no' && p.sold_by_weight) return false
+      if (filterNoPrice && p.price !== 0) return false
+      return true
+    })
+  }, [products, search, filterCategory, filterActive, filterGranel, filterNoPrice])
 
   const { pageItems, page, setPage, totalPages, totalItems, pageSize } =
     usePagination(filteredProducts)
@@ -255,6 +274,78 @@ export function ProductsTab({ role }: { role: Role | null }) {
             <LayoutGrid />
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Select
+          items={[
+            { value: 'all', label: 'Todas las categorías' },
+            { value: NO_CATEGORY, label: 'Sin categoría' },
+            ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          value={filterCategory}
+          onValueChange={(value) => setFilterCategory(value ?? 'all')}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todas las categorías" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las categorías</SelectItem>
+            <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
+            {activeCategories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          items={[
+            { value: 'all', label: 'Todos los estados' },
+            { value: 'active', label: 'Activos' },
+            { value: 'inactive', label: 'Inactivos' },
+          ]}
+          value={filterActive}
+          onValueChange={(value) =>
+            setFilterActive((value as typeof filterActive) ?? 'all')
+          }
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Todos los estados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="inactive">Inactivos</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          items={[
+            { value: 'all', label: 'A granel: todos' },
+            { value: 'yes', label: 'Solo a granel' },
+            { value: 'no', label: 'Solo precio fijo' },
+          ]}
+          value={filterGranel}
+          onValueChange={(value) =>
+            setFilterGranel((value as typeof filterGranel) ?? 'all')
+          }
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="A granel: todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">A granel: todos</SelectItem>
+            <SelectItem value="yes">Solo a granel</SelectItem>
+            <SelectItem value="no">Solo precio fijo</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <label className="flex items-center gap-2 text-sm">
+          <Switch checked={filterNoPrice} onCheckedChange={setFilterNoPrice} />
+          Sin precio
+        </label>
       </div>
 
       {view === 'cards' ? (
