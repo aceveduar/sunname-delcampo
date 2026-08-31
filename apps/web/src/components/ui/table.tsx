@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 // que ver, y desaparece al llegar al final del scroll.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   const wrapperRef = React.useRef<HTMLDivElement>(null)
+  const tableRef = React.useRef<HTMLTableElement>(null)
   const [canScrollLeft, setCanScrollLeft] = React.useState(false)
   const [canScrollRight, setCanScrollRight] = React.useState(false)
 
@@ -20,11 +21,17 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   }, [])
 
   React.useEffect(() => {
-    const el = wrapperRef.current
-    if (!el) return
+    const wrapper = wrapperRef.current
+    const table = tableRef.current
+    if (!wrapper || !table) return
     updateScrollShadows()
+    // El ancho que cambia con un filtro (menos/más filas, columnas que
+    // se re-miden por su contenido) es el de <table>, no el del
+    // wrapper -- observar solo el wrapper dejaba la sombra
+    // desactualizada hasta el siguiente resize de ventana o scroll.
     const observer = new ResizeObserver(updateScrollShadows)
-    observer.observe(el)
+    observer.observe(table)
+    observer.observe(wrapper)
     return () => observer.disconnect()
   }, [updateScrollShadows])
 
@@ -36,6 +43,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       className="relative w-full overflow-x-auto"
     >
       <table
+        ref={tableRef}
         data-slot="table"
         className={cn("min-w-full caption-bottom text-sm", className)}
         {...props}

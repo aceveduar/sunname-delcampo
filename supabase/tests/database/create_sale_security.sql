@@ -6,7 +6,7 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(9);
+select plan(15);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
@@ -149,6 +149,90 @@ select throws_like(
     )$$,
   '%no está abierta a tu nombre%',
   'create_sale rechaza una caja que no está abierta a nombre de quien llama'
+);
+
+-- Test 10 y 11 (segundo audit de seguridad, 2026-08-31): create_sale es
+-- security definer y cualquier cajero autenticado puede llamarla
+-- directo, sin pasar por GranelDialog (que bloquea 0 en la UI, pero eso
+-- no protege la función en sí). Cantidad 0 tumbaba la función con
+-- "division by zero" sin manejar en el quiebre de tarifa a granel;
+-- cantidad negativa colaba un subtotal negativo que, con un pago
+-- negativo a juego, sí lograba pasar la validación de pago=subtotal.
+select throws_like(
+  $$select create_sale(
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000003',
+      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000001', 'quantity', 0)),
+      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 0))
+    )$$,
+  '%cantidad%mayor a cero%',
+  'create_sale rechaza un item con cantidad 0'
+);
+
+select throws_like(
+  $$select create_sale(
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000003',
+      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000001', 'quantity', -1)),
+      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', -50))
+    )$$,
+  '%cantidad%mayor a cero%',
+  'create_sale rechaza un item con cantidad negativa, aunque el pago sea negativo a juego'
+);
+
+-- ── void_sale: reusa la venta real de la Prueba 5 (Chile de prueba,
+-- $50, 1 unidad) ──────────────────────────────────────────────────────
+
+-- Test 12: un cajero no puede anular ventas (solo owner/local_admin).
+select throws_like(
+  $$select void_sale((select id from sales where sold_by = '00000000-0000-0000-0000-000000000002' limit 1))$$,
+  '%No autorizado para anular ventas%',
+  'Un cajero no puede llamar void_sale'
+);
+
+-- A partir de aquí, como owner de prueba (crear el fixture requiere
+-- volver al rol sin RLS -- reset local solo afecta esta transacción).
+-- Hay que limpiar también los claims del cajero: si no, auth.uid()
+-- seguiría devolviendo su id y el trigger de auto-escalación de rol
+-- vería a un 'cashier' intentando cambiar un rol y lo bloquearía.
+reset role;
+set local request.jwt.claim.sub = '';
+set local request.jwt.claims = '';
+
+insert into auth.users (id, email, raw_user_meta_data)
+values (
+  '00000000-0000-0000-0000-000000000004',
+  'test-owner@example.com',
+  '{"full_name": "Owner De Prueba"}'::jsonb
+);
+
+update profiles set role = 'owner' where id = '00000000-0000-0000-0000-000000000004';
+
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000004';
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000004", "role": "authenticated"}';
+
+-- Test 13: void_sale revierte el inventario con un movimiento 'in'
+-- compensatorio, sin borrar el 'out' original.
+select lives_ok(
+  $$select void_sale((select id from sales where sold_by = '00000000-0000-0000-0000-000000000002' limit 1))$$,
+  'void_sale (como owner) anula la venta sin lanzar error'
+);
+
+select is(
+  (
+    select coalesce(sum(quantity), 0) from inventory_movements
+    where product_id = '00000000-0000-0000-0000-000000000001' and type = 'in' and reference_type = 'sale_void'
+  ),
+  1::numeric,
+  'void_sale repuso exactamente la cantidad vendida (1) como movimiento de entrada compensatorio'
+);
+
+-- Test 14: no se puede anular dos veces la misma venta.
+select throws_like(
+  $$select void_sale((select id from sales where sold_by = '00000000-0000-0000-0000-000000000002' limit 1))$$,
+  '%ya está anulada%',
+  'void_sale rechaza anular una venta que ya está anulada'
 );
 
 select * from finish();

@@ -75,6 +75,10 @@ export function LabelPrintDialog({
 
   if (!product) return null
 
+  // Una const local sí deja que TS propague el narrowing hasta el
+  // closure de .map() más abajo -- una propiedad (product.sku) no.
+  const sku = product.sku
+
   const priceLabel = product.sold_by_weight
     ? `${formatCurrency(product.price)}/kg`
     : formatCurrency(product.price)
@@ -94,7 +98,7 @@ export function LabelPrintDialog({
           <DialogTitle>Etiqueta — {product.name}</DialogTitle>
         </DialogHeader>
 
-        {!product.sku ? (
+        {!sku ? (
           <div className="flex flex-col gap-3">
             <p className="text-muted-foreground text-sm">
               Este producto no tiene un código asignado — normal en
@@ -129,7 +133,7 @@ export function LabelPrintDialog({
                   <BarcodeLabel
                     key={index}
                     name={product.name}
-                    sku={product.sku!}
+                    sku={sku}
                     priceLabel={priceLabel}
                   />
                 ))}
