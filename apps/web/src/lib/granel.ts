@@ -17,7 +17,12 @@ export function granelWeightKgFromAmount(
   pricePerKg: number,
   pricePer100g: number,
 ): number {
-  const menudeoWeightKg = (amount / pricePer100g / 10)
-  if (menudeoWeightKg < 1) return menudeoWeightKg
-  return amount / pricePerKg
+  const menudeoWeightKg = amount / pricePer100g / 10
+  const weightKg = menudeoWeightKg < 1 ? menudeoWeightKg : amount / pricePerKg
+  // create_sale guarda la cantidad como numeric(12,3) -- redondear aquí a
+  // gramos enteros es lo que de verdad se va a pesar y cobrar. Sin esto,
+  // el total mostrado en el carrito (calculado con el peso exacto sin
+  // redondear) no coincidía con lo que el servidor cobraba sobre el peso
+  // ya redondeado, y create_sale rechazaba la venta por completo.
+  return Math.round(weightKg * 1000) / 1000
 }
