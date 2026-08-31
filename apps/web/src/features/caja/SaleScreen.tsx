@@ -224,7 +224,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Buscar producto, o escanear su código de barras…"
+            placeholder="Buscar producto o código de barras…"
             className="pl-8"
             autoFocus
           />
@@ -255,11 +255,17 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
                 )}
                 <div className="flex flex-col items-start gap-0.5">
                   <span className="font-medium">{product.name}</span>
-                  <span className="text-muted-foreground text-sm">
-                    {product.sold_by_weight
-                      ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
-                      : formatCurrency(product.price)}
-                  </span>
+                  {product.price === 0 ? (
+                    <span className="text-destructive text-sm font-medium">
+                      Sin precio
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">
+                      {product.sold_by_weight
+                        ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
+                        : formatCurrency(product.price)}
+                    </span>
+                  )}
                 </div>
               </button>
             ))}

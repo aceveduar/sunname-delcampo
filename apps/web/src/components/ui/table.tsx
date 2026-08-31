@@ -2,10 +2,37 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// En mobile una tabla ancha (Reportes, Inventario, Clientes...) sí se
+// puede deslizar horizontalmente, pero nada lo indicaba -- se veía como
+// si las columnas de la derecha simplemente estuvieran cortadas. Este
+// degradado a los lados solo aparece cuando de verdad hay más contenido
+// que ver, y desaparece al llegar al final del scroll.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const wrapperRef = React.useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false)
+  const [canScrollRight, setCanScrollRight] = React.useState(false)
+
+  const updateScrollShadows = React.useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 0)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+
+  React.useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    updateScrollShadows()
+    const observer = new ResizeObserver(updateScrollShadows)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [updateScrollShadows])
+
   return (
     <div
+      ref={wrapperRef}
       data-slot="table-container"
+      onScroll={updateScrollShadows}
       className="relative w-full overflow-x-auto"
     >
       <table
@@ -13,6 +40,18 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
         className={cn("min-w-full caption-bottom text-sm", className)}
         {...props}
       />
+      {canScrollLeft && (
+        <div
+          aria-hidden
+          className="from-background pointer-events-none absolute top-0 left-0 h-full w-6 bg-gradient-to-r to-transparent"
+        />
+      )}
+      {canScrollRight && (
+        <div
+          aria-hidden
+          className="from-background pointer-events-none absolute top-0 right-0 h-full w-6 bg-gradient-to-l to-transparent"
+        />
+      )}
     </div>
   )
 }
