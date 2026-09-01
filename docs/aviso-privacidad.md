@@ -30,6 +30,8 @@ Sunname ERP **no recaba estos datos directamente de los clientes finales** — l
 
 Los datos se almacenan en la infraestructura de **Supabase** (proveedor de base de datos e infraestructura en la nube, con servidores fuera de México — ver CLAUDE.md §8), estrictamente para la operación técnica del Sistema. No se venden ni se comparten con terceros para fines distintos a operar el Sistema.
 
+El Sistema también usa **Sentry** (monitoreo de errores) para detectar fallas técnicas -- recibe detalles del error ocurrido (mensaje, dónde ocurrió en el código, información del navegador) para poder corregirlo. Sentry no recibe deliberadamente nombre, correo ni ningún otro dato personal de quien usa el Sistema; existe la posibilidad incidental de que el texto de un mensaje de error contenga algún dato (por ejemplo, un correo dentro del mensaje de un error de validación) — esto debe confirmarse/acotarse en la revisión legal.
+
 ## 4. Derechos ARCO
 
 Cualquier persona cuyos datos estén en el Sistema (empleado de un Negocio, o cliente final de un Negocio) puede ejercer sus derechos de **A**cceso, **R**ectificación, **C**ancelación u **O**posición:
