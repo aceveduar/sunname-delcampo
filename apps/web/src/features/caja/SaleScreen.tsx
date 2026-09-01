@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Plus, Search, Trash2 } from 'lucide-react'
+import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -17,6 +18,7 @@ import { supabase } from '@/lib/supabase'
 import { useCategories } from '@/features/catalog/useCategories'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
 import { useCustomers } from '@/features/crm/useCustomers'
+import { normalizeSearch } from '@/lib/text'
 import { usePaymentMethods } from './usePaymentMethods'
 import { GranelDialog } from './GranelDialog'
 import { granelTotalFromWeightKg } from '@/lib/granel'
@@ -69,7 +71,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const activeCategories = categories.filter((c) => c.active)
 
   const results = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = normalizeSearch(search)
     if (!query && filterCategory === 'all') return []
     return products
       .filter(
@@ -77,8 +79,8 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
           p.active &&
           (filterCategory === 'all' || p.category_id === filterCategory) &&
           (!query ||
-            p.name.toLowerCase().includes(query) ||
-            p.sku?.toLowerCase().includes(query)),
+            normalizeSearch(p.name).includes(query) ||
+            (p.sku && normalizeSearch(p.sku).includes(query))),
       )
       .slice(0, 20)
   }, [products, search, filterCategory])
@@ -146,11 +148,11 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   // directo al carrito sin que el cajero tenga que buscar ni hacer clic.
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return
-    const query = search.trim().toLowerCase()
+    const query = normalizeSearch(search)
     if (!query) return
 
     const scanned = products.find(
-      (p) => p.active && p.sku?.toLowerCase() === query,
+      (p) => p.active && p.sku && normalizeSearch(p.sku) === query,
     )
     if (!scanned) {
       // Si tampoco hay coincidencias parciales por nombre, lo más probable
@@ -228,18 +230,15 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-            <Input
-              ref={searchInputRef}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Buscar producto o código de barras…"
-              className="pl-8"
-              autoFocus
-            />
-          </div>
+          <SearchInput
+            ref={searchInputRef}
+            value={search}
+            onChange={setSearch}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Buscar producto o código de barras…"
+            containerClassName="min-w-[200px] flex-1"
+            autoFocus
+          />
 
           <Select
             items={[

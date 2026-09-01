@@ -12,3 +12,13 @@ export function toTitleCase(value: string) {
 export function toCode(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLocaleUpperCase('es-MX')
 }
+
+/** Quita acentos/diacríticos y mayúsculas antes de comparar -- así buscar
+ * "cafe" encuentra "Café" aunque el texto tecleado no lleve el acento. */
+export function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase()
+}

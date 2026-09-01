@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import {
   Select,
   SelectContent,
@@ -21,6 +21,7 @@ import { useCategories } from '@/features/catalog/useCategories'
 import { useUnits } from '@/features/catalog/useUnits'
 import type { Database } from '@/lib/database.types'
 import { usePagination } from '@/lib/usePagination'
+import { normalizeSearch } from '@/lib/text'
 import { useInventoryStock } from './useInventoryStock'
 import { useRegisterMovement } from './useRegisterMovement'
 import { NewMovementDialog } from './NewMovementDialog'
@@ -45,12 +46,12 @@ export function InventoryPage({ role }: { role: Role | null }) {
     units.find((u) => u.id === unitId)?.code ?? ''
 
   const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = normalizeSearch(search)
     return rows.filter((row) => {
       if (
         query &&
-        !row.product.name.toLowerCase().includes(query) &&
-        !row.product.sku?.toLowerCase().includes(query)
+        !normalizeSearch(row.product.name).includes(query) &&
+        !(row.product.sku && normalizeSearch(row.product.sku).includes(query))
       )
         return false
       if (filterCategory === NO_CATEGORY && row.product.category_id)
@@ -88,11 +89,11 @@ export function InventoryPage({ role }: { role: Role | null }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Input
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
           placeholder="Buscar producto por nombre o SKU…"
-          className="max-w-sm"
+          containerClassName="max-w-sm flex-1"
         />
 
         <Select

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase'
@@ -39,7 +40,7 @@ import {
 } from '@/components/ui/table'
 import { PaginationControls } from '@/components/PaginationControls'
 import { formatCurrency } from '@/lib/currency'
-import { toCode, toTitleCase } from '@/lib/text'
+import { normalizeSearch, toCode, toTitleCase } from '@/lib/text'
 import { usePagination } from '@/lib/usePagination'
 import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
@@ -106,12 +107,12 @@ export function ProductsTab({ role }: { role: Role | null }) {
     activeUnits.find((u) => u.code === 'PZA')?.id ?? activeUnits[0]?.id ?? ''
 
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = normalizeSearch(search)
     return products.filter((p) => {
       if (
         query &&
-        !p.name.toLowerCase().includes(query) &&
-        !p.sku?.toLowerCase().includes(query)
+        !normalizeSearch(p.name).includes(query) &&
+        !(p.sku && normalizeSearch(p.sku).includes(query))
       )
         return false
       if (filterCategory === NO_CATEGORY && p.category_id) return false
@@ -258,11 +259,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <Input
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
           placeholder="Buscar producto por nombre o SKU…"
-          className="max-w-sm"
+          containerClassName="max-w-sm flex-1"
         />
         <div className="border-border flex items-center gap-1 rounded-lg border p-0.5">
           <Button
