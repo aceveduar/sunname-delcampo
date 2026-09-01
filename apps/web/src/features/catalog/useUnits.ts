@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 export type UnitOfMeasure = Database['public']['Tables']['units_of_measure']['Row']
@@ -14,7 +15,7 @@ export function useUnits() {
     setLoading(true)
     const { data, error } = await supabase.from('units_of_measure').select('*').order('name')
     if (error) {
-      toast.error('No se pudieron cargar las unidades de medida', { description: error.message })
+      reportError('No se pudieron cargar las unidades de medida', error)
     } else {
       setUnits(data ?? [])
     }
@@ -29,7 +30,7 @@ export function useUnits() {
     async (values: UnitInsert) => {
       const { error } = await supabase.from('units_of_measure').insert(values)
       if (error) {
-        toast.error('No se pudo crear la unidad', { description: error.message })
+        reportError('No se pudo crear la unidad', error)
         return false
       }
       toast.success('Unidad creada')
@@ -43,7 +44,7 @@ export function useUnits() {
     async (id: string, values: Partial<UnitInsert>) => {
       const { error } = await supabase.from('units_of_measure').update(values).eq('id', id)
       if (error) {
-        toast.error('No se pudo actualizar la unidad', { description: error.message })
+        reportError('No se pudo actualizar la unidad', error)
         return false
       }
       toast.success('Unidad actualizada')

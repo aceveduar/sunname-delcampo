@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase'
+import { Sentry } from '@/lib/sentry'
 import { ROLE_LABELS } from '@/lib/roles'
 import type { Database } from '@/lib/database.types'
 
@@ -72,6 +73,9 @@ export function InviteUserDialog({
       const detail =
         data?.message ?? (await (error as { context?: Response })?.context?.json().catch(() => null))?.message ?? error?.message
       toast.error('No se pudo invitar al usuario', { description: detail })
+      Sentry.captureException(error ?? new Error(detail), {
+        extra: { userMessage: 'No se pudo invitar al usuario' },
+      })
       return
     }
 

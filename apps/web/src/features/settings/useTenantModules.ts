@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { reportError } from '@/lib/errors'
 
 export type ModuleKey = 'crm' | 'purchasing' | 'billing'
 
@@ -25,7 +26,7 @@ export function useTenantModules(enabled = true) {
     setLoading(true)
     const { data, error } = await supabase.from('tenant_modules').select('module_key, enabled')
     if (error) {
-      toast.error('No se pudieron cargar los módulos', { description: error.message })
+      reportError('No se pudieron cargar los módulos', error)
     } else {
       setModules(Object.fromEntries((data ?? []).map((m) => [m.module_key, m.enabled])))
     }
@@ -42,7 +43,7 @@ export function useTenantModules(enabled = true) {
     async (key: ModuleKey, enabled: boolean) => {
       const { error } = await supabase.from('tenant_modules').update({ enabled }).eq('module_key', key)
       if (error) {
-        toast.error('No se pudo actualizar el módulo', { description: error.message })
+        reportError('No se pudo actualizar el módulo', error)
         return false
       }
       toast.success(enabled ? 'Módulo activado' : 'Módulo desactivado')

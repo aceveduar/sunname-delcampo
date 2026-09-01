@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 export type ProductCategory = Database['public']['Tables']['product_categories']['Row']
@@ -14,7 +15,7 @@ export function useCategories() {
     setLoading(true)
     const { data, error } = await supabase.from('product_categories').select('*').order('name')
     if (error) {
-      toast.error('No se pudieron cargar las categorías', { description: error.message })
+      reportError('No se pudieron cargar las categorías', error)
     } else {
       setCategories(data ?? [])
     }
@@ -29,7 +30,7 @@ export function useCategories() {
     async (values: CategoryInsert) => {
       const { error } = await supabase.from('product_categories').insert(values)
       if (error) {
-        toast.error('No se pudo crear la categoría', { description: error.message })
+        reportError('No se pudo crear la categoría', error)
         return false
       }
       toast.success('Categoría creada')
@@ -43,7 +44,7 @@ export function useCategories() {
     async (id: string, values: Partial<CategoryInsert>) => {
       const { error } = await supabase.from('product_categories').update(values).eq('id', id)
       if (error) {
-        toast.error('No se pudo actualizar la categoría', { description: error.message })
+        reportError('No se pudo actualizar la categoría', error)
         return false
       }
       toast.success('Categoría actualizada')

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 type PurchaseOrderRow = Database['public']['Tables']['purchase_orders']['Row']
@@ -22,7 +23,7 @@ export function usePurchaseOrders() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      toast.error('No se pudieron cargar las órdenes de compra', { description: error.message })
+      reportError('No se pudieron cargar las órdenes de compra', error)
     } else {
       setOrders((data ?? []) as PurchaseOrder[])
     }
@@ -56,7 +57,7 @@ export function usePurchaseOrders() {
         .single()
 
       if (orderError || !order) {
-        toast.error('No se pudo crear la orden de compra', { description: orderError?.message })
+        reportError('No se pudo crear la orden de compra', orderError)
         return false
       }
 
@@ -71,9 +72,7 @@ export function usePurchaseOrders() {
       )
 
       if (itemsError) {
-        toast.error('La orden se creó pero no se pudieron guardar sus líneas', {
-          description: itemsError.message,
-        })
+        reportError('La orden se creó pero no se pudieron guardar sus líneas', itemsError)
         await refresh()
         return false
       }
@@ -91,7 +90,7 @@ export function usePurchaseOrders() {
         p_purchase_order_id: orderId,
       })
       if (error) {
-        toast.error('No se pudo recibir la orden', { description: error.message })
+        reportError('No se pudo recibir la orden', error)
         return false
       }
       toast.success('Orden recibida — inventario actualizado')

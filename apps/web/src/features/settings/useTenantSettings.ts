@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { reportError } from '@/lib/errors'
 
 export function useTenantSettings() {
   const [businessName, setBusinessName] = useState('')
@@ -13,9 +14,7 @@ export function useTenantSettings() {
       .select('business_name')
       .single()
     if (error) {
-      toast.error('No se pudo cargar la configuración del negocio', {
-        description: error.message,
-      })
+      reportError('No se pudo cargar la configuración del negocio', error)
     } else {
       setBusinessName(data.business_name)
     }
@@ -33,9 +32,7 @@ export function useTenantSettings() {
         .update({ business_name: name })
         .eq('id', 1)
       if (error) {
-        toast.error('No se pudo guardar el nombre del negocio', {
-          description: error.message,
-        })
+        reportError('No se pudo guardar el nombre del negocio', error)
         return false
       }
       toast.success('Nombre del negocio actualizado')

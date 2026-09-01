@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 export type Customer = Database['public']['Tables']['customers']['Row']
@@ -14,7 +15,7 @@ export function useCustomers() {
     setLoading(true)
     const { data, error } = await supabase.from('customers').select('*').order('name')
     if (error) {
-      toast.error('No se pudieron cargar los clientes', { description: error.message })
+      reportError('No se pudieron cargar los clientes', error)
     } else {
       setCustomers(data ?? [])
     }
@@ -29,7 +30,7 @@ export function useCustomers() {
     async (values: CustomerInsert) => {
       const { data, error } = await supabase.from('customers').insert(values).select('*').single()
       if (error) {
-        toast.error('No se pudo crear el cliente', { description: error.message })
+        reportError('No se pudo crear el cliente', error)
         return null
       }
       toast.success('Cliente creado')
@@ -43,7 +44,7 @@ export function useCustomers() {
     async (id: string, values: Partial<CustomerInsert>) => {
       const { error } = await supabase.from('customers').update(values).eq('id', id)
       if (error) {
-        toast.error('No se pudo actualizar el cliente', { description: error.message })
+        reportError('No se pudo actualizar el cliente', error)
         return false
       }
       toast.success('Cliente actualizado')

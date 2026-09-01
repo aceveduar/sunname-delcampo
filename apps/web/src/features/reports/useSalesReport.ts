@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 
 type PaymentBreakdown = { name: string; amount: number }
 type TopProduct = { name: string; quantity: number; amount: number }
@@ -35,7 +35,7 @@ export function useSalesReport(from: string, to: string) {
       .lte('created_at', to)
 
     if (salesError) {
-      toast.error('No se pudieron cargar las ventas', { description: salesError.message })
+      reportError('No se pudieron cargar las ventas', salesError)
       setLoading(false)
       return
     }

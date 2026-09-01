@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 // products_select en RLS es admin-only (cost es información de margen
@@ -25,7 +26,7 @@ export function useProducts() {
     setLoading(true)
     const { data, error } = await supabase.from('product_catalog').select('*').order('name')
     if (error) {
-      toast.error('No se pudieron cargar los productos', { description: error.message })
+      reportError('No se pudieron cargar los productos', error)
     } else {
       setProducts((data ?? []) as Product[])
     }
@@ -40,7 +41,7 @@ export function useProducts() {
     async (values: ProductInsert) => {
       const { error } = await supabase.from('products').insert(values)
       if (error) {
-        toast.error('No se pudo crear el producto', { description: error.message })
+        reportError('No se pudo crear el producto', error)
         return false
       }
       toast.success('Producto creado')
@@ -54,7 +55,7 @@ export function useProducts() {
     async (id: string, values: Partial<ProductInsert>) => {
       const { error } = await supabase.from('products').update(values).eq('id', id)
       if (error) {
-        toast.error('No se pudo actualizar el producto', { description: error.message })
+        reportError('No se pudo actualizar el producto', error)
         return false
       }
       toast.success('Producto actualizado')
@@ -74,7 +75,7 @@ export function useProducts() {
   const fetchCost = useCallback(async (id: string) => {
     const { data, error } = await supabase.from('products').select('cost').eq('id', id).single()
     if (error) {
-      toast.error('No se pudo cargar el costo', { description: error.message })
+      reportError('No se pudo cargar el costo', error)
       return null
     }
     return data.cost
@@ -93,9 +94,9 @@ export function useProducts() {
       )
       const failed = results.filter((r) => r.error)
       if (failed.length > 0) {
-        toast.error(
+        reportError(
           `No se pudieron actualizar ${failed.length} de ${changes.length} precios`,
-          { description: failed[0].error?.message },
+          failed[0].error,
         )
       } else {
         toast.success(

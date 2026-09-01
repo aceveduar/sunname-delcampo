@@ -29,7 +29,7 @@ export function useSales(from: string, to: string) {
       .limit(50)
 
     if (error) {
-      toast.error('No se pudieron cargar las ventas', { description: error.message })
+      reportError('No se pudieron cargar las ventas', error)
     } else {
       setSales(
         (data ?? []).map((s) => ({

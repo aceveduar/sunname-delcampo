@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 export type Supplier = Database['public']['Tables']['suppliers']['Row']
@@ -14,7 +15,7 @@ export function useSuppliers() {
     setLoading(true)
     const { data, error } = await supabase.from('suppliers').select('*').order('name')
     if (error) {
-      toast.error('No se pudieron cargar los proveedores', { description: error.message })
+      reportError('No se pudieron cargar los proveedores', error)
     } else {
       setSuppliers(data ?? [])
     }
@@ -29,7 +30,7 @@ export function useSuppliers() {
     async (values: SupplierInsert) => {
       const { error } = await supabase.from('suppliers').insert(values)
       if (error) {
-        toast.error('No se pudo crear el proveedor', { description: error.message })
+        reportError('No se pudo crear el proveedor', error)
         return false
       }
       toast.success('Proveedor creado')
@@ -43,7 +44,7 @@ export function useSuppliers() {
     async (id: string, values: Partial<SupplierInsert>) => {
       const { error } = await supabase.from('suppliers').update(values).eq('id', id)
       if (error) {
-        toast.error('No se pudo actualizar el proveedor', { description: error.message })
+        reportError('No se pudo actualizar el proveedor', error)
         return false
       }
       toast.success('Proveedor actualizado')

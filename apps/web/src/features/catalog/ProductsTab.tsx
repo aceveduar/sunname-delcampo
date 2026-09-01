@@ -5,7 +5,6 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react'
-import { toast } from 'sonner'
 import { ImageOff, LayoutGrid, Pencil, Plus, TableIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +14,7 @@ import { SearchInput } from '@/components/ui/search-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase'
+import { reportError } from '@/lib/errors'
 import { compressImage } from '@/lib/image'
 import {
   Select,
@@ -258,9 +258,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
       setUploading(false)
 
       if (uploadError) {
-        toast.error('No se pudo subir la imagen', {
-          description: uploadError.message,
-        })
+        reportError('No se pudo subir la imagen', uploadError)
         return
       }
       imageUrl = supabase.storage.from('product-images').getPublicUrl(path)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
@@ -14,7 +15,7 @@ export function useProfiles() {
     setLoading(true)
     const { data, error } = await supabase.from('profiles').select('*').order('full_name')
     if (error) {
-      toast.error('No se pudo cargar el equipo', { description: error.message })
+      reportError('No se pudo cargar el equipo', error)
     } else {
       setProfiles(data ?? [])
     }
@@ -29,7 +30,7 @@ export function useProfiles() {
     async (id: string, role: Role) => {
       const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
       if (error) {
-        toast.error('No se pudo cambiar el rol', { description: error.message })
+        reportError('No se pudo cambiar el rol', error)
         return false
       }
       toast.success('Rol actualizado')
@@ -43,7 +44,7 @@ export function useProfiles() {
     async (id: string, fullName: string) => {
       const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', id)
       if (error) {
-        toast.error('No se pudo actualizar el nombre', { description: error.message })
+        reportError('No se pudo actualizar el nombre', error)
         return false
       }
       toast.success('Nombre actualizado')
@@ -60,7 +61,7 @@ export function useProfiles() {
         .update({ active: !profile.active })
         .eq('id', profile.id)
       if (error) {
-        toast.error('No se pudo actualizar el estado', { description: error.message })
+        reportError('No se pudo actualizar el estado', error)
         return false
       }
       toast.success(profile.active ? 'Usuario desactivado' : 'Usuario activado')

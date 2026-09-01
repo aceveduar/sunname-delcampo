@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 type MovementType = Database['public']['Enums']['inventory_movement_type']
@@ -21,7 +22,7 @@ export function useRegisterMovement(onDone: () => void | Promise<void>) {
       })
 
       if (error) {
-        toast.error('No se pudo registrar el movimiento', { description: error.message })
+        reportError('No se pudo registrar el movimiento', error)
         return false
       }
 

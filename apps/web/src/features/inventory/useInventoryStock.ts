@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import { reportError } from '../../lib/errors'
 import type { Database } from '../../lib/database.types'
 
 type Product = Database['public']['Tables']['products']['Row']
@@ -29,7 +29,7 @@ export function useInventoryStock() {
 
     const error = productsError ?? stockError
     if (error) {
-      toast.error('No se pudo cargar el inventario', { description: error.message })
+      reportError('No se pudo cargar el inventario', error)
       setLoading(false)
       return
     }
