@@ -4,5 +4,24 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/features/**/*.ts", "src/features/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/features/*/[A-Z]*"],
+                "caseSensitive": true,
+                "message": "Un módulo no debe importar componentes/pantallas de otro módulo directamente (límite de módulo, CLAUDE.md §11). Si necesitas algo de otro módulo, usa su hook público (useX) o su tipo exportado -- eso ya está permitido."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
