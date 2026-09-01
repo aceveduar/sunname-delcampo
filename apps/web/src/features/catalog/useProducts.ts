@@ -80,5 +80,43 @@ export function useProducts() {
     return data.cost
   }, [])
 
-  return { products, loading, createProduct, updateProduct, toggleActive, fetchCost }
+  // Para "Editar precios": varios productos a la vez, un solo refresh al
+  // final -- updateProduct() uno por uno haría N refetches innecesarios.
+  const updatePrices = useCallback(
+    async (
+      changes: { id: string; price: number; price_per_100g: number | null }[],
+    ) => {
+      const results = await Promise.all(
+        changes.map(({ id, ...values }) =>
+          supabase.from('products').update(values).eq('id', id),
+        ),
+      )
+      const failed = results.filter((r) => r.error)
+      if (failed.length > 0) {
+        toast.error(
+          `No se pudieron actualizar ${failed.length} de ${changes.length} precios`,
+          { description: failed[0].error?.message },
+        )
+      } else {
+        toast.success(
+          changes.length === 1
+            ? 'Precio actualizado'
+            : `${changes.length} precios actualizados`,
+        )
+      }
+      await refresh()
+      return failed.length === 0
+    },
+    [refresh],
+  )
+
+  return {
+    products,
+    loading,
+    createProduct,
+    updateProduct,
+    updatePrices,
+    toggleActive,
+    fetchCost,
+  }
 }

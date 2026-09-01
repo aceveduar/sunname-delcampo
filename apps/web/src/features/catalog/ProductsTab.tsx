@@ -6,7 +6,7 @@ import {
   type FormEvent,
 } from 'react'
 import { toast } from 'sonner'
-import { ImageOff, LayoutGrid, Plus, TableIcon } from 'lucide-react'
+import { ImageOff, LayoutGrid, Pencil, Plus, TableIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -59,6 +59,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
     loading,
     createProduct,
     updateProduct,
+    updatePrices,
     toggleActive,
     fetchCost,
   } = useProducts()
@@ -94,6 +95,62 @@ export function ProductsTab({ role }: { role: Role | null }) {
     window.innerWidth < 640 ? 'cards' : 'table',
   )
   const imageInputRef = useRef<HTMLInputElement>(null)
+
+  // Modo "Editar precios": captura rápida de varios precios a la vez
+  // (filtrando por categoría, por ejemplo, para solo los productos que
+  // el dueño acaba de reponer) sin abrir el diálogo completo uno por
+  // uno. Solo en vista de tabla -- es la vista donde tiene sentido
+  // capturar varios números en fila.
+  const [priceEditMode, setPriceEditMode] = useState(false)
+  const [priceEdits, setPriceEdits] = useState<
+    Record<string, { price: string; price_per_100g: string }>
+  >({})
+  const [savingPrices, setSavingPrices] = useState(false)
+  const pendingPriceChanges = Object.keys(priceEdits).length
+
+  const setPriceEdit = (
+    productId: string,
+    field: 'price' | 'price_per_100g',
+    value: string,
+  ) => {
+    setPriceEdits((prev) => {
+      const current = prev[productId] ?? { price: '', price_per_100g: '' }
+      return { ...prev, [productId]: { ...current, [field]: value } }
+    })
+  }
+
+  const cancelPriceEdits = () => {
+    setPriceEdits({})
+    setPriceEditMode(false)
+  }
+
+  const savePriceEdits = async () => {
+    const changes = Object.entries(priceEdits)
+      .map(([id, edit]) => {
+        const product = products.find((p) => p.id === id)
+        if (!product) return null
+        const price = edit.price === '' ? product.price : Number(edit.price)
+        const pricePer100g = product.sold_by_weight
+          ? edit.price_per_100g === ''
+            ? (product.price_per_100g ?? 0)
+            : Number(edit.price_per_100g)
+          : null
+        if (!Number.isFinite(price) || price < 0) return null
+        if (pricePer100g !== null && (!Number.isFinite(pricePer100g) || pricePer100g < 0))
+          return null
+        return { id, price, price_per_100g: pricePer100g }
+      })
+      .filter((c): c is { id: string; price: number; price_per_100g: number | null } => c !== null)
+
+    if (changes.length === 0) return
+    setSavingPrices(true)
+    const ok = await updatePrices(changes)
+    setSavingPrices(false)
+    if (ok) {
+      setPriceEdits({})
+      setPriceEditMode(false)
+    }
+  }
 
   const activeUnits = units.filter((u) => u.active)
   const activeCategories = categories.filter((c) => c.active)
@@ -241,13 +298,46 @@ export function ProductsTab({ role }: { role: Role | null }) {
           Productos que vendes, con su precio, categoría y unidad.
         </p>
         {canManage && (
-          <Button
-            onClick={openCreate}
-            size="sm"
-            disabled={activeUnits.length === 0}
-          >
-            <Plus /> Nuevo producto
-          </Button>
+          <div className="flex gap-2">
+            {priceEditMode ? (
+              <>
+                <Button variant="outline" size="sm" onClick={cancelPriceEdits}>
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={savePriceEdits}
+                  disabled={pendingPriceChanges === 0 || savingPrices}
+                >
+                  {savingPrices
+                    ? 'Guardando…'
+                    : pendingPriceChanges === 0
+                      ? 'Guardar cambios'
+                      : `Guardar ${pendingPriceChanges} cambio${pendingPriceChanges === 1 ? '' : 's'}`}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setView('table')
+                    setPriceEditMode(true)
+                  }}
+                >
+                  <Pencil /> Editar precios
+                </Button>
+                <Button
+                  onClick={openCreate}
+                  size="sm"
+                  disabled={activeUnits.length === 0}
+                >
+                  <Plus /> Nuevo producto
+                </Button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -278,6 +368,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
             variant={view === 'cards' ? 'default' : 'ghost'}
             size="icon-sm"
             onClick={() => setView('cards')}
+            disabled={priceEditMode}
             aria-label="Vista de tarjetas"
           >
             <LayoutGrid />
@@ -485,7 +576,40 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 <TableCell>{categoryName(product.category_id)}</TableCell>
                 <TableCell>{unitCode(product.unit_id)}</TableCell>
                 <TableCell>
-                  {product.sold_by_weight ? (
+                  {priceEditMode ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        autoComplete="off"
+                        className="h-7 w-20"
+                        value={priceEdits[product.id]?.price ?? String(product.price)}
+                        onChange={(event) =>
+                          setPriceEdit(product.id, 'price', event.target.value)
+                        }
+                      />
+                      {product.sold_by_weight && (
+                        <>
+                          <span className="text-muted-foreground text-xs">/100g</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            autoComplete="off"
+                            className="h-7 w-20"
+                            value={
+                              priceEdits[product.id]?.price_per_100g ??
+                              String(product.price_per_100g ?? 0)
+                            }
+                            onChange={(event) =>
+                              setPriceEdit(product.id, 'price_per_100g', event.target.value)
+                            }
+                          />
+                        </>
+                      )}
+                    </div>
+                  ) : product.sold_by_weight ? (
                     <span>
                       {formatCurrency(product.price)}/kg ·{' '}
                       {formatCurrency(product.price_per_100g ?? 0)}/100g
@@ -501,27 +625,31 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 </TableCell>
                 {canManage && (
                   <TableCell className="flex justify-end gap-2 text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEdit(product)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleActive(product)}
-                    >
-                      {product.active ? 'Desactivar' : 'Activar'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setLabelProductId(product.id)}
-                    >
-                      Etiqueta
-                    </Button>
+                    {!priceEditMode && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(product)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleActive(product)}
+                        >
+                          {product.active ? 'Desactivar' : 'Activar'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLabelProductId(product.id)}
+                        >
+                          Etiqueta
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 )}
               </TableRow>
