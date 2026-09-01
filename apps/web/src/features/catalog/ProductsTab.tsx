@@ -258,12 +258,12 @@ export function ProductsTab({ role }: { role: Role | null }) {
         </p>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Buscar producto por nombre o SKU…"
-          containerClassName="max-w-sm flex-1"
+          containerClassName="max-w-sm min-w-[300px] flex-1"
         />
         <div className="border-border flex items-center gap-1 rounded-lg border p-0.5">
           <Button

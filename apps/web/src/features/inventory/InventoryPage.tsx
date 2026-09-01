@@ -93,7 +93,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
           value={search}
           onChange={setSearch}
           placeholder="Buscar producto por nombre o SKU…"
-          containerClassName="max-w-sm flex-1"
+          containerClassName="max-w-sm min-w-[200px] flex-1"
         />
 
         <Select

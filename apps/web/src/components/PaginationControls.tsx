@@ -22,6 +22,7 @@ export function PaginationControls({
     <div className="flex items-center justify-between">
       <p className="text-muted-foreground text-sm">
         {from}–{to} de {totalItems}
+        {totalPages > 1 && ` · página ${page} de ${totalPages}`}
       </p>
       <div className="flex gap-2">
         <Button
