@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,12 @@ import {
 } from './useTenantModules'
 import { useTenantSettings } from './useTenantSettings'
 
-const TOGGLEABLE_MODULES: ModuleKey[] = ['crm', 'purchasing', 'billing']
+const TOGGLEABLE_MODULES: ModuleKey[] = ['crm', 'purchasing']
+// Facturación todavía no tiene ruta ni funcionalidad construida -- un
+// interruptor activo ahí no cambia nada visible, lo cual confunde más de
+// lo que ayuda. Se muestra en la lista (transparencia de roadmap) pero
+// sin interacción, hasta que exista algo real que prender o apagar.
+const COMING_SOON_MODULES: ModuleKey[] = ['billing']
 
 export function SettingsPage() {
   const { isEnabled, setModuleEnabled, loading } = useTenantModules()
@@ -96,6 +102,20 @@ export function SettingsPage() {
                 disabled={loading}
                 onCheckedChange={(checked) => setModuleEnabled(key, checked)}
               />
+            </div>
+          ))}
+          {COMING_SOON_MODULES.map((key) => (
+            <div
+              key={key}
+              className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            >
+              <div>
+                <p className="text-sm font-medium">{MODULE_LABELS[key].name}</p>
+                <p className="text-muted-foreground text-xs">
+                  {MODULE_LABELS[key].description}
+                </p>
+              </div>
+              <Badge variant="outline">Próximamente</Badge>
             </div>
           ))}
         </CardContent>
