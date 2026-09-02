@@ -112,15 +112,26 @@ export function AppShell({
   return (
     <div className="bg-background min-h-screen">
       <header className="bg-sidebar text-sidebar-foreground">
-        <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6">
+        {/* La columna central es minmax(0,auto), no un auto plano: un
+            grid track "auto" nunca se encoge más chico que su contenido
+            -- necesario para que overflow-x-auto en <nav> (abajo) tenga
+            algo que hacer si la barra no cabe, en vez de simplemente
+            desbordar el header entero. */}
+        <div className="grid h-14 grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-4 px-4 sm:px-6">
           <span className="justify-self-start text-sm font-semibold tracking-wide">
             Sunname ERP
           </span>
 
           {/* Centrada a propósito: así se ve igual de intencional con 3
               módulos activos que con 8 -- no se amontona a la izquierda
-              dejando un vacío grande de un solo lado. */}
-          <nav className="hidden items-center gap-1 justify-self-center md:flex">
+              dejando un vacío grande de un solo lado. overflow-x-auto es
+              una red de seguridad, no el diseño esperado: con 9 items
+              (Facturación se sumó 2026-09-02) el ancho mínimo de la barra
+              (~1020px, whitespace-nowrap no deja que se achique) ya no
+              tiene tanto colchón en una laptop de 1366px -- si algún día
+              no cabe, se desliza en vez de encimarse con el logo o el
+              usuario. */}
+          <nav className="hidden max-w-full items-center gap-1 justify-self-center overflow-x-auto md:flex">
             {visibleNavItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}

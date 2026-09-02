@@ -5,7 +5,18 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react'
-import { ImageOff, LayoutGrid, PackageSearch, Pencil, Plus, TableIcon } from 'lucide-react'
+import {
+  ImageOff,
+  LayoutGrid,
+  Package,
+  PackageSearch,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Tag,
+  TableIcon,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -500,8 +511,12 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     className="size-full object-cover"
                   />
                 ) : (
-                  <div className="text-muted-foreground flex size-full items-center justify-center">
-                    <ImageOff className="size-8" />
+                  // Package, no ImageOff: en un catálogo apenas cargando
+                  // fotos, este placeholder es lo que se ve en casi toda
+                  // la cuadrícula -- una imagen "tachada" se lee como un
+                  // error, no como "todavía sin foto".
+                  <div className="text-muted-foreground/50 flex size-full items-center justify-center">
+                    <Package className="size-10" />
                   </div>
                 )}
                 {!product.active && (
@@ -529,27 +544,39 @@ export function ProductsTab({ role }: { role: Role | null }) {
                   )}
                 </p>
                 {canManage && (
-                  <div className="border-border mt-2 flex flex-wrap gap-2 border-t pt-2">
+                  // Solo íconos en tarjeta (a diferencia de la tabla, que
+                  // sí tiene ancho de sobra): tres textos no cabían en una
+                  // línea y "Etiqueta" se iba sola a la siguiente.
+                  // justify-between en vez de un gap fijo: reparte los tres
+                  // a lo ancho de la tarjeta (se ve intencional, no
+                  // amontonado) y de paso separa más los puntos de toque.
+                  <div className="border-border mt-2 flex justify-between border-t pt-2">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon-sm"
+                      aria-label="Editar producto"
                       onClick={() => openEdit(product)}
                     >
-                      Editar
+                      <Pencil />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon-sm"
+                      aria-label={product.active ? 'Desactivar producto' : 'Activar producto'}
                       onClick={() => toggleActive(product)}
                     >
-                      {product.active ? 'Desactivar' : 'Activar'}
+                      {/* El ícono muestra la acción del clic, no el estado
+                          actual (como play/pausa): activo -> se va a
+                          apagar, inactivo -> se va a encender. */}
+                      {product.active ? <PowerOff /> : <Power />}
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon-sm"
+                      aria-label="Imprimir etiqueta"
                       onClick={() => setLabelProductId(product.id)}
                     >
-                      Etiqueta
+                      <Tag />
                     </Button>
                   </div>
                 )}

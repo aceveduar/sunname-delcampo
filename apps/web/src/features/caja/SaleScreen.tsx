@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Minus, Plus, Search, Trash2 } from 'lucide-react'
+import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SearchInput } from '@/components/ui/search-input'
@@ -304,17 +305,23 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
         </div>
 
         {search.trim() === '' && filterCategory === 'all' ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">
-            Escribe para buscar un producto y agregarlo a la venta.
-          </p>
+          <EmptyState
+            icon={Search}
+            title="Busca un producto"
+            description="Escribe un nombre o escanea el código de barras para agregarlo a la venta."
+          />
         ) : results.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">
-            {search.trim()
-              ? `No se encontraron productos para "${search}".`
-              : 'No hay productos activos en esta categoría.'}
-          </p>
+          <EmptyState
+            icon={Search}
+            title="Sin resultados"
+            description={
+              search.trim()
+                ? `No se encontraron productos para "${search}".`
+                : 'No hay productos activos en esta categoría.'
+            }
+          />
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((product) => (
               <button
                 key={product.id}
@@ -428,29 +435,6 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
 
           <div className="flex flex-col gap-1.5">
             <Select
-              items={[
-                { value: NO_CUSTOMER, label: 'Sin cliente' },
-                ...activeCustomers.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-              value={customerId}
-              onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Sin cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
-                {activeCustomers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Select
               items={paymentMethods.map((m) => ({
                 value: m.id,
                 label: m.name,
@@ -497,6 +481,34 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
               )}
             </div>
           )}
+
+          {/* Cliente va al final a propósito: en un negocio de mostrador
+              como Del Campo casi toda venta es anónima -- método de pago
+              y efectivo recibido se tocan siempre, cliente solo a veces.
+              El orden visual debe reflejar qué tan seguido se usa cada
+              campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
+          <div className="flex flex-col gap-1.5">
+            <Select
+              items={[
+                { value: NO_CUSTOMER, label: 'Sin cliente' },
+                ...activeCustomers.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              value={customerId}
+              onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sin cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
+                {activeCustomers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button onClick={handleCheckout} disabled={checkoutDisabled}>
             {submitting ? (
