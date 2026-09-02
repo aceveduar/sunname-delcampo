@@ -294,7 +294,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
           Productos que vendes, con su precio, categoría y unidad.
         </p>
@@ -377,7 +377,12 @@ export function ProductsTab({ role }: { role: Role | null }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Grid de 2 columnas en mobile -- con ancho fijo por selector
+          (pensado para escritorio) el flex-wrap de antes los acomodaba
+          como podía, dejando "A granel" solo en su fila con un hueco
+          enorme antes de "Sin precio". En sm+ vuelve a fila horizontal,
+          cada selector con su ancho de siempre. */}
+      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
         <Select
           items={[
             { value: 'all', label: 'Todas las categorías' },
@@ -387,7 +392,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
           value={filterCategory}
           onValueChange={(value) => setFilterCategory(value ?? 'all')}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Todas las categorías" />
           </SelectTrigger>
           <SelectContent>
@@ -412,7 +417,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
             setFilterActive((value as typeof filterActive) ?? 'all')
           }
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
@@ -433,7 +438,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
             setFilterGranel((value as typeof filterGranel) ?? 'all')
           }
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="A granel: todos" />
           </SelectTrigger>
           <SelectContent>
