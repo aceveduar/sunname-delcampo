@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Plus } from 'lucide-react'
+import { Contact, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { EmptyState } from '@/components/EmptyState'
 import { toTitleCase } from '@/lib/text'
 import { useCustomers, type Customer } from './useCustomers'
 
@@ -68,10 +70,15 @@ export function CustomersPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {loading && <TableSkeletonRows rows={5} columns={5} />}
           {!loading && customers.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground text-center">
-                Aún no hay clientes registrados.
+              <TableCell colSpan={5}>
+                <EmptyState
+                  icon={Contact}
+                  title="Aún no hay clientes"
+                  description="Da de alta tu primer cliente para llevar su historial de compra."
+                />
               </TableCell>
             </TableRow>
           )}

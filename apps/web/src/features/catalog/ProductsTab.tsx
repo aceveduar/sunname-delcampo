@@ -5,7 +5,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react'
-import { ImageOff, LayoutGrid, Pencil, Plus, TableIcon } from 'lucide-react'
+import { ImageOff, LayoutGrid, PackageSearch, Pencil, Plus, TableIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -39,6 +39,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { PaginationControls } from '@/components/PaginationControls'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { EmptyState } from '@/components/EmptyState'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency } from '@/lib/currency'
 import { normalizeSearch, toCode, toTitleCase } from '@/lib/text'
 import { usePagination } from '@/lib/usePagination'
@@ -448,17 +451,41 @@ export function ProductsTab({ role }: { role: Role | null }) {
 
       {view === 'cards' ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {loading &&
+            Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="border-border bg-card flex flex-col overflow-hidden rounded-xl border"
+              >
+                <Skeleton className="aspect-square w-full rounded-none" />
+                <div className="flex flex-col gap-1.5 p-3">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="mt-1 h-4 w-1/3" />
+                </div>
+              </div>
+            ))}
           {!loading && filteredProducts.length === 0 && (
-            <p className="text-muted-foreground col-span-full text-center text-sm">
-              {products.length === 0
-                ? 'Aún no hay productos en el catálogo.'
-                : `No se encontraron productos para "${search}".`}
-            </p>
+            <div className="col-span-full">
+              <EmptyState
+                icon={PackageSearch}
+                title={
+                  products.length === 0
+                    ? 'Aún no hay productos en el catálogo'
+                    : 'Sin resultados'
+                }
+                description={
+                  products.length === 0
+                    ? 'Da de alta tu primer producto para empezar a vender.'
+                    : `No se encontraron productos para "${search}".`
+                }
+              />
+            </div>
           )}
           {pageItems.map((product) => (
             <div
               key={product.id}
-              className="border-border bg-card flex flex-col overflow-hidden rounded-xl border"
+              className="border-border bg-card flex flex-col overflow-hidden rounded-xl border transition-shadow hover:shadow-md"
             >
               <div className="bg-muted relative aspect-square w-full">
                 {product.image_url ? (
@@ -542,15 +569,25 @@ export function ProductsTab({ role }: { role: Role | null }) {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {loading && (
+              <TableSkeletonRows rows={6} columns={canManage ? 8 : 7} />
+            )}
             {!loading && filteredProducts.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={canManage ? 8 : 7}
-                  className="text-muted-foreground text-center"
-                >
-                  {products.length === 0
-                    ? 'Aún no hay productos en el catálogo.'
-                    : `No se encontraron productos para "${search}".`}
+                <TableCell colSpan={canManage ? 8 : 7}>
+                  <EmptyState
+                    icon={PackageSearch}
+                    title={
+                      products.length === 0
+                        ? 'Aún no hay productos en el catálogo'
+                        : 'Sin resultados'
+                    }
+                    description={
+                      products.length === 0
+                        ? 'Da de alta tu primer producto para empezar a vender.'
+                        : `No se encontraron productos para "${search}".`
+                    }
+                  />
                 </TableCell>
               </TableRow>
             )}

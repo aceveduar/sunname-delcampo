@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 export function usePagination<T>(items: T[], pageSize = 25) {
   const [page, setPage] = useState(1)
@@ -10,5 +10,20 @@ export function usePagination<T>(items: T[], pageSize = 25) {
     [items, currentPage, pageSize],
   )
 
-  return { pageItems, page: currentPage, setPage, totalPages, totalItems: items.length, pageSize }
+  // Cambiar de página sin mover el scroll deja la página nueva fuera de
+  // vista cuando "Siguiente" se pulsó desde el fondo -- el usuario ve la
+  // misma pantalla y no sabe si de verdad avanzó.
+  const goToPage = useCallback((next: number) => {
+    setPage(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  return {
+    pageItems,
+    page: currentPage,
+    setPage: goToPage,
+    totalPages,
+    totalItems: items.length,
+    pageSize,
+  }
 }

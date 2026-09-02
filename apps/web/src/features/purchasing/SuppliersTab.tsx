@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { EmptyState } from '@/components/EmptyState'
 import { toTitleCase } from '@/lib/text'
 import { useSuppliers, type Supplier } from './useSuppliers'
 
@@ -67,10 +69,15 @@ export function SuppliersTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {loading && <TableSkeletonRows rows={5} columns={5} />}
           {!loading && suppliers.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground text-center">
-                Aún no hay proveedores.
+              <TableCell colSpan={5}>
+                <EmptyState
+                  icon={Truck}
+                  title="Aún no hay proveedores"
+                  description="Da de alta tu primer proveedor para poder crear órdenes de compra."
+                />
               </TableCell>
             </TableRow>
           )}

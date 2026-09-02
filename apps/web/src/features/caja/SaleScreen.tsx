@@ -99,6 +99,11 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId)
   const received = Number(cashReceived || 0)
   const change = selectedMethod?.code === 'cash' ? received - total : null
+  const checkoutDisabled =
+    cart.length === 0 ||
+    !paymentMethodId ||
+    submitting ||
+    (selectedMethod?.code === 'cash' && received < total)
 
   const addToCart = (product: Product, weightKg?: number) => {
     if (product.sold_by_weight) {
@@ -225,6 +230,42 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     })
     resetSale()
   }
+
+  // handleCheckout se vuelve a crear en cada render (no memoizado, cierra
+  // sobre cart/total/etc.) -- una ref evita que el listener de abajo se
+  // tenga que re-suscribir en cada tecla mientras deja que F9 siempre
+  // llame a la versión más reciente.
+  const handleCheckoutRef = useRef(handleCheckout)
+  useEffect(() => {
+    handleCheckoutRef.current = handleCheckout
+  })
+
+  // Atajos pensados para el cajero: F2 regresa el foco al buscador sin
+  // soltar el mouse, F9 cobra sin llegar hasta el botón, Esc limpia el
+  // buscador -- solo si el foco ya está ahí, para no interceptar el Esc
+  // que cierra un diálogo abierto (GranelDialog/ReceiptDialog). Ambos
+  // atajos de función se desactivan con un diálogo abierto, para no
+  // disparar una acción de Caja detrás de él.
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      const dialogOpen = granelProduct !== null || receipt !== null
+      if (event.key === 'F2' && !dialogOpen) {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+      } else if (event.key === 'F9' && !dialogOpen) {
+        event.preventDefault()
+        if (!checkoutDisabled) handleCheckoutRef.current()
+      } else if (
+        event.key === 'Escape' &&
+        document.activeElement === searchInputRef.current &&
+        search
+      ) {
+        setSearch('')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [granelProduct, receipt, checkoutDisabled, search])
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -457,16 +498,17 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             </div>
           )}
 
-          <Button
-            onClick={handleCheckout}
-            disabled={
-              cart.length === 0 ||
-              !paymentMethodId ||
-              submitting ||
-              (selectedMethod?.code === 'cash' && received < total)
-            }
-          >
-            {submitting ? 'Cobrando…' : `Cobrar ${formatCurrency(total)}`}
+          <Button onClick={handleCheckout} disabled={checkoutDisabled}>
+            {submitting ? (
+              'Cobrando…'
+            ) : (
+              <>
+                {`Cobrar ${formatCurrency(total)}`}
+                <kbd className="ml-1 rounded border border-current/30 px-1 text-[10px] font-normal opacity-70">
+                  F9
+                </kbd>
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

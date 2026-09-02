@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ImageOff } from 'lucide-react'
+import { Boxes, ImageOff } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PaginationControls } from '@/components/PaginationControls'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { EmptyState } from '@/components/EmptyState'
 import { useCategories } from '@/features/catalog/useCategories'
 import { useUnits } from '@/features/catalog/useUnits'
 import type { Database } from '@/lib/database.types'
@@ -133,13 +135,17 @@ export function InventoryPage({ role }: { role: Role | null }) {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {loading && (
+            <TableSkeletonRows rows={6} columns={canRegister ? 5 : 4} />
+          )}
           {!loading && filteredRows.length === 0 && (
             <TableRow>
-              <TableCell
-                colSpan={canRegister ? 5 : 4}
-                className="text-muted-foreground text-center"
-              >
-                No hay productos con control de inventario que coincidan.
+              <TableCell colSpan={canRegister ? 5 : 4}>
+                <EmptyState
+                  icon={Boxes}
+                  title="Sin resultados"
+                  description="No hay productos con control de inventario que coincidan con la búsqueda o el filtro."
+                />
               </TableCell>
             </TableRow>
           )}

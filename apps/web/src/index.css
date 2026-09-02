@@ -55,6 +55,40 @@
   --sidebar-ring: #c9a227;
 }
 
+/*
+  Modo oscuro. El header/sidebar (--sidebar-*) se queda igual que en claro
+  a propósito: es identidad de marca constante (§7), no parte del tema
+  claro/oscuro -- solo cambia la superficie de contenido alrededor.
+  Los semánticos (success/destructive) y el dorado se aclaran un poco
+  frente a sus versiones claras porque, sin eso, pierden contraste real
+  sobre un fondo oscuro.
+*/
+.dark {
+  --background: #15181f;
+  --foreground: #e8e6df;
+  --card: #1d212b;
+  --card-foreground: #e8e6df;
+  --popover: #1d212b;
+  --popover-foreground: #e8e6df;
+  --primary: #4a63a0;
+  --primary-foreground: #f1efea;
+  --secondary: #262b38;
+  --secondary-foreground: #e8e6df;
+  --muted: #262b38;
+  --muted-foreground: #9a9aa8;
+  --accent: #262b38;
+  --accent-foreground: #e8e6df;
+  --brand-gold: #d9b64a;
+  --brand-gold-foreground: #1c1c1e;
+  --success: #4c9a6d;
+  --success-foreground: #0e1512;
+  --destructive: #d5564e;
+  --destructive-foreground: #1c0f0d;
+  --border: #2c3140;
+  --input: #2c3140;
+  --ring: #6b83b8;
+}
+
 @theme inline {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 

@@ -1,6 +1,9 @@
+import { ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { EmptyState } from '@/components/EmptyState'
 import { formatCurrency } from '@/lib/currency'
 import { useProducts } from '@/features/catalog/useProducts'
 import { usePurchaseOrders } from './usePurchaseOrders'
@@ -43,10 +46,15 @@ export function PurchaseOrdersTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {loading && <TableSkeletonRows rows={5} columns={5} />}
           {!loading && orders.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground text-center">
-                Aún no hay órdenes de compra.
+              <TableCell colSpan={5}>
+                <EmptyState
+                  icon={ClipboardList}
+                  title="Aún no hay órdenes de compra"
+                  description="Crea una orden para registrar la mercancía que esperas de un proveedor."
+                />
               </TableCell>
             </TableRow>
           )}

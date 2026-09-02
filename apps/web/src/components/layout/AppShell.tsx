@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link, NavLink, useLocation } from 'react-router-dom'
+import { useTheme } from 'next-themes'
 import {
   BarChart3,
   Boxes,
   Contact,
   LogOut,
   Menu,
+  Moon,
   Package,
   Settings,
   ShoppingCart,
   Store,
+  Sun,
   Users,
 } from 'lucide-react'
 import {
@@ -89,6 +92,8 @@ export function AppShell({
   const isAdmin = isAdminRole(profile?.role)
   const isOwner = isOwnerRole(profile?.role)
   const location = useLocation()
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const visibleNavItems = NAV_ITEMS.filter(
     (item) =>
       (!item.adminOnly || isAdmin) &&
@@ -127,6 +132,17 @@ export function AppShell({
           </nav>
 
           <div className="flex items-center gap-1 justify-self-end">
+            <button
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              className="hover:bg-sidebar-accent relative flex items-center justify-center rounded-md p-2"
+              aria-label={
+                isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'
+              }
+            >
+              <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+              <Moon className="absolute size-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+            </button>
+
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

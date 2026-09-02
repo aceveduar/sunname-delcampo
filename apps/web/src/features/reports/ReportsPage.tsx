@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import {
   Table,
   TableBody,
@@ -53,7 +55,7 @@ export function ReportsPage() {
   const [preset, setPreset] = useState<PresetKey>('today')
   const { from, to } = useMemo(() => rangeFor(preset), [preset])
   const report = useSalesReport(from, to)
-  const { sales, voidSale } = useSales(from, to)
+  const { sales, loading: salesLoading, voidSale } = useSales(from, to)
 
   const handleVoid = async (saleId: string, total: number) => {
     if (
@@ -98,7 +100,11 @@ export function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-brand-gold text-2xl font-semibold">
-            {formatCurrency(report.totalAmount)}
+            {report.loading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              formatCurrency(report.totalAmount)
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -108,10 +114,16 @@ export function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex items-baseline gap-2 text-2xl font-semibold">
-            {formatCurrency(report.margin)}
-            <span className="text-muted-foreground text-sm font-normal">
-              {report.marginPercent.toFixed(0)}%
-            </span>
+            {report.loading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                {formatCurrency(report.margin)}
+                <span className="text-muted-foreground text-sm font-normal">
+                  {report.marginPercent.toFixed(0)}%
+                </span>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -121,7 +133,11 @@ export function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {report.saleCount}
+            {report.loading ? (
+              <Skeleton className="h-8 w-12" />
+            ) : (
+              report.saleCount
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -131,7 +147,11 @@ export function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {formatCurrency(report.avgTicket)}
+            {report.loading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              formatCurrency(report.avgTicket)
+            )}
           </CardContent>
         </Card>
       </div>
@@ -196,7 +216,7 @@ export function ReportsPage() {
           <CardTitle>Ventas recientes</CardTitle>
         </CardHeader>
         <CardContent>
-          {sales.length === 0 ? (
+          {!salesLoading && sales.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               Sin ventas en este periodo.
             </p>
@@ -212,6 +232,7 @@ export function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {salesLoading && <TableSkeletonRows rows={4} columns={5} />}
                 {sales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell>{formatDateTime(sale.createdAt)}</TableCell>
