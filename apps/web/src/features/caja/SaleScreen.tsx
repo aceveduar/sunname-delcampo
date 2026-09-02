@@ -504,7 +504,10 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             ) : (
               <>
                 {`Cobrar ${formatCurrency(total)}`}
-                <kbd className="ml-1 rounded border border-current/30 px-1 text-[10px] font-normal opacity-70">
+                {/* El atajo es para quien tiene teclado (PC del negocio) --
+                    en un celular/tablet por touch no aplica y solo le
+                    resta espacio al botón en la pantalla más angosta. */}
+                <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
                   F9
                 </kbd>
               </>

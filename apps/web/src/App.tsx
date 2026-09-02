@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { AppShell } from '@/components/layout/AppShell'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { CajaPage } from '@/features/caja/CajaPage'
+import { BillingPage } from '@/features/billing/BillingPage'
 import { CustomersPage } from '@/features/crm/CustomersPage'
 import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
@@ -93,6 +94,16 @@ function App() {
         <Route
           path="/reportes"
           element={isAdmin ? <ReportsPage /> : <Navigate to="/caja" replace />}
+        />
+        <Route
+          path="/facturacion"
+          element={
+            isAdmin && isModuleEnabled('billing') ? (
+              <BillingPage />
+            ) : (
+              <Navigate to="/caja" replace />
+            )
+          }
         />
         <Route
           path="/usuarios"

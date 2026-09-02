@@ -10,7 +10,8 @@ export const MODULE_LABELS: Record<ModuleKey, { name: string; description: strin
   purchasing: { name: 'Compras', description: 'Proveedores y órdenes de compra.' },
   billing: {
     name: 'Facturación',
-    description: 'Factura fiscal CFDI 4.0 — todavía no construido en el sistema.',
+    description:
+      'Factura global CFDI 4.0 por corte de caja. Requiere completar los datos fiscales del negocio -- el timbrado real con un PAC todavía no está conectado.',
   },
 }
 

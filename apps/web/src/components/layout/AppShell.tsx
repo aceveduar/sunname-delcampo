@@ -10,6 +10,7 @@ import {
   Menu,
   Moon,
   Package,
+  Receipt,
   Settings,
   ShoppingCart,
   Store,
@@ -58,6 +59,13 @@ const NAV_ITEMS: {
     moduleKey: 'purchasing',
   },
   { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
+  {
+    to: '/facturacion',
+    label: 'Facturación',
+    icon: Receipt,
+    adminOnly: true,
+    moduleKey: 'billing',
+  },
   { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
   {
     to: '/configuracion',
