@@ -80,7 +80,7 @@ export function GranelDialog({
         {hasPrice ? (
           <p className="text-muted-foreground text-sm">
             {formatCurrency(pricePerKg)}/kg · {formatCurrency(pricePer100g)}
-            /100g (menos de 1kg)
+            /100g (menos de 1/4 kg)
           </p>
         ) : (
           <p className="text-destructive text-sm font-medium">

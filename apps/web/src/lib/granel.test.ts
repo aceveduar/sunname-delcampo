@@ -21,6 +21,22 @@ describe('granelTotalFromWeightKg', () => {
   it('redondea a centavos', () => {
     expect(granelTotalFromWeightKg(0.133, PRICE_PER_KG, PRICE_PER_100G)).toBe(30.59)
   })
+
+  // El quiebre real es en 1/4 kg (250g), no en 1kg -- confirmado con las
+  // hojas de precio reales del dueño (2026-09-02): el cuarto siempre es
+  // exacto precio_kilo ÷ 4, así que aplicar la tarifa de kilo desde 250g
+  // ya da ese precio sin necesitar guardarlo aparte.
+  it('usa la tarifa de kilo exactamente en 1/4 kg (250g)', () => {
+    expect(granelTotalFromWeightKg(0.25, PRICE_PER_KG, PRICE_PER_100G)).toBe(55)
+  })
+
+  it('usa la tarifa de menudeo justo por debajo de 1/4 kg', () => {
+    expect(granelTotalFromWeightKg(0.249, PRICE_PER_KG, PRICE_PER_100G)).toBe(57.27)
+  })
+
+  it('usa la tarifa de kilo, proporcional, entre 1/4 kg y 1kg', () => {
+    expect(granelTotalFromWeightKg(0.4, PRICE_PER_KG, PRICE_PER_100G)).toBe(88)
+  })
 })
 
 describe('granelWeightKgFromAmount', () => {
@@ -41,6 +57,16 @@ describe('granelWeightKgFromAmount', () => {
   it('usa la tarifa de mayoreo cuando el monto equivale a 1kg o más', () => {
     // $440 a $220/kg -> exactamente 2kg.
     expect(granelWeightKgFromAmount(440, PRICE_PER_KG, PRICE_PER_100G)).toBe(2)
+  })
+
+  it('usa la tarifa de kilo cuando el monto equivale a 1/4 kg exacto', () => {
+    // $55 = 0.25 × $220/kg -> exactamente 250g.
+    expect(granelWeightKgFromAmount(55, PRICE_PER_KG, PRICE_PER_100G)).toBe(0.25)
+  })
+
+  it('usa la tarifa de menudeo justo por debajo del monto de 1/4 kg', () => {
+    // $54 todavía no alcanza los $55 de un cuarto -> tarifa de menudeo.
+    expect(granelWeightKgFromAmount(54, PRICE_PER_KG, PRICE_PER_100G)).toBe(0.235)
   })
 
   it('regresión: nunca produce Infinity/NaN cuando el producto no tiene precio', () => {

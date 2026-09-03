@@ -952,8 +952,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     required
                   />
                   <p className="text-muted-foreground text-xs">
-                    Tarifa para cuando se pide menos de 1kg. Se aplica el precio
-                    por kilo desde 1kg en adelante.
+                    Tarifa para cuando se pide menos de 1/4 kg. Se aplica el
+                    precio por kilo desde 1/4 kg en adelante (incluye el
+                    cuarto, que siempre sale a precio_kilo ÷ 4).
                   </p>
                 </div>
               )}
