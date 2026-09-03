@@ -474,19 +474,17 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
                       : 'text-success text-sm'
                   }
                 >
+                  {/* Se probó mostrar aquí una sugerencia de cambio
+                      redondeado y se quitó (2026-09-03): redondear al peso
+                      más cercano cae hacia abajo cuando el cambio es menor
+                      a $0.50, y terminaba sugiriendo "redondeado: $0.00"
+                      sobre un cambio real de $0.40 -- o sea, quedarse con
+                      el dinero del cliente. Qué monedas dar es criterio del
+                      cajero, que sabe qué tiene en la caja; el sistema solo
+                      dice el número exacto. */}
                   {change < 0
                     ? `Falta ${formatCurrency(Math.abs(change))}`
                     : `Cambio: ${formatCurrency(change)}`}
-                  {/* Sugerencia nada más -- casi no circula moneda menor a
-                      $1, así que el centavo exacto no siempre se puede dar
-                      físicamente. La venta se sigue registrando con el
-                      monto real, esto no cambia nada de lo que se guarda. */}
-                  {change > 0 && Math.abs(Math.round(change) - change) > 0.001 && (
-                    <span className="text-muted-foreground font-normal">
-                      {' '}
-                      · redondeado: {formatCurrency(Math.round(change))}
-                    </span>
-                  )}
                 </p>
               )}
             </div>
