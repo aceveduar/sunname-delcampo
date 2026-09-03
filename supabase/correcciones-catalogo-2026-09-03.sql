@@ -13,8 +13,17 @@ begin;
 -- ── 1. Arroz Samam se vende por peso ──────────────────────────────────
 -- Estaba en KG pero sin venta por peso: así solo se podía despachar en
 -- kilos enteros, sin poder pesar 300 g ni cobrar "$50 de arroz".
+--
+-- price_per_100g se pone en 0 si venía en null: el candado
+-- products_price_per_100g_required exige que un producto a granel tenga
+-- ese campo (no nulo, aunque sí puede ser 0). Es la misma convención que
+-- ya tienen los demás productos sin precio cargado, y Caja ya sabe
+-- manejarla -- avisa "Este producto todavía no tiene precio" en vez de
+-- dejar cobrar $0. Cuando llegue el precio real hay que llenar los dos:
+-- el del kilo y el de 100 g.
 update products
-set sold_by_weight = true
+set sold_by_weight = true,
+    price_per_100g = coalesce(price_per_100g, 0)
 where name = 'Arroz Samam';
 
 -- ── 2. Las hojas se venden por manojo, no en costal ───────────────────
