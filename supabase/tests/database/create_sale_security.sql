@@ -6,7 +6,7 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(26);
+select plan(27);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
@@ -314,35 +314,35 @@ select is(
 -- servidor -- el cliente nunca manda un precio, solo cuánto dinero pidió
 -- el comprador. Regla confirmada con el dueño (2026-09-03).
 
--- Test 22/23: $50 del producto a granel de prueba ($512/kg, $60/100g).
--- $50 < $128 (un cuarto) -> tarifa de 100g -> 50/60/10 = 83.33g -> 83g.
--- El subtotal debe ser $50.00 EXACTO, no 0.083 × tarifa.
+-- El producto a granel de prueba cuesta $160/kg y $19/100g, así que el
+-- quiebre de tarifa por monto cae en $40 (0.25 × 160).
+
+-- Test 22/23/24: $20 está por debajo de esos $40 -> tarifa de 100g ->
+-- 20/19/10 = 105.26g -> 105g. El subtotal debe ser $20.00 EXACTO, no
+-- 0.105 × tarifa (que daría $19.95).
 select lives_ok(
   $$select create_sale(
       gen_random_uuid(),
       '00000000-0000-0000-0000-000000000003',
-      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'amount', 50)),
-      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 50.00))
+      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'amount', 20)),
+      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 20.00))
     )$$,
-  'create_sale acepta una venta por monto de $50 pagada con $50 exactos'
+  'create_sale acepta una venta por monto de $20 pagada con $20 exactos'
 );
 select is(
-  (select subtotal from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.083),
-  50.00,
-  'La venta por monto cobra el monto pedido exacto ($50.00), no peso × tarifa'
+  (select subtotal from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.105),
+  20.00,
+  'La venta por monto cobra el monto pedido exacto ($20.00), no peso × tarifa ($19.95)'
 );
-
--- Test 24: el peso derivado se guarda, para que el inventario descuente
--- lo que de verdad salió.
 select is(
-  (select quantity from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and subtotal = 50.00),
-  0.083::numeric,
-  'La venta por monto guarda el peso derivado por el servidor (83g)'
+  (select quantity from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and subtotal = 20.00),
+  0.105::numeric,
+  'La venta por monto guarda el peso derivado por el servidor (105g), para que el inventario descuente lo que salió'
 );
 
--- Test 25: por monto también respeta el quiebre de tarifa -- $200 ya
--- pasa los $128 de un cuarto, así que el peso sale a precio de kilo
--- (200/512 = 390.6g -> 391g), y el cobro sigue siendo el monto exacto.
+-- Test 25/26: $200 ya pasa los $40 de un cuarto, así que el peso se
+-- deriva con la tarifa de kilo (200/160 = 1.25kg exactos), y el cobro
+-- sigue siendo el monto exacto.
 select lives_ok(
   $$select create_sale(
       gen_random_uuid(),
@@ -354,8 +354,8 @@ select lives_ok(
 );
 select is(
   (select quantity from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and subtotal = 200.00),
-  0.391::numeric,
-  'Arriba del quiebre, el peso por monto se deriva con la tarifa de kilo (391g)'
+  1.250::numeric,
+  'Arriba del quiebre, el peso por monto se deriva con la tarifa de kilo (1.25kg)'
 );
 
 -- Test 26: un monto en cero o negativo se rechaza, igual que la
