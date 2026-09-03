@@ -54,6 +54,7 @@ export function TicketCaptureDialog({
   products,
   units,
   onCreate,
+  onCreateSupplier,
 }: {
   suppliers: Supplier[]
   products: Product[]
@@ -63,12 +64,14 @@ export function TicketCaptureDialog({
     notes: string | null
     items: { productId: string; quantity: number; unitCost: number }[]
   }) => Promise<boolean>
+  onCreateSupplier: (values: { name: string }) => Promise<string | null>
 }) {
   const [open, setOpen] = useState(false)
   const [lectura, setLectura] = useState<TicketLectura | null>(null)
   const [lines, setLines] = useState<DraftLine[]>([])
   const [supplierId, setSupplierId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [creandoProveedor, setCreandoProveedor] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = useTicketCapture()
 
@@ -123,6 +126,18 @@ export function TicketCaptureDialog({
         }
       }),
     )
+  }
+
+  const handleCreateSupplier = async () => {
+    const nombre = lectura?.extraccion.proveedor.nombre
+    if (!nombre) return
+    setCreandoProveedor(true)
+    // El RFC leído del ticket no se guarda: en los tickets reales viene
+    // sellado o encimado y se lee mal seguido, y un RFC equivocado en el
+    // padrón de proveedores es peor que no tener ninguno.
+    const id = await onCreateSupplier({ name: nombre })
+    setCreandoProveedor(false)
+    if (id) setSupplierId(id)
   }
 
   const updateLine = (key: string, patch: Partial<DraftLine>) => {
@@ -288,13 +303,31 @@ export function TicketCaptureDialog({
                   </select>
                 </div>
                 {lectura.extraccion.proveedor.nombre && (
-                  <p className="text-muted-foreground pb-2 text-xs">
-                    El ticket dice:{' '}
-                    <span className="text-foreground font-medium">
-                      {lectura.extraccion.proveedor.nombre}
-                    </span>
-                    {!supplierId && ' — si no está en la lista, créalo primero en Proveedores.'}
-                  </p>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 pb-1.5">
+                    <p className="text-muted-foreground text-xs">
+                      El ticket dice:{' '}
+                      <span className="text-foreground font-medium">
+                        {lectura.extraccion.proveedor.nombre}
+                      </span>
+                    </p>
+                    {/* Sin esto, un proveedor que todavía no existe obliga a
+                        cancelar, darlo de alta en la otra pestaña y volver a
+                        subir la foto -- o sea a pagar otra lectura y capturar
+                        todo de nuevo. En el primer ticket real no hay ningún
+                        proveedor dado de alta, así que es el caso normal, no
+                        la excepción. */}
+                    {!supplierId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={creandoProveedor}
+                        onClick={handleCreateSupplier}
+                      >
+                        {creandoProveedor ? 'Creando…' : 'Darlo de alta'}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -425,8 +458,13 @@ export function TicketCaptureDialog({
           )}
         </div>
 
+        {/* mx-0/mb-0 cancelan los -mx-4 -mb-4 que DialogFooter trae para
+            sangrar hasta el borde de un diálogo con padding propio: aquí el
+            contenido va con p-0, así que ese margen negativo sacaba el pie
+            20px fuera del diálogo (medido con texto grande, donde 1rem =
+            20px). */}
         {lectura && (
-          <DialogFooter className="flex-row items-center justify-between border-t px-6 py-4">
+          <DialogFooter className="mx-0 mb-0 flex-row flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
             <div className="text-sm">
               <span className="text-muted-foreground">
                 {includedLines.length} de {lines.length} renglones ·{' '}
@@ -438,7 +476,10 @@ export function TicketCaptureDialog({
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
+            {/* flex-wrap: en pantalla chica con texto grande, "Cancelar" y
+                "Crear orden de compra" lado a lado no caben (medido: 13px
+                de más a 390px) y los botones no encogen. */}
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="ghost" onClick={() => handleOpenChange(false)}>
                 Cancelar
               </Button>

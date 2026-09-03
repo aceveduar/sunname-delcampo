@@ -26,16 +26,23 @@ export function useSuppliers() {
     refresh()
   }, [refresh])
 
+  /** Regresa el id del proveedor creado, o null si falló. Se necesita el
+   * id (no un booleano) para poder dejarlo ya seleccionado en la captura
+   * de compras por foto, sin obligar a buscarlo otra vez en la lista. */
   const createSupplier = useCallback(
     async (values: SupplierInsert) => {
-      const { error } = await supabase.from('suppliers').insert(values)
-      if (error) {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert(values)
+        .select('id')
+        .single()
+      if (error || !data) {
         reportError('No se pudo crear el proveedor', error)
-        return false
+        return null
       }
       toast.success('Proveedor creado')
       await refresh()
-      return true
+      return data.id
     },
     [refresh],
   )
