@@ -48,3 +48,28 @@ export function nombreDesdeTicket(descripcion: string) {
   // nombre feo que uno vacío o mutilado.
   return toTitleCase(limpio.length >= 3 ? limpio : descripcion)
 }
+
+/** Cuántas unidades trae el empaque, según lo dice la descripción del
+ * ticket: "ARROZ SAMAN C/25 KG" -> 25. null si no lo dice.
+ *
+ * Sirve de primera propuesta cuando todavía no hay una equivalencia
+ * guardada para ese proveedor. El negocio compra por bulto y vende por
+ * kilo, así que sin esto habría que capturar la conversión a mano en cada
+ * renglón la primera vez. Es una propuesta, no un dato: siempre se muestra
+ * para que una persona la confirme o la corrija. */
+export function empaqueDesdeTicket(descripcion: string): number | null {
+  // "C/25 KG", "C-25KG", "C/ 25 kg": la forma en que el proveedor anota
+  // cuánto trae el bulto.
+  const conBarra = descripcion.match(/\bc\s*[/-]\s*(\d+([.,]\d+)?)\s*(kg|kgs|g|gr|grs|lt|lts|l|ml|pz|pzs)?\b/i)
+  if (conBarra) {
+    const valor = Number(conBarra[1].replace(',', '.'))
+    return Number.isFinite(valor) && valor > 0 ? valor : null
+  }
+  // "ARROZ 25 KG", "ACEITE 180ML": el tamaño suelto al final.
+  const suelto = descripcion.match(/\b(\d+([.,]\d+)?)\s*(kg|kgs|lt|lts|l)\b\.?\s*$/i)
+  if (suelto) {
+    const valor = Number(suelto[1].replace(',', '.'))
+    return Number.isFinite(valor) && valor > 0 ? valor : null
+  }
+  return null
+}

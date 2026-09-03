@@ -14,11 +14,12 @@ import {
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
 import { bestUnambiguous, rankCandidates, type Candidate } from '@/lib/match'
-import { nombreDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
+import { empaqueDesdeTicket, nombreDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
 import type { Product } from '@/features/catalog/useProducts'
 import type { UnitOfMeasure } from '@/features/catalog/useUnits'
 import type { Supplier } from './useSuppliers'
 import { useTicketCapture, type TicketLectura, type TicketRenglon } from './useTicketCapture'
+import { useSupplierAliases } from './useSupplierAliases'
 
 // Arriba de este puntaje, el producto se preselecciona solo; abajo, la
 // línea se queda sin producto y obliga a elegirlo a mano. El objetivo no
@@ -33,6 +34,17 @@ type DraftLine = {
   quantity: string
   unitCost: string
   include: boolean
+  /** Cuántas unidades del producto se contaron por cada unidad del
+   * ticket. 1 = se capturó tal cual viene. 25 = un bulto de 25 kg. */
+  packFactor: number
+  /** Conversión que el ticket sugiere pero que nadie ha confirmado. Se
+   * ofrece con un botón; no se aplica sola. */
+  packHint: number | null
+}
+
+const redondear = (valor: number, decimales: number) => {
+  const f = 10 ** decimales
+  return Math.round(valor * f) / f
 }
 
 function numero(value: string): number {
@@ -98,6 +110,7 @@ export function TicketCaptureDialog({
   const [creandoProducto, setCreandoProducto] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = useTicketCapture()
+  const { findAlias, rememberAliases } = useSupplierAliases()
 
   const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
   const inactiveProducts = useMemo(() => products.filter((p) => !p.active), [products])
@@ -129,42 +142,65 @@ export function TicketCaptureDialog({
     // para esto -- en los tickets reales viene sellado o encimado y se
     // lee mal seguido (docs/captura-tickets-analisis.md).
     const nombreProveedor = resultado.extraccion.proveedor.nombre
-    if (nombreProveedor) {
-      const proveedor = mejorInequivoco(
-        rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name),
-      )
-      if (proveedor) setSupplierId(proveedor.id)
-    }
+    const proveedor = nombreProveedor
+      ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
+      : null
+    if (proveedor) setSupplierId(proveedor.id)
 
-    setLines(
-      resultado.verificacion.renglones.map((renglon) => {
-        // Se prefiere un activo, pero si el único parecido razonable es
-        // un producto inactivo, ese se propone igual. Un producto puede
-        // estar inactivo solo porque le falta precio, y es justo el que se
-        // está comprando: no proponerlo dejaba casi todos los renglones
-        // vacíos y devolvía a mano el trabajo que esto viene a quitar.
-        // Queda marcado "(inactivo)" en el desplegable y, como todo aquí,
-        // no se guarda sin que una persona lo confirme.
-        const sugerido = renglon.descripcion
+    // Se usa el id resuelto aquí y no el del estado: setSupplierId no
+    // surte efecto hasta el siguiente render, y las equivalencias
+    // aprendidas se buscan por proveedor.
+    setLines(construirLineas(resultado, proveedor?.id ?? ''))
+  }
+
+  /** Arma el borrador. Primero pregunta si ya se aprendió qué es este
+   * renglón para este proveedor; solo si no, cae al parecido de nombres. */
+  const construirLineas = (resultado: TicketLectura, supplierIdResuelto: string) =>
+    resultado.verificacion.renglones.map((renglon): DraftLine => {
+      const alias = findAlias(
+        supplierIdResuelto,
+        renglon.descripcion,
+        renglon.codigo_proveedor,
+      )
+      const productoAprendido = alias
+        ? (products.find((p) => p.id === alias.product_id) ?? null)
+        : null
+
+      // La conversión de empaque solo se aplica sola cuando ya la
+      // confirmó una persona antes (viene de una equivalencia guardada).
+      // Lo que se deduce leyendo el ticket se ofrece, no se aplica: el
+      // negocio compra por bulto y vende por kilo, pero de "20 LT" no se
+      // puede saber si el producto se mide en litros o en garrafas.
+      const factor = alias ? Number(alias.units_per_package) : 1
+      const sugerenciaEmpaque =
+        !alias && renglon.descripcion ? empaqueDesdeTicket(renglon.descripcion) : null
+
+      const sugerido =
+        productoAprendido ??
+        (renglon.descripcion
           ? (mejorInequivoco(
               rankCandidates(renglon.descripcion, activeProducts, (p) => p.name ?? ''),
             ) ??
             mejorInequivoco(
               rankCandidates(renglon.descripcion, inactiveProducts, (p) => p.name ?? ''),
             ))
-          : null
-        return {
-          key: `renglon-${renglon.indice}`,
-          origen: renglon,
-          productId: sugerido?.id ?? '',
-          quantity: renglon.cantidad !== null ? String(renglon.cantidad) : '',
-          unitCost:
-            renglon.precio_unitario !== null ? String(renglon.precio_unitario) : '',
-          include: true,
-        }
-      }),
-    )
-  }
+          : null)
+
+      return {
+        key: `renglon-${renglon.indice}`,
+        origen: renglon,
+        productId: sugerido?.id ?? '',
+        quantity:
+          renglon.cantidad !== null ? String(redondear(renglon.cantidad * factor, 3)) : '',
+        unitCost:
+          renglon.precio_unitario !== null
+            ? String(redondear(renglon.precio_unitario / factor, 2))
+            : '',
+        include: true,
+        packFactor: factor,
+        packHint: sugerenciaEmpaque,
+      }
+    })
 
   const handleCreateSupplier = async () => {
     const nombre = lectura?.extraccion.proveedor.nombre
@@ -214,6 +250,57 @@ export function TicketCaptureDialog({
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
   }
 
+  /** Aplica la conversión que sugiere el ticket: si el bulto trae 25 kg,
+   * 1 bulto a $412.50 pasa a 25 kg a $16.50. Se recalcula desde los
+   * valores originales del ticket, no desde lo que hay en pantalla, para
+   * que aplicarla dos veces no multiplique dos veces. */
+  const aplicarEmpaque = (line: DraftLine) => {
+    const factor = line.packHint
+    if (!factor) return
+    updateLine(line.key, {
+      quantity:
+        line.origen.cantidad !== null
+          ? String(redondear(line.origen.cantidad * factor, 3))
+          : line.quantity,
+      unitCost:
+        line.origen.precio_unitario !== null
+          ? String(redondear(line.origen.precio_unitario / factor, 2))
+          : line.unitCost,
+      packFactor: factor,
+      packHint: null,
+    })
+  }
+
+  /** Al cambiar de proveedor se vuelven a consultar las equivalencias
+   * aprendidas, pero solo se rellenan los renglones que siguen vacíos:
+   * nunca se pisa algo que una persona ya eligió. */
+  const handleSupplierChange = (nuevoId: string) => {
+    setSupplierId(nuevoId)
+    if (!nuevoId) return
+    setLines((prev) =>
+      prev.map((line) => {
+        if (line.productId) return line
+        const alias = findAlias(nuevoId, line.origen.descripcion, line.origen.codigo_proveedor)
+        if (!alias) return line
+        const factor = Number(alias.units_per_package)
+        return {
+          ...line,
+          productId: alias.product_id,
+          quantity:
+            line.origen.cantidad !== null
+              ? String(redondear(line.origen.cantidad * factor, 3))
+              : line.quantity,
+          unitCost:
+            line.origen.precio_unitario !== null
+              ? String(redondear(line.origen.precio_unitario / factor, 2))
+              : line.unitCost,
+          packFactor: factor,
+          packHint: null,
+        }
+      }),
+    )
+  }
+
   const includedLines = lines.filter((l) => l.include)
   const total = includedLines.reduce(
     (sum, l) => sum + numero(l.quantity) * numero(l.unitCost),
@@ -251,6 +338,27 @@ export function TicketCaptureDialog({
         unitCost: numero(l.unitCost),
       })),
     })
+
+    if (ok) {
+      // Se aprende de lo que la persona acabó eligiendo, incluida la
+      // conversión de empaque: si el ticket decía 1 bulto y se capturaron
+      // 25 kg, el próximo ticket de este proveedor ya llega convertido.
+      await rememberAliases(
+        includedLines
+          .filter((l) => l.productId && l.origen.descripcion)
+          .map((l) => ({
+            supplierId,
+            ticketText: l.origen.descripcion as string,
+            supplierCode: l.origen.codigo_proveedor,
+            productId: l.productId,
+            unitsPerPackage:
+              l.origen.cantidad && l.origen.cantidad > 0
+                ? redondear(numero(l.quantity) / l.origen.cantidad, 3)
+                : 1,
+          }))
+          .filter((e) => e.unitsPerPackage > 0),
+      )
+    }
 
     setSubmitting(false)
     if (ok) {
@@ -361,7 +469,7 @@ export function TicketCaptureDialog({
                   <select
                     id="ticket-proveedor"
                     value={supplierId}
-                    onChange={(e) => setSupplierId(e.target.value)}
+                    onChange={(e) => handleSupplierChange(e.target.value)}
                     className="border-input bg-transparent h-9 rounded-md border px-3 text-sm"
                   >
                     <option value="">Elige un proveedor…</option>
@@ -521,6 +629,32 @@ export function TicketCaptureDialog({
                             </p>
                           </div>
                         </div>
+                      )}
+
+                      {line.include && line.packHint && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="text-muted-foreground">
+                            El ticket dice que cada {line.origen.unidad ?? 'empaque'} trae{' '}
+                            {line.packHint}
+                            {unidadProducto ? ` ${unidadProducto.code}` : ''}.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => aplicarEmpaque(line)}
+                            className="text-primary underline underline-offset-2"
+                          >
+                            Convertir
+                          </button>
+                        </div>
+                      )}
+
+                      {line.include && line.packFactor !== 1 && (
+                        <p className="text-muted-foreground mt-2 text-xs">
+                          Convertido: {line.origen.cantidad}{' '}
+                          {line.origen.unidad ?? 'empaque'} × {line.packFactor} ={' '}
+                          {line.quantity}
+                          {unidadProducto ? ` ${unidadProducto.code}` : ''}.
+                        </p>
                       )}
 
                       {line.include && altaEnLinea === line.key && (

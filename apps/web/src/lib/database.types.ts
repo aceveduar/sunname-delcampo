@@ -660,6 +660,57 @@ export type Database = {
           },
         ]
       }
+      supplier_product_aliases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          product_id: string
+          supplier_code: string | null
+          supplier_id: string
+          ticket_text: string
+          units_per_package: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          product_id: string
+          supplier_code?: string | null
+          supplier_id: string
+          ticket_text: string
+          units_per_package?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          product_id?: string
+          supplier_code?: string | null
+          supplier_id?: string
+          ticket_text?: string
+          units_per_package?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_product_aliases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_product_aliases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           active: boolean
