@@ -168,57 +168,10 @@ export function parseVoiceCommand(raw: string): VoiceCommand | null {
     : null
 }
 
-function levenshtein(a: string, b: string): number {
-  const dp: number[] = Array.from({ length: b.length + 1 }, (_, i) => i)
-  for (let i = 1; i <= a.length; i++) {
-    let prev = dp[0]
-    dp[0] = i
-    for (let j = 1; j <= b.length; j++) {
-      const temp = dp[j]
-      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1])
-      prev = temp
-    }
-  }
-  return dp[b.length]
-}
-
-function tokenMatches(queryToken: string, candidateToken: string): boolean {
-  if (queryToken === candidateToken) return true
-  if (candidateToken.startsWith(queryToken) || queryToken.startsWith(candidateToken)) return true
-  // Tolera errores chicos de una o dos letras -- típicos de un
-  // reconocimiento de voz que oye "guajio" en vez de "guajillo".
-  const maxDistance = queryToken.length <= 4 ? 1 : 2
-  return levenshtein(queryToken, candidateToken) <= maxDistance
-}
-
-/** Qué tan bien "query" (lo que se entendió por voz) describe
- * "candidateName" (un nombre real del catálogo), de 0 a 1. */
-export function voiceMatchScore(query: string, candidateName: string): number {
-  const normalizedCandidate = normalizeSearch(candidateName)
-  const normalizedQuery = normalizeSearch(query).trim()
-  if (!normalizedQuery) return 0
-  if (normalizedCandidate.includes(normalizedQuery)) return 1
-
-  const qTokens = normalizedQuery.split(/\s+/).filter(Boolean)
-  const cTokens = normalizedCandidate.split(/\s+/).filter(Boolean)
-  if (qTokens.length === 0 || cTokens.length === 0) return 0
-
-  const matched = qTokens.filter((qt) => cTokens.some((ct) => tokenMatches(qt, ct))).length
-  return matched / qTokens.length
-}
-
-export type VoiceCandidate<T> = { item: T; score: number }
-
-/** Regresa los elementos más parecidos al texto reconocido, mejor
- * primero. Nunca elige solo -- el llamador decide qué tan seguro está
- * el resultado antes de dejar confirmar algo. */
-export function rankVoiceCandidates<T>(
-  query: string,
-  items: T[],
-  getName: (item: T) => string,
-): VoiceCandidate<T>[] {
-  return items
-    .map((item) => ({ item, score: voiceMatchScore(query, getName(item)) }))
-    .filter((c) => c.score > 0)
-    .sort((a, b) => b.score - a.score)
-}
+// El emparejamiento aproximado se movió a ./match: la captura de compras
+// por foto tiene exactamente el mismo problema (el ticket dice "CHILE
+// PULLA HERRADURA" y el catálogo tiene "Chile Puya"), así que una sola
+// implementación sirve a los dos. Se re-exporta con los nombres de
+// siempre para no romper a quien ya importa desde aquí.
+export { matchScore as voiceMatchScore, rankCandidates as rankVoiceCandidates } from './match'
+export type { Candidate as VoiceCandidate } from './match'

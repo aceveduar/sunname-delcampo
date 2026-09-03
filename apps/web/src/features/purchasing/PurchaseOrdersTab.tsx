@@ -6,9 +6,11 @@ import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
 import { formatCurrency } from '@/lib/currency'
 import { useProducts } from '@/features/catalog/useProducts'
+import { useUnits } from '@/features/catalog/useUnits'
 import { usePurchaseOrders } from './usePurchaseOrders'
 import { useSuppliers } from './useSuppliers'
 import { NewPurchaseOrderDialog } from './NewPurchaseOrderDialog'
+import { TicketCaptureDialog } from './TicketCaptureDialog'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
@@ -25,14 +27,27 @@ export function PurchaseOrdersTab() {
   const { orders, loading, createOrder, receiveOrder } = usePurchaseOrders()
   const { suppliers } = useSuppliers()
   const { products } = useProducts()
+  const { units } = useUnits()
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
           Órdenes de compra a proveedores. Al recibir una, se registra la entrada en Inventario.
         </p>
-        <NewPurchaseOrderDialog suppliers={suppliers} products={products} onCreate={createOrder} />
+        <div className="flex shrink-0 gap-2">
+          <TicketCaptureDialog
+            suppliers={suppliers}
+            products={products}
+            units={units}
+            onCreate={createOrder}
+          />
+          <NewPurchaseOrderDialog
+            suppliers={suppliers}
+            products={products}
+            onCreate={createOrder}
+          />
+        </div>
       </div>
 
       <Table>
