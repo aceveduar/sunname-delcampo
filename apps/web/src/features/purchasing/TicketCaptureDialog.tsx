@@ -394,11 +394,17 @@ export function TicketCaptureDialog({
                   Nada se guarda hasta que tú lo confirmes.
                 </p>
               </div>
+              {/* Sin capture="environment" a propósito: ese atributo no
+                  sugiere la cámara, la impone -- en Chrome de Android quita
+                  la opción de galería. Y la foto casi siempre ya existe:
+                  llega por WhatsApp, la tomó otra persona, o se tomó días
+                  antes. Sin el atributo el celular ofrece cámara Y galería;
+                  cuesta un toque extra cuando sí se quiere la cámara, y
+                  desbloquea el caso más común. */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={(e) => {
                   handleFile(e.target.files?.[0])
