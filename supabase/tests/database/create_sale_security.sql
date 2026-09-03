@@ -6,7 +6,7 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(15);
+select plan(18);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
@@ -21,6 +21,18 @@ values (
   '00000000-0000-0000-0000-00000000001a',
   false,
   null
+);
+
+-- Producto a granel para probar el quiebre de tarifa (mismos números
+-- reales que Chile Puya, 2026-09-02: $160/kg, $19/100g).
+insert into products (id, name, price, unit_id, sold_by_weight, price_per_100g)
+values (
+  '00000000-0000-0000-0000-000000000009',
+  'Producto a granel de prueba',
+  160.00,
+  '00000000-0000-0000-0000-00000000001a',
+  true,
+  19.00
 );
 
 insert into auth.users (id, email, raw_user_meta_data)
@@ -233,6 +245,68 @@ select throws_like(
   $$select void_sale((select id from sales where sold_by = '00000000-0000-0000-0000-000000000002' limit 1))$$,
   '%ya está anulada%',
   'void_sale rechaza anular una venta que ya está anulada'
+);
+
+-- ── Quiebre de tarifa granel en 1/4 kg (250g), no en 1kg -- confirmado
+-- con las hojas de precio reales del dueño (2026-09-02) que el cuarto
+-- es siempre exacto precio_kilo ÷ 4. Bug real que motivó estas
+-- pruebas: el cliente (lib/granel.ts) se corrigió a este quiebre pero
+-- create_sale se quedó con el de 1kg -- como create_sale rechaza la
+-- venta si el pago no coincide con lo que él mismo calcula, cualquier
+-- venta a granel entre 250g y 1kg fallaba por completo hasta que se
+-- corrigió aquí también (mismo día, misma sesión).
+
+-- Test 15: exactamente 250g ya usa la tarifa de kilo, proporcional
+-- ($160/kg × 0.25 = $40, el precio real del cuarto).
+select is(
+  (
+    select subtotal from sales where id = (
+      select create_sale(
+        gen_random_uuid(),
+        '00000000-0000-0000-0000-000000000003',
+        jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.25)),
+        jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 40.00))
+      )
+    )
+  ),
+  40.00,
+  'create_sale cobra 250g a la tarifa de kilo proporcional ($40), no a la de menudeo'
+);
+
+-- Test 16: el regresivo que de verdad importa -- 400g (entre 250g y
+-- 1kg) es justo el rango donde el quiebre viejo de 1kg habría cobrado
+-- distinto ($76 de menudeo) que el nuevo de 250g ($64 de kilo
+-- proporcional).
+select is(
+  (
+    select subtotal from sales where id = (
+      select create_sale(
+        gen_random_uuid(),
+        '00000000-0000-0000-0000-000000000003',
+        jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.4)),
+        jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 64.00))
+      )
+    )
+  ),
+  64.00,
+  'create_sale cobra 400g a la tarifa de kilo proporcional ($64), el quiebre viejo de 1kg hubiera dado $76 de menudeo'
+);
+
+-- Test 17: justo por debajo de 250g todavía es tarifa de menudeo
+-- (240g × $19/100g = $45.60).
+select is(
+  (
+    select subtotal from sales where id = (
+      select create_sale(
+        gen_random_uuid(),
+        '00000000-0000-0000-0000-000000000003',
+        jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.24)),
+        jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 45.60))
+      )
+    )
+  ),
+  45.60,
+  'create_sale todavía cobra 240g a la tarifa de menudeo, justo antes del quiebre de 250g'
 );
 
 select * from finish();
