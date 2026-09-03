@@ -26,7 +26,9 @@ Como el cuarto es exacto `price ÷ 4`, aplicar la tarifa de kilo desde 250g (en 
 0.25 kg × price = price ÷ 4 = precio real del cuarto (por construcción matemática)
 ```
 
-**Importante — esto es una elección de diseño, no una ley matemática inevitable.** Si el dueño algún día dice que la tarifa de 100g solo debe aplicar hasta 100g exactos (no hasta 250g), o que el cuarto NO siempre es exacto kilo÷4, **hay que rediseñar esta sección**, no solo cambiar un número. Ver §5.
+**Confirmado por el dueño de viva voz (2026-09-03):** "el precio de los 100 gramos aplica cuando el cliente pida menos de 250 gramos, y el precio normal aplica de 250 gramos en adelante". Esta regla se había deducido primero sacando la aritmética de sus hojas de precio (el cuarto siempre daba exacto kilo÷4 en los 27 productos revisados); el dueño después la dijo con sus propias palabras y coincidió exacto. O sea que hoy está confirmada por dos caminos independientes, no es una suposición.
+
+**Aun así, sigue siendo una elección de negocio, no una ley matemática.** Si el dueño algún día cambia de opinión (p. ej. que la tarifa de 100g solo aplique hasta 100g exactos, o que el cuarto deje de ser exacto kilo÷4), **hay que rediseñar esta sección**, no solo cambiar un número. Ver §5.
 
 ### ¿Por qué el quiebre es "≥ 0.25", no "= 0.25" con una tarifa aparte para todo lo demás?
 
