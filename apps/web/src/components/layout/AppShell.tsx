@@ -100,6 +100,10 @@ export function AppShell({
   children: ReactNode
 }) {
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
+  // Con texto grande, la barra horizontal de 9 items ya no cabe ni con el
+  // overflow-x-auto de siempre -- corta "Usuarios" a la mitad sin ninguna
+  // pista de que hay que deslizar. Se usa el mismo menú hamburguesa de
+  // mobile en su lugar: una lista vertical, cómoda de tocar, sin nada oculto.
   const isLargeText = profile?.large_text_mode ?? false
   const isAdmin = isAdminRole(profile?.role)
   const isOwner = isOwnerRole(profile?.role)
@@ -135,7 +139,11 @@ export function AppShell({
               tiene tanto colchón en una laptop de 1366px -- si algún día
               no cabe, se desliza en vez de encimarse con el logo o el
               usuario. */}
-          <nav className="hidden max-w-full items-center gap-1 justify-self-center overflow-x-auto md:flex">
+          <nav
+            className={`max-w-full items-center gap-1 justify-self-center overflow-x-auto ${
+              isLargeText ? 'hidden' : 'hidden md:flex'
+            }`}
+          >
             {visibleNavItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
@@ -189,7 +197,11 @@ export function AppShell({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button className="hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 md:hidden" />
+                  <button
+                    className={`hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 ${
+                      isLargeText ? '' : 'md:hidden'
+                    }`}
+                  />
                 }
               >
                 <Menu className="size-5" />
