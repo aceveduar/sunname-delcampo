@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
 import { bestUnambiguous, rankCandidates, type Candidate } from '@/lib/match'
-import { normalizeSearch } from '@/lib/text'
+import { nombreDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
 import type { Product } from '@/features/catalog/useProducts'
 import type { UnitOfMeasure } from '@/features/catalog/useUnits'
 import type { Supplier } from './useSuppliers'
@@ -70,6 +70,7 @@ export function TicketCaptureDialog({
   units,
   onCreate,
   onCreateSupplier,
+  onCreateProduct,
 }: {
   suppliers: Supplier[]
   products: Product[]
@@ -80,6 +81,11 @@ export function TicketCaptureDialog({
     items: { productId: string; quantity: number; unitCost: number }[]
   }) => Promise<boolean>
   onCreateSupplier: (values: { name: string }) => Promise<string | null>
+  onCreateProduct: (values: {
+    name: string
+    unit_id: string
+    active: boolean
+  }) => Promise<string | null>
 }) {
   const [open, setOpen] = useState(false)
   const [lectura, setLectura] = useState<TicketLectura | null>(null)
@@ -87,9 +93,14 @@ export function TicketCaptureDialog({
   const [supplierId, setSupplierId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [creandoProveedor, setCreandoProveedor] = useState(false)
+  const [altaEnLinea, setAltaEnLinea] = useState<string | null>(null)
+  const [nuevoProducto, setNuevoProducto] = useState({ name: '', unitId: '' })
+  const [creandoProducto, setCreandoProducto] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = useTicketCapture()
 
+  const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
+  const inactiveProducts = useMemo(() => products.filter((p) => !p.active), [products])
   const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers])
   const unitById = useMemo(
     () => new Map(units.map((u) => [u.id, u])),
@@ -127,17 +138,20 @@ export function TicketCaptureDialog({
 
     setLines(
       resultado.verificacion.renglones.map((renglon) => {
-        // Solo se preselecciona algo activo: un producto desactivado se
-        // puede elegir a mano, pero proponerlo solo sería empujar hacia
-        // uno que el negocio decidió sacar de circulación.
+        // Se prefiere un activo, pero si el único parecido razonable es
+        // un producto inactivo, ese se propone igual. Un producto puede
+        // estar inactivo solo porque le falta precio, y es justo el que se
+        // está comprando: no proponerlo dejaba casi todos los renglones
+        // vacíos y devolvía a mano el trabajo que esto viene a quitar.
+        // Queda marcado "(inactivo)" en el desplegable y, como todo aquí,
+        // no se guarda sin que una persona lo confirme.
         const sugerido = renglon.descripcion
-          ? mejorInequivoco(
-              rankCandidates(
-                renglon.descripcion,
-                products.filter((p) => p.active),
-                (p) => p.name ?? '',
-              ),
-            )
+          ? (mejorInequivoco(
+              rankCandidates(renglon.descripcion, activeProducts, (p) => p.name ?? ''),
+            ) ??
+            mejorInequivoco(
+              rankCandidates(renglon.descripcion, inactiveProducts, (p) => p.name ?? ''),
+            ))
           : null
         return {
           key: `renglon-${renglon.indice}`,
@@ -162,6 +176,38 @@ export function TicketCaptureDialog({
     const id = await onCreateSupplier({ name: nombre })
     setCreandoProveedor(false)
     if (id) setSupplierId(id)
+  }
+
+  // Alta de un producto que el ticket trae pero el catálogo todavía no.
+  // Se crea INACTIVO y sin precio, que es justo la convención que ya usa
+  // el negocio: el producto existe y se puede comprar, pero no se vende
+  // hasta que alguien le ponga precio. El costo se lo pone la recepción
+  // de esta misma orden.
+  const handleCreateProduct = async (key: string) => {
+    const nombre = nuevoProducto.name.trim()
+    if (!nombre || !nuevoProducto.unitId) return
+    setCreandoProducto(true)
+    const id = await onCreateProduct({
+      name: toTitleCase(nombre),
+      unit_id: nuevoProducto.unitId,
+      active: false,
+    })
+    setCreandoProducto(false)
+    if (id) {
+      updateLine(key, { productId: id })
+      setAltaEnLinea(null)
+    }
+  }
+
+  const abrirAlta = (line: DraftLine) => {
+    setAltaEnLinea(line.key)
+    setNuevoProducto({
+      // El ticket escribe con las palabras del proveedor ("ARROZ SAMAN
+      // C/25 KG"); se propone en formato de catálogo pero editable, porque
+      // el nombre bueno es el que usa el negocio, no el del proveedor.
+      name: nombreDesdeTicket(line.origen.descripcion ?? ''),
+      unitId: units[0]?.id ?? '',
+    })
   }
 
   const updateLine = (key: string, patch: Partial<DraftLine>) => {
@@ -413,8 +459,19 @@ export function TicketCaptureDialog({
 
                       {line.include && (
                         <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
-                          <div className="flex flex-col gap-1">
-                            <Label className="text-xs">Producto</Label>
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <Label className="text-xs">Producto</Label>
+                              {!line.productId && altaEnLinea !== line.key && (
+                                <button
+                                  type="button"
+                                  onClick={() => abrirAlta(line)}
+                                  className="text-primary text-xs underline underline-offset-2"
+                                >
+                                  No está en el catálogo
+                                </button>
+                              )}
+                            </div>
                             <select
                               value={line.productId}
                               onChange={(e) =>
@@ -463,6 +520,60 @@ export function TicketCaptureDialog({
                               {formatCurrency(numero(line.quantity) * numero(line.unitCost))}
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {line.include && altaEnLinea === line.key && (
+                        <div className="bg-muted/50 mt-3 flex flex-wrap items-end gap-3 rounded-md border p-3">
+                          <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+                            <Label className="text-xs">Nombre en tu catálogo</Label>
+                            <Input
+                              value={nuevoProducto.name}
+                              onChange={(e) =>
+                                setNuevoProducto((p) => ({ ...p, name: e.target.value }))
+                              }
+                              autoComplete="off"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <Label className="text-xs">Se mide en</Label>
+                            <select
+                              value={nuevoProducto.unitId}
+                              onChange={(e) =>
+                                setNuevoProducto((p) => ({ ...p, unitId: e.target.value }))
+                              }
+                              className="border-input bg-transparent h-9 rounded-md border px-2 text-sm"
+                            >
+                              {units.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name} ({u.code})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={creandoProducto || !nuevoProducto.name.trim()}
+                              onClick={() => handleCreateProduct(line.key)}
+                            >
+                              {creandoProducto ? 'Creando…' : 'Crear producto'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAltaEnLinea(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                          <p className="text-muted-foreground w-full text-xs">
+                            Se crea sin precio y desactivado, para que no se pueda vender
+                            por error. Ponle precio en Catálogo cuando lo tengas; el costo
+                            se lo pone esta misma compra al recibirla.
+                          </p>
                         </div>
                       )}
 

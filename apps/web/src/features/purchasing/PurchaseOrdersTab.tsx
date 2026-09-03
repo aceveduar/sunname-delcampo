@@ -26,7 +26,7 @@ function orderTotal(order: { purchase_order_items: { subtotal: number }[] }) {
 export function PurchaseOrdersTab() {
   const { orders, loading, createOrder, receiveOrder } = usePurchaseOrders()
   const { suppliers, createSupplier } = useSuppliers()
-  const { products } = useProducts()
+  const { products, createProduct } = useProducts()
   const { units } = useUnits()
 
   return (
@@ -42,6 +42,7 @@ export function PurchaseOrdersTab() {
             units={units}
             onCreate={createOrder}
             onCreateSupplier={createSupplier}
+            onCreateProduct={createProduct}
           />
           <NewPurchaseOrderDialog
             suppliers={suppliers}

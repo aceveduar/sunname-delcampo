@@ -22,3 +22,29 @@ export function normalizeSearch(value: string) {
     .trim()
     .toLowerCase()
 }
+
+/** Convierte la descripción de un ticket de proveedor en un nombre
+ * razonable para el catálogo propio.
+ *
+ * El proveedor escribe para su almacén, no para tu catálogo: mete el
+ * tamaño del empaque y sus propias claves ("ARROZ SAMAN C/25 KG",
+ * "MOLE ALMENDRADO (C-5 POLVO)"). Guardar eso tal cual ensucia el
+ * catálogo para siempre, y ese nombre es el que después se usa para
+ * buscar en Caja. Se quita el ruido de empaque y se deja el nombre; de
+ * todos modos el campo queda editable, porque el nombre bueno es el que
+ * usa el negocio, no el del proveedor. */
+export function nombreDesdeTicket(descripcion: string) {
+  const limpio = descripcion
+    // Paréntesis y corchetes completos: casi siempre son clave o empaque.
+    .replace(/[([{][^)\]}]*[)\]}]/g, ' ')
+    // "C/25 KG", "C-5", "C/ 12": la forma en que se anota cuántas piezas
+    // o kilos trae el bulto.
+    .replace(/\bc\s*[/-]\s*\d+([.,]\d+)?\s*[a-z]*\b/gi, ' ')
+    // Un tamaño pegado al final: "180ML", "25 KG", "1 LT".
+    .replace(/\b\d+([.,]\d+)?\s*(kg|kgs|gr|grs|g|ml|lt|lts|l|pz|pzs|oz)\b\.?\s*$/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  // Si limpiar dejó poco o nada, se devuelve el original: es mejor un
+  // nombre feo que uno vacío o mutilado.
+  return toTitleCase(limpio.length >= 3 ? limpio : descripcion)
+}

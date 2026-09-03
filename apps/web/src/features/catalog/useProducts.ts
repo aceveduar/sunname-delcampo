@@ -37,16 +37,23 @@ export function useProducts() {
     refresh()
   }, [refresh])
 
+  /** Regresa el id del producto creado, o null si falló. Se necesita el id
+   * (no un booleano) para poder dejarlo ya seleccionado en la captura de
+   * compras por foto, sin obligar a buscarlo otra vez en la lista. */
   const createProduct = useCallback(
     async (values: ProductInsert) => {
-      const { error } = await supabase.from('products').insert(values)
-      if (error) {
+      const { data, error } = await supabase
+        .from('products')
+        .insert(values)
+        .select('id')
+        .single()
+      if (error || !data) {
         reportError('No se pudo crear el producto', error)
-        return false
+        return null
       }
       toast.success('Producto creado')
       await refresh()
-      return true
+      return data.id
     },
     [refresh],
   )
