@@ -22,8 +22,9 @@ import { useCustomers } from '@/features/crm/useCustomers'
 import { normalizeSearch } from '@/lib/text'
 import { usePaymentMethods } from './usePaymentMethods'
 import { GranelDialog } from './GranelDialog'
-import { granelTotalFromWeightKg } from '@/lib/granel'
+import { granelTotalFromWeightKg, granelWeightKgFromAmount } from '@/lib/granel'
 import { ReceiptDialog, type ReceiptData } from './ReceiptDialog'
+import { VoiceCommandButton } from './VoiceCommandButton'
 
 // amountMxn solo existe en líneas pedidas "por monto" ("dame $50 de
 // piquín"): ahí el total de la línea es ese monto exacto y quantity es
@@ -112,7 +113,12 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     submitting ||
     (selectedMethod?.code === 'cash' && received < total)
 
-  const addToCart = (product: Product, weightKg?: number, amountMxn?: number) => {
+  const addToCart = (
+    product: Product,
+    weightKg?: number,
+    amountMxn?: number,
+    pieceQuantity = 1,
+  ) => {
     if (product.sold_by_weight) {
       // El peso siempre se captura exacto (báscula o monto pedido) --
       // no tiene sentido "sumar 1" a un producto que se pesa.
@@ -124,12 +130,36 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       if (existing) {
         return prev.map((line) =>
           line.product.id === product.id
-            ? { ...line, quantity: line.quantity + 1 }
+            ? { ...line, quantity: line.quantity + pieceQuantity }
             : line,
         )
       }
-      return [...prev, { product, quantity: 1 }]
+      return [...prev, { product, quantity: pieceQuantity }]
     })
+  }
+
+  // Voz solo llena este mismo carrito -- nunca cobra directo. El monto
+  // manda a la misma cuenta de create_sale del lado del servidor
+  // (VoiceCommandButton ya exigió confirmación antes de llegar aquí).
+  const handleVoiceAmount = (product: Product, amountMxn: number) => {
+    const weightKg = granelWeightKgFromAmount(
+      amountMxn,
+      product.price,
+      product.price_per_100g ?? 0,
+    )
+    if (weightKg <= 0) {
+      toast.error('Este producto todavía no tiene precio -- agrégalo en Catálogo.')
+      return
+    }
+    addToCart(product, weightKg, amountMxn)
+    toast.success(`Agregado: ${product.name}`)
+    afterAdd()
+  }
+
+  const handleVoiceQuantity = (product: Product, quantity: number) => {
+    addToCart(product, undefined, undefined, quantity)
+    toast.success(`Agregado: ${product.name}`)
+    afterAdd()
   }
 
   const handleProductClick = (product: Product) => {
@@ -289,6 +319,13 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             placeholder="Buscar producto o código de barras…"
             containerClassName="min-w-[200px] flex-1"
             autoFocus
+          />
+
+          <VoiceCommandButton
+            products={products}
+            onAddByAmount={handleVoiceAmount}
+            onAddByQuantity={handleVoiceQuantity}
+            onOpenManualWeight={setGranelProduct}
           />
 
           <Select
