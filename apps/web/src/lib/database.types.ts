@@ -945,6 +945,10 @@ export type Database = {
         Args: { p_cash_session_id: string }
         Returns: string
       }
+      delete_product: {
+        Args: { p_product_id: string }
+        Returns: undefined
+      }
       void_sale: {
         Args: { p_reason?: string; p_sale_id: string }
         Returns: undefined

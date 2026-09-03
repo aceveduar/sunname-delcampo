@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   Package,
   PackageSearch,
+  Trash2,
   Pencil,
   Plus,
   Power,
@@ -76,12 +77,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
     updateProduct,
     updatePrices,
     toggleActive,
+    deleteProduct,
     fetchCost,
   } = useProducts()
   const { categories } = useCategories()
   const { units } = useUnits()
 
   const canManage = role !== null && CAN_MANAGE_PRODUCTS.includes(role)
+  // Borrar del catálogo es decisión de dueño: un administrador de local
+  // desactiva, no borra (CLAUDE.md §6). El servidor lo vuelve a exigir --
+  // esconder el botón es comodidad, no la seguridad.
+  const canDelete = role === 'owner'
 
   const [editing, setEditing] = useState<Product | null>(null)
   const [editingCost, setEditingCost] = useState(0)
@@ -90,6 +96,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
   // del diálogo, el refresh de useProducts trae el producto actualizado y
   // el diálogo lo ve sin quedarse con el snapshot viejo (sin SKU).
   const [labelProductId, setLabelProductId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const labelProduct = products.find((p) => p.id === labelProductId) ?? null
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
@@ -571,6 +579,16 @@ export function ProductsTab({ role }: { role: Role | null }) {
                           apagar, inactivo -> se va a encender. */}
                       {product.active ? <PowerOff /> : <Power />}
                     </Button>
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Borrar producto"
+                        onClick={() => setDeleteTarget(product)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -716,6 +734,15 @@ export function ProductsTab({ role }: { role: Role | null }) {
                         >
                           Etiqueta
                         </Button>
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(product)}
+                          >
+                            Borrar
+                          </Button>
+                        )}
                       </>
                     )}
                   </TableCell>
@@ -993,6 +1020,52 @@ export function ProductsTab({ role }: { role: Role | null }) {
         }}
         onAssignSku={(id, sku) => updateProduct(id, { sku })}
       />
+
+      {/* Borrar es irreversible, así que se confirma nombrando el producto:
+          en una lista larga es fácil apretar el renglón de al lado. No se
+          promete que vaya a funcionar -- si el producto ya tiene ventas o
+          compras, el servidor lo rechaza y aquí se ve el motivo. */}
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Borrar producto</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 text-sm">
+            <p>
+              Se va a borrar <span className="font-semibold">{deleteTarget?.name}</span>{' '}
+              del catálogo. No se puede deshacer.
+            </p>
+            <p className="text-muted-foreground">
+              Solo se puede borrar un producto que nunca se vendió, ni entró a
+              inventario, ni se compró. Si ya tiene historia, el sistema no lo va a
+              permitir y lo correcto es desactivarlo.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={async () => {
+                if (!deleteTarget) return
+                setDeleting(true)
+                const ok = await deleteProduct(deleteTarget.id)
+                setDeleting(false)
+                if (ok) setDeleteTarget(null)
+              }}
+            >
+              {deleting ? 'Borrando…' : 'Borrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

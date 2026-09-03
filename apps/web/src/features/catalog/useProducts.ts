@@ -118,6 +118,23 @@ export function useProducts() {
     [refresh],
   )
 
+  /** Borra un producto que nunca operó. El servidor decide si se puede:
+   * si ya tiene ventas, inventario o compras, responde por qué no y el
+   * producto se queda -- ahí lo correcto es desactivarlo, no borrarlo. */
+  const deleteProduct = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.rpc('delete_product', { p_product_id: id })
+      if (error) {
+        reportError('No se pudo borrar el producto', error)
+        return false
+      }
+      toast.success('Producto borrado')
+      await refresh()
+      return true
+    },
+    [refresh],
+  )
+
   return {
     products,
     loading,
@@ -125,6 +142,7 @@ export function useProducts() {
     updateProduct,
     updatePrices,
     toggleActive,
+    deleteProduct,
     fetchCost,
   }
 }
