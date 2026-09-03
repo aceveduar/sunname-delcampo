@@ -16,6 +16,7 @@ import {
   PowerOff,
   Tag,
   TableIcon,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -755,8 +756,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
                       className="border-border size-16 shrink-0 rounded-md border object-cover"
                     />
                   ) : (
-                    <div className="bg-muted text-muted-foreground border-border flex size-16 shrink-0 items-center justify-center rounded-md border">
-                      <ImageOff className="size-5" />
+                    <div className="bg-muted text-muted-foreground/50 border-border flex size-16 shrink-0 items-center justify-center rounded-md border">
+                      <Package className="size-6" />
                     </div>
                   )}
                   <div className="flex flex-col gap-1.5">
@@ -777,13 +778,19 @@ export function ProductsTab({ role }: { role: Role | null }) {
                       {imagePreview ? 'Cambiar foto' : 'Subir foto'}
                     </Button>
                     {imagePreview && (
+                      // "Ghost" sin más era casi invisible junto al botón
+                      // con borde de al lado -- se leía como texto suelto,
+                      // no como algo que se puede tocar. El tono
+                      // destructivo + ícono lo deja claro sin necesitar
+                      // más espacio.
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={handleRemoveImage}
                       >
-                        Quitar foto
+                        <X /> Quitar foto
                       </Button>
                     )}
                   </div>
