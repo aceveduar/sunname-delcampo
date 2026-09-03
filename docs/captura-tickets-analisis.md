@@ -63,12 +63,59 @@ De los tickets vistos: entre **1 y 11 renglones** por documento, y de **$108 a $
 - **Hay que resolver la conversión de unidades** (bulto → kg) o los costos quedarán mal por un factor de 10 o 25.
 - **Hay que soportar el caso "documento sin desglose"** (la nota manuscrita): quizá capturando solo el total como un gasto, sin renglones.
 
-## 7. Pendiente antes de construir
+## 7. Decisiones tomadas (2026-09-03)
 
-Decisiones que el usuario todavía debe tomar (planteadas el 2026-09-03, sin responder):
+1. **Este flujo actualiza solo el costo.** El precio de venta sigue siendo decisión manual del dueño, hasta que exista una regla de margen acordada.
+2. **Las fotos las sube el usuario final** (el dueño o un empleado) desde el sistema, no un técnico. La pantalla tiene que ser simple y a prueba de errores.
+3. **Proveedor de IA: Gemini**, por tener plan gratuito continuo (no un crédito que se agota) y buena lectura de documentos. La llamada está aislada en una sola función para poder cambiarlo sin tocar el resto.
 
-1. ¿Este flujo actualiza solo el **costo**, dejando el precio de venta como decisión manual? (recomendación dada: sí, por ahora)
-2. Esto requiere infraestructura nueva: una función en el servidor que llame a un modelo con visión — primera integración de IA real del proyecto, con costo por foto y unos segundos de espera.
-3. ¿Quién sube las fotos: el dueño desde su celular, o el usuario después?
+Sobre el costo: a ~20 fotos al mes (1-2 surtidos por semana × 2-3 documentos), esto cuesta entre **$1 y $6 pesos al mes** incluso con los modelos más caros del mercado. El criterio para elegir modelo **no es el precio, es la precisión** — un costo mal leído se propaga a los márgenes.
 
-Y una tarea de investigación pendiente: comparar opciones de IA con plan gratuito (**Grok** de xAI, **Groq** —que es otro proveedor distinto, ojo con el nombre—, y **Gemini**, que históricamente tiene el plan gratuito más generoso con visión). Criterios: soporte real de visión/OCR, límites diarios, calidad con texto en español sobre papel arrugado, y si se puede llamar desde una Edge Function de Supabase.
+## 8. Qué se construyó (Fase 1, primera pieza)
+
+- **`supabase/functions/extract-purchase-ticket/`** — recibe la ruta de una foto en Storage, la lee con Gemini y devuelve los datos estructurados más una verificación aritmética.
+- **Bucket `purchase-tickets`** (privado, admin-only) — la foto se conserva ligada a la compra como respaldo para volver al papel cuando un costo no cuadre.
+
+Se empezó por la extracción y no por la pantalla a propósito: lo más incierto del proyecto era si la IA podía leer estos tickets, y convenía averiguarlo antes de construir interfaz encima.
+
+**Dos principios de diseño en el código:**
+
+1. **El modelo no hace cuentas.** Solo transcribe lo que ve. Verificar que los renglones sumen el total, y deducir una cantidad tapada con `importe ÷ precio`, lo hace código determinista. Si se le pidiera al modelo "asegúrate de que cuadre", ajustaría números para lograrlo — un costo inventado que además pasa la validación sería el peor error posible.
+2. **Nunca adivinar.** Si un círculo de pluma o un sello tapa un número, se marca `ilegible` y el renglón sale señalado para revisión, en vez de inventar el dato.
+
+## 9. Resultado de la prueba con tickets reales
+
+Se probaron 4 documentos, incluyendo los 3 más difíciles, contra la transcripción verificada a mano del §2-3:
+
+| Documento | Renglones correctos | Números | Total cuadra |
+|---|---|---|---|
+| La Herradura 03/09 (11 renglones) | 11/11 | todos exactos | ✓ |
+| La Herradura 29/08 (círculos de pluma sobre las cantidades) | 5/5 | todos exactos | ✓ |
+| La Herradura 24/08 (sellos encima + IEPS) | 3/3 | todos exactos | ✓ |
+| Nota manuscrita folio 1739 | 1/1 | exacto | ✓ |
+
+**Leyó las cantidades a través de los círculos de pluma** — no necesitó la recuperación aritmética que se programó como respaldo (0 renglones deducidos). Y **corrigió 4 lecturas humanas**: `FR Negro Importado` (se había omitido el prefijo de frijol), `Piloncillo Chico` (se había leído "Doncillo", que no existe), `Rotini Palmex` (se había leído "Botani") y resolvió el producto que había quedado con duda en la nota manuscrita: era `Huevo`.
+
+También reporta por su cuenta las dificultades que encuentra, lo cual sirve para la pantalla de revisión. Ejemplo real de su salida: *"presenta rayones con pluma azul sobre las cantidades de los productos... la imagen se encuentra rotada 90 grados a la izquierda"*.
+
+### Tres hallazgos operativos
+
+1. **Comprimir la foto es requisito, no mejora.** Con los archivos tal como salen de la cámara (4080×3060, ~3 MB) la función falló con `IDLE_TIMEOUT` y `WORKER_RESOURCE_LIMIT`. Reducidas a 1600px / ~250 KB funcionó sin problema. La app ya tiene `compressImage()` en `apps/web/src/lib/image.ts` (se usa para fotos de producto) — hay que usarla también aquí.
+2. **La lista de modelos de respaldo se ocupó desde el primer día.** Ninguna de las 4 lecturas usó el modelo preferido: `gemini-3.8-flash` y `gemini-3.7-flash` respondieron 503 (saturados) y todas cayeron a `gemini-3.5-flash`. Sin ese respaldo no se habría podido probar nada. La respuesta incluye qué modelo contestó, para poder diagnosticar.
+3. **El RFC se puede leer mal.** En el ticket que trae el sello encima del encabezado, devolvió `AGC910308P46` en vez de `CGH250408P46`. Esto **invalida la idea de emparejar proveedores automáticamente solo por RFC** (§6): tiene que pasar por confirmación humana, y conviene apoyarse también en el nombre y el teléfono. Dato útil: en la nota manuscrita, que no trae RFC, el modelo sí alcanzó a leer el teléfono del sello — y es el de La Herradura.
+
+## 10. Configuración necesaria
+
+La función necesita el secreto `GEMINI_API_KEY` en el proyecto de Supabase:
+
+```
+npx supabase secrets set GEMINI_API_KEY=... --project-ref <ref-del-proyecto>
+```
+
+Opcionalmente, `GEMINI_MODELS` (lista separada por comas) sobrescribe qué modelos intentar y en qué orden, sin necesidad de volver a desplegar código. Es la vía de escape cuando Google retire un modelo: los nombres cambian seguido (2.5 se apaga en octubre de 2026, y ya iban en 3.8 al escribir esto).
+
+## 11. Lo que sigue
+
+La pantalla de revisión en Compras: subir foto (comprimiéndola), mostrar el borrador editable con los renglones marcados para revisión resaltados, y al confirmar crear/emparejar el proveedor, la orden de compra y actualizar `products.cost`.
+
+Recordatorio del hueco que se detectó de paso: hoy `receive_purchase_order` registra `unit_cost` en la orden pero **nunca actualiza `products.cost`** — recibir mercancía a precio nuevo no actualiza el costo en Catálogo. Este proyecto es la oportunidad natural de cerrarlo.

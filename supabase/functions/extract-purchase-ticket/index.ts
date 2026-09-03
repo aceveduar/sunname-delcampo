@@ -115,13 +115,38 @@ const RESPONSE_SCHEMA = {
 
 // Aislado a propósito: cambiar de proveedor de IA es reemplazar esta
 // función, no tocar el resto del flujo.
-async function extraerConGemini(
+//
+// Se intentan en orden y se usa el primero que responda. Dos razones
+// reales, ambas vistas el 2026-09-03 al construir esto:
+//
+// - Google retira modelos seguido (gemini-2.5-flash ya rechazaba
+//   cuentas nuevas; 2.5 se apaga en octubre de 2026). Un solo nombre
+//   fijo se rompe solo con el tiempo.
+// - El plan gratuito se satura y devuelve 503. Como el usuario final
+//   está esperando frente a la pantalla, es mejor caer al siguiente
+//   modelo que hacerlo esperar y fallar.
+//
+// GEMINI_MODELS (lista separada por comas) permite cambiarlos sin
+// volver a desplegar código.
+const MODELOS_POR_DEFECTO = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.5-flash",
+  "gemini-3-flash",
+];
+
+// Códigos que ameritan probar el siguiente modelo en vez de rendirse:
+// 404 = el modelo ya no existe, 429 = cuota, 503 = saturado.
+const REINTENTABLES = new Set([404, 429, 503]);
+
+async function llamarModelo(
+  modelo: string,
   base64: string,
   mimeType: string,
   apiKey: string,
-): Promise<Extraccion> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+): Promise<Response> {
+  return await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -143,18 +168,44 @@ async function extraerConGemini(
       }),
     },
   );
+}
 
-  if (!res.ok) {
-    const detalle = await res.text();
-    throw new Error(`El servicio de lectura respondió ${res.status}: ${detalle.slice(0, 300)}`);
+// Aislado a propósito: cambiar de proveedor de IA es reemplazar esta
+// función, no tocar el resto del flujo.
+async function extraerConGemini(
+  base64: string,
+  mimeType: string,
+  apiKey: string,
+): Promise<{ extraccion: Extraccion; modelo: string }> {
+  const modelos =
+    Deno.env.get("GEMINI_MODELS")?.split(",").map((m) => m.trim()).filter(Boolean) ??
+    MODELOS_POR_DEFECTO;
+
+  const fallos: string[] = [];
+
+  for (const modelo of modelos) {
+    const res = await llamarModelo(modelo, base64, mimeType, apiKey);
+
+    if (res.ok) {
+      const data = await res.json();
+      const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!texto) {
+        fallos.push(`${modelo}: respuesta sin contenido`);
+        continue;
+      }
+      return { extraccion: JSON.parse(texto) as Extraccion, modelo };
+    }
+
+    const detalle = (await res.text()).slice(0, 200);
+    fallos.push(`${modelo}: ${res.status}`);
+    if (!REINTENTABLES.has(res.status)) {
+      throw new Error(`El servicio de lectura respondió ${res.status}: ${detalle}`);
+    }
   }
 
-  const data = await res.json();
-  const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!texto) {
-    throw new Error("El servicio de lectura no devolvió contenido");
-  }
-  return JSON.parse(texto) as Extraccion;
+  throw new Error(
+    `Ningún modelo de lectura está disponible en este momento (${fallos.join("; ")}). Es común que el servicio gratuito se sature; vuelve a intentar en unos minutos.`,
+  );
 }
 
 const redondear = (v: number) => Math.round(v * 100) / 100;
@@ -282,9 +333,9 @@ export default {
     }
     const base64 = btoa(partes.join(""));
 
-    let extraccion: Extraccion;
+    let resultado: { extraccion: Extraccion; modelo: string };
     try {
-      extraccion = await extraerConGemini(base64, archivo.type || "image/jpeg", apiKey);
+      resultado = await extraerConGemini(base64, archivo.type || "image/jpeg", apiKey);
     } catch (error) {
       return Response.json(
         { message: error instanceof Error ? error.message : "Error al leer el ticket" },
@@ -293,8 +344,11 @@ export default {
     }
 
     return Response.json({
-      extraccion,
-      verificacion: verificar(extraccion),
+      extraccion: resultado.extraccion,
+      // Cuál modelo acabó respondiendo -- útil al comparar calidad entre
+      // modelos y al diagnosticar por qué una lectura salió peor.
+      modelo: resultado.modelo,
+      verificacion: verificar(resultado.extraccion),
     });
   }),
 };
