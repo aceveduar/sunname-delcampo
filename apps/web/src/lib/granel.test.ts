@@ -66,7 +66,26 @@ describe('granelWeightKgFromAmount', () => {
 
   it('usa la tarifa de menudeo justo por debajo del monto de 1/4 kg', () => {
     // $54 todavía no alcanza los $55 de un cuarto -> tarifa de menudeo.
-    expect(granelWeightKgFromAmount(54, PRICE_PER_KG, PRICE_PER_100G)).toBe(0.235)
+    // 234.78g se truncan a 234g (hacia abajo, nunca hacia arriba).
+    expect(granelWeightKgFromAmount(54, PRICE_PER_KG, PRICE_PER_100G)).toBe(0.234)
+  })
+
+  // El peso derivado de un monto se trunca hacia abajo, nunca al gramo
+  // más cercano: si el cliente pide "$100 de X" y entrega $100 exactos,
+  // el total no puede pasarse de $100 o la venta se bloquea pidiéndole
+  // centavos de más (bug real en producción, 2026-09-03).
+  it('nunca cobra más que el monto pedido (caso real: $100 de Chile Piquín)', () => {
+    // Chile Piquín Entero real: $512/kg, $60/100g.
+    const weightKg = granelWeightKgFromAmount(100, 512, 60)
+    expect(weightKg).toBe(0.166) // 166.67g truncado a 166g, no 167g
+    expect(granelTotalFromWeightKg(weightKg, 512, 60)).toBe(99.6)
+  })
+
+  it('nunca cobra más que el monto pedido, también en la tarifa de kilo', () => {
+    // $50 de un producto a $160/kg -> 312.5g truncado a 312g.
+    const weightKg = granelWeightKgFromAmount(50, 160, 19)
+    expect(weightKg).toBe(0.312)
+    expect(granelTotalFromWeightKg(weightKg, 160, 19)).toBeLessThanOrEqual(50)
   })
 
   it('regresión: nunca produce Infinity/NaN cuando el producto no tiene precio', () => {

@@ -44,11 +44,21 @@ export function granelWeightKgFromAmount(
   const quarterAmount = QUARTER_KG * pricePerKg
   const weightKg =
     amount < quarterAmount ? amount / pricePer100g / 10 : amount / pricePerKg
-  // create_sale guarda la cantidad como numeric(12,3) -- redondear aquí a
+  // create_sale guarda la cantidad como numeric(12,3) -- ajustar aquí a
   // gramos enteros es lo que de verdad se va a pesar y cobrar. Sin esto,
   // el total mostrado en el carrito (calculado con el peso exacto sin
   // redondear) no coincidía con lo que el servidor cobraba sobre el peso
   // ya redondeado, y create_sale rechazaba la venta por completo.
+  //
+  // Se trunca hacia ABAJO, no al gramo más cercano: si el cliente pide
+  // "$100 de piquín", el total nunca debe pasarse de esos $100. Con
+  // redondeo al más cercano, 166.67g subía a 167g y el total se iba a
+  // $100.20 -- el cliente daba sus $100 exactos y el sistema pedía $0.20
+  // más, bloqueando la venta (bug real reportado en producción,
+  // 2026-09-03). Truncando queda en 166g = $99.60: nunca por encima de
+  // lo que pidió, la diferencia se le regresa como cambio.
   if (!Number.isFinite(weightKg)) return 0
-  return Math.round(weightKg * 1000) / 1000
+  // El épsilon corrige residuo de punto flotante (ej. 249.99999999997
+  // debe ser 250g, no 249g) sin llegar a subir un gramo de verdad.
+  return Math.floor(weightKg * 1000 + 1e-6) / 1000
 }
