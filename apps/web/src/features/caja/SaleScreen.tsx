@@ -477,6 +477,16 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
                   {change < 0
                     ? `Falta ${formatCurrency(Math.abs(change))}`
                     : `Cambio: ${formatCurrency(change)}`}
+                  {/* Sugerencia nada más -- casi no circula moneda menor a
+                      $1, así que el centavo exacto no siempre se puede dar
+                      físicamente. La venta se sigue registrando con el
+                      monto real, esto no cambia nada de lo que se guarda. */}
+                  {change > 0 && Math.abs(Math.round(change) - change) > 0.001 && (
+                    <span className="text-muted-foreground font-normal">
+                      {' '}
+                      · redondeado: {formatCurrency(Math.round(change))}
+                    </span>
+                  )}
                 </p>
               )}
             </div>
