@@ -6,7 +6,7 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(18);
+select plan(21);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
@@ -256,57 +256,57 @@ select throws_like(
 -- venta a granel entre 250g y 1kg fallaba por completo hasta que se
 -- corrigió aquí también (mismo día, misma sesión).
 
--- Test 15: exactamente 250g ya usa la tarifa de kilo, proporcional
+-- Test 15/16: exactamente 250g ya usa la tarifa de kilo, proporcional
 -- ($160/kg × 0.25 = $40, el precio real del cuarto).
+select lives_ok(
+  $$select create_sale(
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000003',
+      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.25)),
+      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 40.00))
+    )$$,
+  'create_sale acepta 250g de un producto a granel a $40 (tarifa de kilo, no de menudeo)'
+);
 select is(
-  (
-    select subtotal from sales where id = (
-      select create_sale(
-        gen_random_uuid(),
-        '00000000-0000-0000-0000-000000000003',
-        jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.25)),
-        jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 40.00))
-      )
-    )
-  ),
+  (select subtotal from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.25),
   40.00,
-  'create_sale cobra 250g a la tarifa de kilo proporcional ($40), no a la de menudeo'
+  'sale_items guarda 250g a la tarifa de kilo proporcional ($40), no a la de menudeo'
 );
 
--- Test 16: el regresivo que de verdad importa -- 400g (entre 250g y
+-- Test 17/18: el regresivo que de verdad importa -- 400g (entre 250g y
 -- 1kg) es justo el rango donde el quiebre viejo de 1kg habría cobrado
 -- distinto ($76 de menudeo) que el nuevo de 250g ($64 de kilo
 -- proporcional).
+select lives_ok(
+  $$select create_sale(
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000003',
+      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.4)),
+      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 64.00))
+    )$$,
+  'create_sale acepta 400g de un producto a granel a $64 (tarifa de kilo proporcional)'
+);
 select is(
-  (
-    select subtotal from sales where id = (
-      select create_sale(
-        gen_random_uuid(),
-        '00000000-0000-0000-0000-000000000003',
-        jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.4)),
-        jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 64.00))
-      )
-    )
-  ),
+  (select subtotal from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.4),
   64.00,
-  'create_sale cobra 400g a la tarifa de kilo proporcional ($64), el quiebre viejo de 1kg hubiera dado $76 de menudeo'
+  'sale_items guarda 400g a $64 -- el quiebre viejo de 1kg hubiera dado $76 de menudeo'
 );
 
--- Test 17: justo por debajo de 250g todavía es tarifa de menudeo
+-- Test 19/20: justo por debajo de 250g todavía es tarifa de menudeo
 -- (240g × $19/100g = $45.60).
+select lives_ok(
+  $$select create_sale(
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000003',
+      jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.24)),
+      jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 45.60))
+    )$$,
+  'create_sale acepta 240g de un producto a granel a $45.60 (todavía tarifa de menudeo)'
+);
 select is(
-  (
-    select subtotal from sales where id = (
-      select create_sale(
-        gen_random_uuid(),
-        '00000000-0000-0000-0000-000000000003',
-        jsonb_build_array(jsonb_build_object('product_id', '00000000-0000-0000-0000-000000000009', 'quantity', 0.24)),
-        jsonb_build_array(jsonb_build_object('payment_method_id', (select id from payment_methods where code = 'cash'), 'amount', 45.60))
-      )
-    )
-  ),
+  (select subtotal from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.24),
   45.60,
-  'create_sale todavía cobra 240g a la tarifa de menudeo, justo antes del quiebre de 250g'
+  'sale_items guarda 240g a la tarifa de menudeo, justo antes del quiebre de 250g'
 );
 
 select * from finish();
