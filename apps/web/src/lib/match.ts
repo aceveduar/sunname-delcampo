@@ -65,3 +65,18 @@ export function rankCandidates<T>(
     .filter((c) => c.score > 0)
     .sort((a, b) => b.score - a.score)
 }
+
+/** El mejor candidato, pero solo si llega al umbral y además no hay
+ * empate. Un empate (ej. "AJONJOLI" contra "Ajonjolí Moreno" y "Ajonjolí
+ * Blanco", ambos con parecido 1) es justo el caso donde elegir se ve
+ * seguro y está mal la mitad de las veces: ahí es mejor no elegir y
+ * dejar que una persona decida. */
+export function bestUnambiguous<T>(
+  candidates: Candidate<T>[],
+  minScore: number,
+): T | null {
+  const [best, second] = candidates
+  if (!best || best.score < minScore) return null
+  if (second && second.score === best.score) return null
+  return best.item
+}

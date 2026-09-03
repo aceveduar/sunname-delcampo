@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
-import { rankCandidates } from '@/lib/match'
+import { bestUnambiguous, rankCandidates, type Candidate } from '@/lib/match'
 import { normalizeSearch } from '@/lib/text'
 import type { Product } from '@/features/catalog/useProducts'
 import type { UnitOfMeasure } from '@/features/catalog/useUnits'
@@ -40,14 +40,29 @@ function numero(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-/** Los productos más parecidos primero, luego el resto en orden alfabético
- * -- así el probable ya viene arriba sin esconder el catálogo completo. */
+/** Los más parecidos primero (activos antes que inactivos a igual
+ * parecido), luego el resto del catálogo en orden alfabético.
+ *
+ * Se ofrece el catálogo COMPLETO, no solo lo activo: "activo" dice si un
+ * producto se puede vender hoy, no si se puede comprar. Un producto
+ * desactivado por no tener precio todavía es justo el que se compra para
+ * poder ponerlo a la venta. Filtrar por activo aquí escondía la mayor
+ * parte del catálogo real y forzaba a elegir entre productos que no
+ * tenían nada que ver con el ticket. */
 function opcionesOrdenadas(descripcion: string | null, products: Product[]) {
   if (!descripcion) return products
-  const ranked = rankCandidates(descripcion, products, (p) => p.name ?? '')
-  const rankedIds = new Set(ranked.map((c) => c.item.id))
-  return [...ranked.map((c) => c.item), ...products.filter((p) => !rankedIds.has(p.id))]
+  const activos = products.filter((p) => p.active)
+  const inactivos = products.filter((p) => !p.active)
+  const porParecido = [
+    ...rankCandidates(descripcion, activos, (p) => p.name ?? '').map((c) => c.item),
+    ...rankCandidates(descripcion, inactivos, (p) => p.name ?? '').map((c) => c.item),
+  ]
+  const yaListados = new Set(porParecido.map((p) => p.id))
+  return [...porParecido, ...products.filter((p) => !yaListados.has(p.id))]
 }
+
+const mejorInequivoco = <T,>(candidatos: Candidate<T>[]) =>
+  bestUnambiguous(candidatos, UMBRAL_AUTOSELECCION)
 
 export function TicketCaptureDialog({
   suppliers,
@@ -75,7 +90,6 @@ export function TicketCaptureDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = useTicketCapture()
 
-  const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
   const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers])
   const unitById = useMemo(
     () => new Map(units.map((u) => [u.id, u])),
@@ -105,20 +119,30 @@ export function TicketCaptureDialog({
     // lee mal seguido (docs/captura-tickets-analisis.md).
     const nombreProveedor = resultado.extraccion.proveedor.nombre
     if (nombreProveedor) {
-      const [mejor] = rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name)
-      if (mejor && mejor.score >= UMBRAL_AUTOSELECCION) setSupplierId(mejor.item.id)
+      const proveedor = mejorInequivoco(
+        rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name),
+      )
+      if (proveedor) setSupplierId(proveedor.id)
     }
 
     setLines(
       resultado.verificacion.renglones.map((renglon) => {
-        const [mejor] = renglon.descripcion
-          ? rankCandidates(renglon.descripcion, activeProducts, (p) => p.name ?? '')
-          : []
+        // Solo se preselecciona algo activo: un producto desactivado se
+        // puede elegir a mano, pero proponerlo solo sería empujar hacia
+        // uno que el negocio decidió sacar de circulación.
+        const sugerido = renglon.descripcion
+          ? mejorInequivoco(
+              rankCandidates(
+                renglon.descripcion,
+                products.filter((p) => p.active),
+                (p) => p.name ?? '',
+              ),
+            )
+          : null
         return {
           key: `renglon-${renglon.indice}`,
           origen: renglon,
-          productId:
-            mejor && mejor.score >= UMBRAL_AUTOSELECCION ? (mejor.item.id ?? '') : '',
+          productId: sugerido?.id ?? '',
           quantity: renglon.cantidad !== null ? String(renglon.cantidad) : '',
           unitCost:
             renglon.precio_unitario !== null ? String(renglon.precio_unitario) : '',
@@ -333,7 +357,7 @@ export function TicketCaptureDialog({
 
               <div className="flex flex-col gap-3">
                 {lines.map((line) => {
-                  const producto = activeProducts.find((p) => p.id === line.productId)
+                  const producto = products.find((p) => p.id === line.productId)
                   const unidadProducto = producto?.unit_id
                     ? unitById.get(producto.unit_id)
                     : undefined
@@ -401,13 +425,12 @@ export function TicketCaptureDialog({
                               }`}
                             >
                               <option value="">Elige el producto…</option>
-                              {opcionesOrdenadas(line.origen.descripcion, activeProducts).map(
-                                (p) => (
-                                  <option key={p.id} value={p.id ?? ''}>
-                                    {p.name}
-                                  </option>
-                                ),
-                              )}
+                              {opcionesOrdenadas(line.origen.descripcion, products).map((p) => (
+                                <option key={p.id} value={p.id ?? ''}>
+                                  {p.name}
+                                  {p.active ? '' : ' (inactivo)'}
+                                </option>
+                              ))}
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
