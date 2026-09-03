@@ -9,17 +9,25 @@
 -- precio se vea raro dentro de tres meses, el papel original es la única
 -- forma de saber si se capturó mal o si de verdad era ese.
 
+-- Idempotente a propósito: si el bucket ya existe (creado a mano desde
+-- el dashboard, o por una corrida anterior), el script debe seguir de
+-- largo y crear las políticas, no abortar la transacción entera con un
+-- error de llave duplicada -- que fue justo lo que pasó al correrlo.
 insert into storage.buckets (id, name, public)
-values ('price-sheets', 'price-sheets', false);
+values ('price-sheets', 'price-sheets', false)
+on conflict (id) do nothing;
 
+drop policy if exists price_sheets_select on storage.objects;
 create policy price_sheets_select on storage.objects for select
   to authenticated
   using (bucket_id = 'price-sheets' and current_role_key() in ('owner', 'local_admin'));
 
+drop policy if exists price_sheets_insert on storage.objects;
 create policy price_sheets_insert on storage.objects for insert
   to authenticated
   with check (bucket_id = 'price-sheets' and current_role_key() in ('owner', 'local_admin'));
 
+drop policy if exists price_sheets_delete on storage.objects;
 create policy price_sheets_delete on storage.objects for delete
   to authenticated
   using (bucket_id = 'price-sheets' and current_role_key() in ('owner', 'local_admin'));
