@@ -11,3 +11,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 coverage/
+
+# Fotos de tickets de proveedor: material de referencia local (~30MB) con
+# RFC y domicilios reales. El análisis vive en docs/captura-tickets-analisis.md.
+tikets/
