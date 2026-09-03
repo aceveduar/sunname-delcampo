@@ -20,7 +20,10 @@ export function GranelDialog({
   onOpenChange,
 }: {
   product: Product | null
-  onConfirm: (weightKg: number) => void
+  // amountMxn viene solo cuando se pidió por monto: en ese caso el total
+  // de la línea es ese monto exacto y el peso es el derivado, no al
+  // revés (regla confirmada con el dueño, 2026-09-03).
+  onConfirm: (weightKg: number, amountMxn?: number) => void
   onOpenChange: (open: boolean) => void
 }) {
   const [grams, setGrams] = useState('')
@@ -46,14 +49,6 @@ export function GranelDialog({
     Number(amount || 0) > 0
       ? granelWeightKgFromAmount(Number(amount), pricePerKg, pricePer100g)
       : 0
-  // El total casi nunca es igual al monto pedido: el peso se trunca a
-  // gramos enteros hacia abajo para no pasarse de lo que pidió el
-  // cliente. Se muestra aquí para que el cajero sepa desde el principio
-  // qué va a cobrar, y no se lleve la sorpresa al ver el carrito.
-  const totalFromAmount =
-    weightFromAmount > 0
-      ? granelTotalFromWeightKg(weightFromAmount, pricePerKg, pricePer100g)
-      : 0
 
   const handleConfirmGrams = () => {
     if (weightFromGrams <= 0) return
@@ -63,7 +58,9 @@ export function GranelDialog({
 
   const handleConfirmAmount = () => {
     if (weightFromAmount <= 0) return
-    onConfirm(weightFromAmount)
+    // Se manda el monto: la línea se cobra por ese monto exacto y el
+    // peso queda como referencia de cuánto pesar.
+    onConfirm(weightFromAmount, Number(amount))
     reset()
   }
 
@@ -150,10 +147,6 @@ export function GranelDialog({
             </div>
             <p className="text-sm font-medium">
               Peso a pesar: {Math.round(weightFromAmount * 1000)} g
-              <span className="text-muted-foreground font-normal">
-                {' '}
-                · cobra {formatCurrency(totalFromAmount)}
-              </span>
             </p>
             <Button
               onClick={handleConfirmAmount}

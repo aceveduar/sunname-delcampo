@@ -25,7 +25,11 @@ import { GranelDialog } from './GranelDialog'
 import { granelTotalFromWeightKg } from '@/lib/granel'
 import { ReceiptDialog, type ReceiptData } from './ReceiptDialog'
 
-type CartLine = { product: Product; quantity: number }
+// amountMxn solo existe en líneas pedidas "por monto" ("dame $50 de
+// piquín"): ahí el total de la línea es ese monto exacto y quantity es
+// el peso derivado. En las demás líneas el total sale de quantity ×
+// tarifa, como siempre.
+type CartLine = { product: Product; quantity: number; amountMxn?: number }
 
 const NO_CUSTOMER = 'none'
 
@@ -87,13 +91,15 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   }, [products, search, filterCategory])
 
   const lineTotal = (line: CartLine) =>
-    line.product.sold_by_weight
-      ? granelTotalFromWeightKg(
-          line.quantity,
-          line.product.price,
-          line.product.price_per_100g ?? 0,
-        )
-      : line.product.price * line.quantity
+    line.amountMxn !== undefined
+      ? line.amountMxn
+      : line.product.sold_by_weight
+        ? granelTotalFromWeightKg(
+            line.quantity,
+            line.product.price,
+            line.product.price_per_100g ?? 0,
+          )
+        : line.product.price * line.quantity
 
   const total = cart.reduce((sum, line) => sum + lineTotal(line), 0)
 
@@ -106,11 +112,11 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     submitting ||
     (selectedMethod?.code === 'cash' && received < total)
 
-  const addToCart = (product: Product, weightKg?: number) => {
+  const addToCart = (product: Product, weightKg?: number, amountMxn?: number) => {
     if (product.sold_by_weight) {
       // El peso siempre se captura exacto (báscula o monto pedido) --
       // no tiene sentido "sumar 1" a un producto que se pesa.
-      setCart((prev) => [...prev, { product, quantity: weightKg ?? 0 }])
+      setCart((prev) => [...prev, { product, quantity: weightKg ?? 0, amountMxn }])
       return
     }
     setCart((prev) => {
@@ -197,6 +203,9 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       p_items: cart.map((line) => ({
         product_id: line.product.id,
         quantity: line.quantity,
+        // Si la línea se pidió por monto, manda el monto: create_sale
+        // deriva el peso y cobra ese monto exacto.
+        ...(line.amountMxn !== undefined ? { amount: line.amountMxn } : {}),
       })),
       p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
       p_customer_id: customerId === NO_CUSTOMER ? undefined : customerId,
@@ -541,9 +550,9 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
         onOpenChange={(open) => {
           if (!open) setGranelProduct(null)
         }}
-        onConfirm={(weightKg) => {
+        onConfirm={(weightKg, amountMxn) => {
           if (granelProduct) {
-            addToCart(granelProduct, weightKg)
+            addToCart(granelProduct, weightKg, amountMxn)
             toast.success(`Agregado: ${granelProduct.name}`)
           }
           setGranelProduct(null)

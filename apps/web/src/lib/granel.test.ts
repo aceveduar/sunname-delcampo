@@ -49,11 +49,6 @@ describe('granelWeightKgFromAmount', () => {
     expect(weightKg).toBe(0.217)
   })
 
-  it('el total recalculado sobre el peso redondeado es el que de verdad se cobra', () => {
-    const weightKg = granelWeightKgFromAmount(50, PRICE_PER_KG, PRICE_PER_100G)
-    expect(granelTotalFromWeightKg(weightKg, PRICE_PER_KG, PRICE_PER_100G)).toBe(49.91)
-  })
-
   it('usa la tarifa de mayoreo cuando el monto equivale a 1kg o más', () => {
     // $440 a $220/kg -> exactamente 2kg.
     expect(granelWeightKgFromAmount(440, PRICE_PER_KG, PRICE_PER_100G)).toBe(2)
@@ -66,26 +61,21 @@ describe('granelWeightKgFromAmount', () => {
 
   it('usa la tarifa de menudeo justo por debajo del monto de 1/4 kg', () => {
     // $54 todavía no alcanza los $55 de un cuarto -> tarifa de menudeo.
-    // 234.78g se truncan a 234g (hacia abajo, nunca hacia arriba).
-    expect(granelWeightKgFromAmount(54, PRICE_PER_KG, PRICE_PER_100G)).toBe(0.234)
+    expect(granelWeightKgFromAmount(54, PRICE_PER_KG, PRICE_PER_100G)).toBe(0.235)
   })
 
-  // El peso derivado de un monto se trunca hacia abajo, nunca al gramo
-  // más cercano: si el cliente pide "$100 de X" y entrega $100 exactos,
-  // el total no puede pasarse de $100 o la venta se bloquea pidiéndole
-  // centavos de más (bug real en producción, 2026-09-03).
-  it('nunca cobra más que el monto pedido (caso real: $100 de Chile Piquín)', () => {
-    // Chile Piquín Entero real: $512/kg, $60/100g.
-    const weightKg = granelWeightKgFromAmount(100, 512, 60)
-    expect(weightKg).toBe(0.166) // 166.67g truncado a 166g, no 167g
-    expect(granelTotalFromWeightKg(weightKg, 512, 60)).toBe(99.6)
+  // En una venta por monto el total es el monto pedido (lo cobra
+  // create_sale), no peso × tarifa -- esta función solo dice cuánto
+  // pesar. Por eso redondea al gramo más cercano, igual que el
+  // servidor: el número mostrado debe ser el mismo que se registra.
+  it('redondea al gramo más cercano, igual que create_sale (caso real: $100 de Chile Piquín)', () => {
+    // Chile Piquín Entero real: $512/kg, $60/100g -> 166.67g -> 167g.
+    expect(granelWeightKgFromAmount(100, 512, 60)).toBe(0.167)
   })
 
-  it('nunca cobra más que el monto pedido, también en la tarifa de kilo', () => {
-    // $50 de un producto a $160/kg -> 312.5g truncado a 312g.
-    const weightKg = granelWeightKgFromAmount(50, 160, 19)
-    expect(weightKg).toBe(0.312)
-    expect(granelTotalFromWeightKg(weightKg, 160, 19)).toBeLessThanOrEqual(50)
+  it('redondea al gramo más cercano también en la tarifa de kilo', () => {
+    // $50 de un producto a $160/kg -> 312.5g -> 313g.
+    expect(granelWeightKgFromAmount(50, 160, 19)).toBe(0.313)
   })
 
   it('regresión: nunca produce Infinity/NaN cuando el producto no tiene precio', () => {
