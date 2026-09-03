@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { AppShell } from '@/components/layout/AppShell'
@@ -16,9 +17,21 @@ import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
 
 function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, toggleLargeText } = useAuth()
   const { isEnabled: isModuleEnabled, loading: modulesLoading } =
     useTenantModules(!!session)
+
+  // Un solo lugar aplica el atributo que dispara el CSS de modo texto
+  // grande (index.css) -- así se agranda la app entera con un cambio, sin
+  // repetirlo pantalla por pantalla.
+  useEffect(() => {
+    const root = document.documentElement
+    if (profile?.large_text_mode) {
+      root.setAttribute('data-text-size', 'lg')
+    } else {
+      root.removeAttribute('data-text-size')
+    }
+  }, [profile?.large_text_mode])
 
   // Ambos deben terminar de cargar antes de decidir cualquier redirect --
   // igual que con el perfil en useAuth, decidir con isModuleEnabled() en
@@ -59,6 +72,7 @@ function App() {
       session={session}
       profile={profile}
       isModuleEnabled={isModuleEnabled}
+      onToggleLargeText={toggleLargeText}
     >
       <Routes>
         <Route path="/" element={<Navigate to="/caja" replace />} />

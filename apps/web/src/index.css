@@ -89,6 +89,18 @@
   --ring: #6b83b8;
 }
 
+/*
+  Modo de texto grande — preferencia por usuario (profiles.large_text_mode),
+  pensada para quien ya no ve bien letra chica en pantallas chicas
+  (CLAUDE.md §14.2). Escala el font-size raíz en vez de tocar componente por
+  componente: los utilities de Tailwind para texto, espaciado (gap/padding)
+  e iconos (size-*) están en rem, así que un solo cambio aquí agranda letra,
+  números y aire entre elementos en todo el sistema a la vez.
+*/
+html[data-text-size='lg'] {
+  font-size: 125%;
+}
+
 @theme inline {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 

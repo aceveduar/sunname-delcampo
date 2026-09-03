@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import {
+  ALargeSmall,
   BarChart3,
   Boxes,
   Contact,
@@ -89,14 +90,17 @@ export function AppShell({
   session,
   profile,
   isModuleEnabled,
+  onToggleLargeText,
   children,
 }: {
   session: Session
   profile: Profile | null
   isModuleEnabled: (key: ModuleKey) => boolean
+  onToggleLargeText: () => void
   children: ReactNode
 }) {
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
+  const isLargeText = profile?.large_text_mode ?? false
   const isAdmin = isAdminRole(profile?.role)
   const isOwner = isOwnerRole(profile?.role)
   const location = useLocation()
@@ -151,6 +155,26 @@ export function AppShell({
           </nav>
 
           <div className="flex items-center gap-1 justify-self-end">
+            <button
+              onClick={onToggleLargeText}
+              className={`hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 ${
+                isLargeText ? 'text-sidebar-primary' : ''
+              }`}
+              aria-pressed={isLargeText}
+              aria-label={
+                isLargeText
+                  ? 'Desactivar texto grande'
+                  : 'Activar texto grande'
+              }
+              title={
+                isLargeText
+                  ? 'Desactivar texto grande'
+                  : 'Activar texto grande'
+              }
+            >
+              <ALargeSmall className="size-4" />
+            </button>
+
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
               className="hover:bg-sidebar-accent relative flex items-center justify-center rounded-md p-2"

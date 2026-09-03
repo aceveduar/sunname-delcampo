@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/errors'
 import type { Database } from '../lib/database.types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -63,5 +64,20 @@ export function useAuth() {
   const profileSettled = profileOwnerId === userId
   const loading = sessionLoading || (userId !== null && !profileSettled)
 
-  return { session, profile, loading }
+  const toggleLargeText = useCallback(async () => {
+    if (!profile) return
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ large_text_mode: !profile.large_text_mode })
+      .eq('id', profile.id)
+      .select()
+      .single()
+    if (error) {
+      reportError('No se pudo cambiar el tamaño de letra', error)
+      return
+    }
+    setProfile(data)
+  }, [profile])
+
+  return { session, profile, loading, toggleLargeText }
 }
