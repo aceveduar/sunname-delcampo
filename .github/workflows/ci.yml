@@ -74,8 +74,33 @@ jobs:
             exit 1
           fi
 
+  types-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # database.types.ts se escribe a mano con demasiada facilidad, y
+      # tsc no puede detectar que quedó desactualizado: si ningún código
+      # consulta todavía la tabla nueva, compila igual. Ya pasó --
+      # product_price_history estuvo ausente del archivo un día entero sin
+      # que nadie lo notara (CLAUDE.md §14.2). Esto lo compara contra el
+      # esquema real de producción y falla si no coinciden.
+      - name: Verificar que database.types.ts coincida con el esquema real
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase gen types typescript --project-id pancbbjhhovxjnzyentb > /tmp/types-real.ts
+          if ! diff -u /tmp/types-real.ts apps/web/src/lib/database.types.ts; then
+            echo "::error::database.types.ts no coincide con el esquema real de producción. Corre 'npx supabase gen types typescript --project-id pancbbjhhovxjnzyentb > apps/web/src/lib/database.types.ts' y commitea el resultado."
+            exit 1
+          fi
+
   deploy:
-    needs: [check, db-tests, migration-check]
+    needs: [check, db-tests, migration-check, types-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

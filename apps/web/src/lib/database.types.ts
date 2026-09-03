@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       cash_sessions: {
@@ -696,6 +721,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "supplier_product_aliases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_product_aliases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_catalog"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "supplier_product_aliases_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -937,6 +976,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      delete_product: { Args: { p_product_id: string }; Returns: undefined }
       receive_purchase_order: {
         Args: { p_purchase_order_id: string }
         Returns: undefined
@@ -944,10 +984,6 @@ export type Database = {
       request_global_invoice: {
         Args: { p_cash_session_id: string }
         Returns: string
-      }
-      delete_product: {
-        Args: { p_product_id: string }
-        Returns: undefined
       }
       void_sale: {
         Args: { p_reason?: string; p_sale_id: string }
@@ -1086,6 +1122,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       cash_session_status: ["open", "closed"],
