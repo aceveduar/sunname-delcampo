@@ -63,6 +63,7 @@ import { useProducts, type Product } from './useProducts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
 import { LabelPrintDialog } from './LabelPrintDialog'
+import { PriceSheetDialog } from './PriceSheetDialog'
 
 const NO_CATEGORY = 'none'
 
@@ -349,6 +350,12 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 >
                   <Pencil /> Editar precios
                 </Button>
+                <PriceSheetDialog
+                  products={products}
+                  units={activeUnits}
+                  onApply={updatePrices}
+                  onCreateProduct={createProduct}
+                />
                 <Button
                   onClick={openCreate}
                   size="sm"

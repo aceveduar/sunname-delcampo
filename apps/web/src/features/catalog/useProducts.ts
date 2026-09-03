@@ -92,7 +92,15 @@ export function useProducts() {
   // final -- updateProduct() uno por uno haría N refetches innecesarios.
   const updatePrices = useCallback(
     async (
-      changes: { id: string; price: number; price_per_100g: number | null }[],
+      changes: {
+        id: string
+        price: number
+        price_per_100g: number | null
+        // Opcional: la carga de precios por foto activa de paso los
+        // productos que quedan con precio, porque estar inactivo por
+        // falta de precio deja de tener sentido en cuanto lo tienen.
+        active?: boolean
+      }[],
     ) => {
       const results = await Promise.all(
         changes.map(({ id, ...values }) =>
