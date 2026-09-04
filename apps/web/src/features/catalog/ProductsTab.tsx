@@ -352,7 +352,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
           Productos que vendes, con su precio, categoría y unidad.
         </p>
         {canManage && (
-          <div className="flex gap-2">
+          // flex-wrap: "Editar precios" + "Precios por foto" + "Nuevo
+          // producto" (cada uno con ícono + texto) no caben en una sola
+          // fila en un celular -- sin poder bajar de línea, empujaban
+          // toda la página más ancha que la pantalla.
+          <div className="flex flex-wrap gap-2">
             {priceEditMode ? (
               <>
                 <Button variant="outline" size="sm" onClick={cancelPriceEdits}>
