@@ -28,6 +28,13 @@ import {
 // note. Preferimos dejarlo vacío.
 const UMBRAL_AUTOSELECCION = 0.6
 
+// Arriba de este cambio contra el precio actual, se avisa. No es que
+// esté prohibido -- los precios de central de abastos suben de verdad --
+// es que un dígito mal leído (198 -> 1980) se ve idéntico a un aumento
+// normal en una caja de texto, y así no. Un 40% cubre un aumento fuerte
+// real sin marcar cada ajuste de temporada.
+const CAMBIO_BRUSCO = 0.4
+
 type DraftRow = {
   key: string
   origen: PriceSheetRenglon
@@ -177,9 +184,36 @@ export function PriceSheetDialog({
     return new Set([...vistos.entries()].filter(([, n]) => n > 1).map(([id]) => id))
   }, [includedRows])
 
-  const filasIncompletas = includedRows.filter(
-    (r) => !r.productId || numero(r.precioKilo) <= 0 || numero(r.precio100g) <= 0,
-  ).length
+  // El precio por 100 g solo es obligatorio si el producto se vende por
+  // peso. Un producto por pieza (piloncillo, chocolate) no tiene tarifa
+  // de 100 g, y exigírsela impediría guardar la hoja entera.
+  const faltaAlgo = (r: DraftRow) => {
+    const producto = products.find((p) => p.id === r.productId)
+    if (!r.productId || numero(r.precioKilo) <= 0) return true
+    return !!producto?.sold_by_weight && numero(r.precio100g) <= 0
+  }
+  const filasIncompletas = includedRows.filter(faltaAlgo).length
+
+  // Resumen del impacto antes de aplicar: 20 renglones en verde no dicen
+  // nada sobre si la hoja va a subir todo un 15% o a bajar un producto a
+  // la mitad. Es la última oportunidad de notar algo raro sin abrir la foto.
+  const impacto = useMemo(() => {
+    let suben = 0, bajan = 0, iguales = 0, nuevos = 0, bruscos = 0
+    includedRows.forEach((r) => {
+      // Un renglón sin producto asignado no cuenta: todavía no se sabe a
+      // qué producto le va a cambiar el precio, y contarlo como "sin
+      // precio antes" hacía ver la hoja entera como altas nuevas.
+      if (!r.productId) return
+      const anterior = products.find((p) => p.id === r.productId)?.price ?? 0
+      const nuevo = numero(r.precioKilo)
+      if (anterior <= 0) { nuevos++; return }
+      if (Math.abs((nuevo - anterior) / anterior) >= CAMBIO_BRUSCO) bruscos++
+      if (nuevo > anterior) suben++
+      else if (nuevo < anterior) bajan++
+      else iguales++
+    })
+    return { suben, bajan, iguales, nuevos, bruscos }
+  }, [includedRows, products])
   const puedeGuardar =
     includedRows.length > 0 &&
     filasIncompletas === 0 &&
@@ -387,13 +421,41 @@ export function PriceSheetDialog({
                         </p>
                       )}
 
-                      {row.include && row.productId && numero(row.precioKilo) > 0 && (
-                        <p className="text-muted-foreground mt-2 text-xs">
-                          El cuarto se cobrará a{' '}
-                          {formatCurrency(numero(row.precioKilo) / 4)} (kilo ÷ 4), y de 250 g
-                          para abajo aplica la tarifa de 100 g.
-                        </p>
-                      )}
+                      {row.include && row.productId && numero(row.precioKilo) > 0 && (() => {
+                        const producto = products.find((p) => p.id === row.productId)
+                        const anterior = producto?.price ?? 0
+                        const nuevo = numero(row.precioKilo)
+                        // Un precio anterior en 0 no es un cambio, es la
+                        // primera carga: comparar contra cero daría un
+                        // porcentaje infinito y marcaría todo en rojo.
+                        const variacion = anterior > 0 ? (nuevo - anterior) / anterior : null
+                        const brusco = variacion !== null && Math.abs(variacion) >= CAMBIO_BRUSCO
+                        return (
+                          <div className="mt-2 flex flex-col gap-0.5 text-xs">
+                            {anterior > 0 ? (
+                              <p className={brusco ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                                Antes {formatCurrency(anterior)}/kg → ahora{' '}
+                                {formatCurrency(nuevo)}/kg
+                                {variacion !== null && variacion !== 0 && (
+                                  <>
+                                    {' '}({variacion > 0 ? '+' : ''}
+                                    {Math.round(variacion * 100)}%)
+                                  </>
+                                )}
+                                {brusco && ' — revisa que no sea un dígito mal leído'}
+                              </p>
+                            ) : (
+                              <p className="text-muted-foreground">
+                                Primera vez que este producto tiene precio.
+                              </p>
+                            )}
+                            <p className="text-muted-foreground">
+                              El cuarto se cobrará a {formatCurrency(nuevo / 4)} (kilo ÷ 4), y de
+                              250 g para abajo aplica la tarifa de 100 g.
+                            </p>
+                          </div>
+                        )
+                      })()}
 
                       {row.include && altaEnFila === row.key && (
                         <div className="bg-muted/50 mt-3 flex flex-wrap items-end gap-3 rounded-md border p-3">
@@ -458,6 +520,21 @@ export function PriceSheetDialog({
                 {includedRows.length} de {rows.length} renglones
                 {filasIncompletas > 0 && (
                   <span className="text-destructive"> · {filasIncompletas} sin completar</span>
+                )}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {[
+                  impacto.suben > 0 && `${impacto.suben} suben`,
+                  impacto.bajan > 0 && `${impacto.bajan} bajan`,
+                  impacto.iguales > 0 && `${impacto.iguales} sin cambio`,
+                  impacto.nuevos > 0 && `${impacto.nuevos} sin precio antes`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                {impacto.bruscos > 0 && (
+                  <span className="text-destructive">
+                    {' '}· {impacto.bruscos} con cambio fuerte
+                  </span>
                 )}
               </span>
               <label className="flex items-center gap-1.5 text-xs">

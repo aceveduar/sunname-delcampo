@@ -139,6 +139,13 @@ const MODELOS_POR_DEFECTO = [
 // 404 = el modelo ya no existe, 429 = cuota, 503 = saturado.
 const REINTENTABLES = new Set([404, 429, 503]);
 
+// Cada intento tiene su propio reloj. Sin esto, un modelo lento se lleva
+// todo el presupuesto de tiempo de la función y la mata la puerta de
+// enlace con un 504 -- que no trae mensaje, así que el usuario se queda
+// mirando "Leyendo…" sin saber qué pasó. Con el corte, se cae al
+// siguiente modelo o se devuelve un 502 propio, que sí explica.
+const TIMEOUT_POR_MODELO_MS = 25_000;
+
 async function llamarModelo(
   modelo: string,
   base64: string,
@@ -166,6 +173,7 @@ async function llamarModelo(
           temperature: 0,
         },
       }),
+      signal: AbortSignal.timeout(TIMEOUT_POR_MODELO_MS),
     },
   );
 }
@@ -184,7 +192,15 @@ async function extraerConGemini(
   const fallos: string[] = [];
 
   for (const modelo of modelos) {
-    const res = await llamarModelo(modelo, base64, mimeType, apiKey);
+    let res: Response;
+    try {
+      res = await llamarModelo(modelo, base64, mimeType, apiKey);
+    } catch (error) {
+      // Se agotó el reloj de este modelo (o falló la red): se prueba el
+      // siguiente en vez de arrastrar la espera hasta el 504.
+      fallos.push(`${modelo}: ${error instanceof Error ? error.name : "error de red"}`);
+      continue;
+    }
 
     if (res.ok) {
       const data = await res.json();
