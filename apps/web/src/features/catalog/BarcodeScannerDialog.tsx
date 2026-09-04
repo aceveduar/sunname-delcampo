@@ -1,18 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import type { IScannerControls } from '@zxing/browser'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 /** Lector de código de barras con la cámara del celular. Se usa la
  * librería ZXing (decodificación por software sobre el video, no la
  * API nativa BarcodeDetector) a propósito: BarcodeDetector solo existe
  * en Chrome/Android hoy -- el plan es escalar a iPhone, y ahí no
- * existe, así que un lector nativo habría que reescribirlo después. */
+ * existe, así que un lector nativo habría que reescribirlo después.
+ *
+ * getUserMedia + video.play() se manejan a mano en vez de usar
+ * `decodeFromConstraints` de la librería: esa función envuelve el
+ * play() en su propio reintento con timeout de 5s y traga el motivo
+ * real del fallo (solo hace console.warn) -- en pruebas reales en un
+ * teléfono con permiso ya concedido, eso dejaba la pantalla en blanco
+ * sin ninguna pista de qué paso fallaba. Aquí cada paso (permiso,
+ * reproducir el video) reporta su propio error si falla.
+ *
+ * Pantalla completa (portal a document.body, no el Dialog compartido):
+ * el Dialog centrado anima con transform/scale al abrir, y un <video>
+ * de cámara dentro de un ancestro con CSS transform es un patrón con
+ * problemas conocidos de composición en algunos Chrome/WebView de
+ * Android -- de paso, pantalla completa es más fácil para apuntar el
+ * código que un cuadro chico centrado. */
 export function BarcodeScannerDialog({
   open,
   onOpenChange,
@@ -24,106 +36,147 @@ export function BarcodeScannerDialog({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
-  const [slow, setSlow] = useState(false)
 
   // onDetected/onOpenChange llegan como funciones nuevas en cada render
-  // del padre (ProductsTab) -- si entraran a las dependencias del efecto
-  // de abajo, cualquier re-render mientras el diálogo está abierto
-  // reiniciaría la cámara a medio prender, dejando la vista en blanco
-  // sin ningún error visible. Se leen por ref para que el efecto solo
-  // dependa de `open`.
+  // del padre (ProductsTab) -- si entraran a las dependencias del
+  // efecto de abajo, cualquier re-render mientras el diálogo está
+  // abierto reiniciaría la cámara a medio prender. Se leen por ref
+  // para que el efecto solo dependa de `open`.
   const onDetectedRef = useRef(onDetected)
-  onDetectedRef.current = onDetected
   const onOpenChangeRef = useRef(onOpenChange)
-  onOpenChangeRef.current = onOpenChange
+  useEffect(() => {
+    onDetectedRef.current = onDetected
+    onOpenChangeRef.current = onOpenChange
+  })
 
   useEffect(() => {
     if (!open) return
     setError(null)
     setStreaming(false)
-    setSlow(false)
     let cancelled = false
-    const reader = new BrowserMultiFormatReader()
 
-    // Si a los 5s no hay ni imagen ni error, lo más probable es que el
-    // navegador esté esperando una decisión de permiso que no se ve en
-    // pantalla (o ya lo bloqueó antes en silencio) -- sin esta pista, la
-    // pantalla se queda en blanco para siempre sin explicar por qué.
-    const slowTimer = window.setTimeout(() => {
-      if (!cancelled) setSlow(true)
-    }, 5000)
-
-    reader
-      .decodeFromConstraints(
-        { video: { facingMode: 'environment' } },
-        videoRef.current!,
-        (result, _err, controls) => {
-          if (cancelled || !result) return
-          controls.stop()
-          onDetectedRef.current(result.getText())
-          onOpenChangeRef.current(false)
-        },
-      )
-      .then((controls) => {
-        if (cancelled) {
-          controls.stop()
-        } else {
-          controlsRef.current = controls
-        }
-      })
-      .catch(() => {
+    const start = async () => {
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        })
+      } catch (err) {
         if (!cancelled) {
+          const reason = err instanceof Error ? err.name : String(err)
           setError(
-            'No se pudo acceder a la cámara. Revisa el permiso de cámara del sitio en Chrome (icono de candado junto a la dirección) y vuelve a intentar.',
+            `No se pudo acceder a la cámara (${reason}). Revisa el permiso de cámara del sitio en Chrome.`,
           )
         }
+        return
+      }
+
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+      streamRef.current = stream
+
+      const video = videoRef.current
+      if (!video) return
+      video.srcObject = stream
+
+      try {
+        await video.play()
+      } catch (err) {
+        if (!cancelled) {
+          const reason = err instanceof Error ? err.name : String(err)
+          setError(
+            `La cámara se activó pero el video no se pudo mostrar (${reason}).`,
+          )
+        }
+        return
+      }
+
+      if (cancelled) return
+      setStreaming(true)
+
+      const reader = new BrowserMultiFormatReader()
+      controlsRef.current = reader.scan(video, (result, _decodeError, controls) => {
+        if (cancelled || !result) return
+        controls.stop()
+        onDetectedRef.current(result.getText())
+        onOpenChangeRef.current(false)
       })
+    }
+
+    start()
 
     return () => {
       cancelled = true
-      window.clearTimeout(slowTimer)
       controlsRef.current?.stop()
       controlsRef.current = null
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
     }
   }, [open])
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Escanear código de barras</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-3">
-          {error ? (
-            <p className="text-destructive text-sm">{error}</p>
-          ) : (
-            <div className="border-border bg-muted relative overflow-hidden rounded-lg border">
-              <video
-                ref={videoRef}
-                onPlaying={() => setStreaming(true)}
-                className="aspect-square w-full object-cover"
-                muted
-                playsInline
-              />
-              <div className="border-brand-gold pointer-events-none absolute inset-x-8 top-1/2 h-16 -translate-y-1/2 rounded-md border-2" />
-            </div>
-          )}
-          {!error && !streaming && slow && (
-            <p className="text-destructive text-sm">
-              La cámara está tardando en aparecer. Es probable que Chrome ya
-              tenga bloqueado el permiso de cámara para este sitio: toca el
-              icono de candado junto a la dirección, activa "Cámara" y
-              vuelve a abrir este diálogo.
-            </p>
-          )}
-          <p className="text-muted-foreground text-xs">
-            Apunta la cámara al código de barras del producto. Se llena solo
-            en cuanto lo reconoce.
-          </p>
-        </div>
-      </DialogContent>
-    </Dialog>
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onOpenChangeRef.current(false)
+    }
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  if (!open) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+      <div className="flex items-center justify-between p-3">
+        <p className="text-sm font-medium text-white">
+          Escanear código de barras
+        </p>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-white hover:bg-white/10 hover:text-white"
+          aria-label="Cerrar"
+          onClick={() => onOpenChange(false)}
+        >
+          <X />
+        </Button>
+      </div>
+
+      <div className="relative flex-1 overflow-hidden">
+        <video
+          ref={videoRef}
+          className="size-full object-cover"
+          muted
+          playsInline
+        />
+        {!error && (
+          <div className="border-brand-gold pointer-events-none absolute inset-x-10 top-1/2 h-20 -translate-y-1/2 rounded-md border-2" />
+        )}
+        {error && (
+          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-lg bg-black/80 p-4 text-center text-sm text-white">
+            {error}
+          </div>
+        )}
+      </div>
+
+      <p className="p-4 text-center text-xs text-white/70">
+        {error
+          ? ''
+          : streaming
+            ? 'Apunta la cámara al código de barras. Se llena solo en cuanto lo reconoce.'
+            : 'Activando la cámara…'}
+      </p>
+    </div>,
+    document.body,
   )
 }
