@@ -111,7 +111,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const stockAdjustProduct =
     products.find((p) => p.id === stockAdjustProductId) ?? null
   const registerInitialStock = useRegisterMovement(() => {})
-  const [scannerOpen, setScannerOpen] = useState(false)
+  const [skuScannerOpen, setSkuScannerOpen] = useState(false)
+  const [searchScannerOpen, setSearchScannerOpen] = useState(false)
   const skuInputRef = useRef<HTMLInputElement>(null)
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
@@ -419,6 +420,15 @@ export function ProductsTab({ role }: { role: Role | null }) {
           placeholder="Buscar producto por nombre o SKU…"
           containerClassName="max-w-sm min-w-[300px] flex-1"
         />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Buscar por código de barras con la cámara"
+          onClick={() => setSearchScannerOpen(true)}
+        >
+          <ScanBarcode />
+        </Button>
         <div className="border-border flex items-center gap-1 rounded-lg border p-0.5">
           <Button
             variant={view === 'table' ? 'default' : 'ghost'}
@@ -916,7 +926,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     variant="outline"
                     size="icon"
                     aria-label="Escanear código de barras con la cámara"
-                    onClick={() => setScannerOpen(true)}
+                    onClick={() => setSkuScannerOpen(true)}
                   >
                     <ScanBarcode />
                   </Button>
@@ -1130,11 +1140,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
       />
 
       <BarcodeScannerDialog
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
+        open={skuScannerOpen}
+        onOpenChange={setSkuScannerOpen}
         onDetected={(code) => {
           if (skuInputRef.current) skuInputRef.current.value = toCode(code)
         }}
+      />
+
+      <BarcodeScannerDialog
+        open={searchScannerOpen}
+        onOpenChange={setSearchScannerOpen}
+        onDetected={setSearch}
       />
 
       {/* Borrar es irreversible, así que se confirma nombrando el producto:
