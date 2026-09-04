@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Boxes, ImageOff } from 'lucide-react'
+import { Boxes, ImageOff, ScanBarcode } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 import {
   Table,
   TableBody,
@@ -40,6 +42,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
   const registerMovement = useRegisterMovement(refresh)
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   const canRegister = role !== null && CAN_REGISTER_MOVEMENTS.includes(role)
   const activeCategories = categories.filter((c) => c.active)
@@ -97,6 +100,16 @@ export function InventoryPage({ role }: { role: Role | null }) {
           placeholder="Buscar producto por nombre o SKU…"
           containerClassName="max-w-sm min-w-[200px] flex-1"
         />
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Buscar por código de barras con la cámara"
+          onClick={() => setScannerOpen(true)}
+        >
+          <ScanBarcode />
+        </Button>
 
         <Select
           items={[
@@ -197,6 +210,12 @@ export function InventoryPage({ role }: { role: Role | null }) {
         totalItems={totalItems}
         pageSize={pageSize}
         onPageChange={setPage}
+      />
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onDetected={setSearch}
       />
     </div>
   )

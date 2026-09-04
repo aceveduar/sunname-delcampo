@@ -68,7 +68,7 @@ import { useRegisterMovement } from '@/features/inventory/useRegisterMovement'
 import { LabelPrintDialog } from './LabelPrintDialog'
 import { PriceSheetDialog } from './PriceSheetDialog'
 import { StockAdjustDialog } from './StockAdjustDialog'
-import { BarcodeScannerDialog } from './BarcodeScannerDialog'
+import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 
 const NO_CATEGORY = 'none'
 

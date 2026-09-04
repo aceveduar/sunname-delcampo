@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Plus, Search, Trash2 } from 'lucide-react'
+import { Minus, Plus, ScanBarcode, Search, Trash2 } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
+import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SearchInput } from '@/components/ui/search-input'
@@ -53,6 +54,7 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Cada negocio marca cuál es su método de pago más usado (es_default en
@@ -185,17 +187,32 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
     setCart((prev) => prev.filter((line) => line.product.id !== productId))
   }
 
+  const findExactSkuMatch = (code: string) => {
+    const query = normalizeSearch(code)
+    if (!query) return null
+    return (
+      products.find((p) => p.active && p.sku && normalizeSearch(p.sku) === query) ??
+      null
+    )
+  }
+
+  const addScannedProduct = (product: Product) => {
+    if (product.sold_by_weight) {
+      setGranelProduct(product)
+      setSearch('')
+      return
+    }
+    addToCart(product)
+    toast.success(`Agregado: ${product.name}`)
+    afterAdd()
+  }
+
   // Un lector de código de barras "escribe" el código y manda Enter — si
   // lo que se acaba de teclear coincide exacto con un SKU, se agrega
   // directo al carrito sin que el cajero tenga que buscar ni hacer clic.
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return
-    const query = normalizeSearch(search)
-    if (!query) return
-
-    const scanned = products.find(
-      (p) => p.active && p.sku && normalizeSearch(p.sku) === query,
-    )
+    const scanned = findExactSkuMatch(search)
     if (!scanned) {
       // Si tampoco hay coincidencias parciales por nombre, lo más probable
       // es que se haya escaneado un código que no está dado de alta.
@@ -204,16 +221,20 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       }
       return
     }
-
     event.preventDefault()
-    if (scanned.sold_by_weight) {
-      setGranelProduct(scanned)
-      setSearch('')
+    addScannedProduct(scanned)
+  }
+
+  // Respaldo para cuando no hay lector físico a la mano -- el camino
+  // rápido normal sigue siendo el lector USB (sin cambiar de pantalla)
+  // o la voz; la cámara aquí es solo un tercer camino, no el principal.
+  const handleCameraScan = (code: string) => {
+    const scanned = findExactSkuMatch(code)
+    if (!scanned) {
+      toast.error('Código no reconocido: ningún producto lo tiene registrado.')
       return
     }
-    addToCart(scanned)
-    toast.success(`Agregado: ${scanned.name}`)
-    afterAdd()
+    addScannedProduct(scanned)
   }
 
   const resetSale = () => {
@@ -327,6 +348,16 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
             onAddByQuantity={handleVoiceQuantity}
             onOpenManualWeight={setGranelProduct}
           />
+
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Escanear código de barras con la cámara"
+            onClick={() => setScannerOpen(true)}
+          >
+            <ScanBarcode />
+          </Button>
 
           <Select
             items={[
@@ -598,6 +629,12 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
       />
 
       <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} />
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onDetected={handleCameraScan}
+      />
     </div>
   )
 }
