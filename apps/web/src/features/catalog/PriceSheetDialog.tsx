@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, FileImage, Loader2 } from 'lucide-react'
+import { AlertTriangle, Check, FileImage, Loader2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -95,6 +95,11 @@ export function PriceSheetDialog({
   const [altaEnFila, setAltaEnFila] = useState<string | null>(null)
   const [nuevoProducto, setNuevoProducto] = useState({ name: '', unitId: '' })
   const [creandoProducto, setCreandoProducto] = useState(false)
+  // El visor de la hoja: en escritorio va fijo al lado de los renglones;
+  // en pantalla chica se abre a pantalla completa, porque lado a lado en
+  // 390px no le sirve a nadie.
+  const [verHoja, setVerHoja] = useState(false)
+  const [zoom, setZoom] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = usePriceSheetCapture()
 
@@ -108,6 +113,8 @@ export function PriceSheetDialog({
       setRows([])
       setAltaEnFila(null)
       setActivar(true)
+      setVerHoja(false)
+      setZoom(false)
     }
   }
 
@@ -246,12 +253,12 @@ export function PriceSheetDialog({
           </Button>
         }
       />
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-4xl">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-4xl lg:max-w-6xl">
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>Cargar precios desde una hoja</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4 lg:flex-row lg:gap-6 lg:overflow-hidden">
           {!lectura && (
             <div className="flex flex-col items-center gap-4 py-10 text-center">
               <FileImage className="text-muted-foreground size-10" />
@@ -293,8 +300,65 @@ export function PriceSheetDialog({
             </div>
           )}
 
+          {lectura?.signedUrl && (
+            // Un solo panel para las dos anchuras. En escritorio va fijo al
+            // lado de los renglones -- es lo que hace verificable la
+            // transcripción, si no se confirman 18 renglones de letra
+            // manuscrita contra nada. En pantalla chica lado a lado no le
+            // sirve a nadie, así que alterna con los renglones.
+            //
+            // A propósito NO es un overlay con position:fixed: dentro del
+            // diálogo, fixed se ancla al diálogo (que se posiciona con
+            // transform) y no al viewport, así que la imagen a tamaño
+            // natural terminaba desbordando la página entera. Quedándose
+            // en el flujo normal, hereda el ancho ya acotado del diálogo.
+            <div
+              className={`min-h-0 flex-col gap-2 lg:flex lg:w-[42%] lg:shrink-0 ${
+                verHoja ? 'flex flex-1' : 'hidden'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-xs">La hoja original</span>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => setZoom((z) => !z)}>
+                    {zoom ? (
+                      <>
+                        <ZoomOut className="size-4" /> Ajustar
+                      </>
+                    ) : (
+                      <>
+                        <ZoomIn className="size-4" /> Acercar
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden"
+                    onClick={() => setVerHoja(false)}
+                  >
+                    Ver renglones
+                  </Button>
+                </div>
+              </div>
+              {/* min-w-0: sin él, la imagen a tamaño natural estira el
+                  contenedor en vez de desplazarse dentro. */}
+              <div className="min-h-0 w-full min-w-0 flex-1 overflow-auto rounded-md border">
+                <img
+                  src={lectura.signedUrl}
+                  alt="Hoja de precios"
+                  className={zoom ? 'max-w-none' : 'w-full'}
+                />
+              </div>
+            </div>
+          )}
+
           {lectura && verificacion && (
-            <div className="flex flex-col gap-5">
+            <div
+              className={`min-w-0 flex-1 flex-col gap-5 lg:flex lg:overflow-y-auto lg:pr-1 ${
+                verHoja ? 'hidden' : 'flex'
+              }`}
+            >
               <div
                 className={`flex items-start gap-3 rounded-md border p-3 text-sm ${
                   verificacion.renglones_por_revisar > 0
@@ -317,6 +381,15 @@ export function PriceSheetDialog({
                   </p>
                   {lectura.extraccion.notas && (
                     <p className="text-muted-foreground">{lectura.extraccion.notas}</p>
+                  )}
+                  {lectura.signedUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setVerHoja(true)}
+                      className="text-primary self-start text-xs underline underline-offset-2 lg:hidden"
+                    >
+                      Ver la hoja original
+                    </button>
                   )}
                 </div>
               </div>

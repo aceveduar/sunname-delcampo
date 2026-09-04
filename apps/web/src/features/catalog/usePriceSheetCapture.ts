@@ -34,6 +34,10 @@ export type PriceSheetLectura = {
   }
   /** Dónde quedó la foto, para poder volver al papel original. */
   storagePath: string
+  /** URL temporal para mostrar la hoja durante la revisión. El bucket es
+   * privado, así que no hay URL pública: se firma una que vive una hora,
+   * de sobra para revisar una hoja y bastante menos que para siempre. */
+  signedUrl: string | null
 }
 
 const BUCKET = 'price-sheets'
@@ -77,7 +81,18 @@ export function usePriceSheetCapture() {
         return null
       }
 
-      return { ...(data as Omit<PriceSheetLectura, 'storagePath'>), storagePath }
+      // Poder ver la hoja mientras se revisa es lo que hace verificable
+      // la transcripción: si no, se están confirmando 18 renglones de
+      // letra manuscrita contra nada.
+      const { data: firmada } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(storagePath, 3600)
+
+      return {
+        ...(data as Omit<PriceSheetLectura, 'storagePath' | 'signedUrl'>),
+        storagePath,
+        signedUrl: firmada?.signedUrl ?? null,
+      }
     } finally {
       setAnalyzing(false)
     }
