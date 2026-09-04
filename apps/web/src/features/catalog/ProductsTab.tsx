@@ -6,10 +6,12 @@ import {
   type FormEvent,
 } from 'react'
 import {
+  Boxes,
   ImageOff,
   LayoutGrid,
   Package,
   PackageSearch,
+  ScanBarcode,
   Trash2,
   Pencil,
   Plus,
@@ -62,8 +64,11 @@ import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
+import { useRegisterMovement } from '@/features/inventory/useRegisterMovement'
 import { LabelPrintDialog } from './LabelPrintDialog'
 import { PriceSheetDialog } from './PriceSheetDialog'
+import { StockAdjustDialog } from './StockAdjustDialog'
+import { BarcodeScannerDialog } from './BarcodeScannerDialog'
 
 const NO_CATEGORY = 'none'
 
@@ -97,9 +102,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
   // del diálogo, el refresh de useProducts trae el producto actualizado y
   // el diálogo lo ve sin quedarse con el snapshot viejo (sin SKU).
   const [labelProductId, setLabelProductId] = useState<string | null>(null)
+  const [stockAdjustProductId, setStockAdjustProductId] = useState<
+    string | null
+  >(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [deleting, setDeleting] = useState(false)
   const labelProduct = products.find((p) => p.id === labelProductId) ?? null
+  const stockAdjustProduct =
+    products.find((p) => p.id === stockAdjustProductId) ?? null
+  const registerInitialStock = useRegisterMovement(() => {})
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const skuInputRef = useRef<HTMLInputElement>(null)
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
   const [unitId, setUnitId] = useState<string>('')
   const [trackInventory, setTrackInventory] = useState(true)
@@ -307,10 +320,29 @@ export function ProductsTab({ role }: { role: Role | null }) {
       image_url: imageUrl,
     }
 
-    const ok = editing
-      ? await updateProduct(editing.id, values)
-      : await createProduct(values)
-    if (ok) setDialogOpen(false)
+    if (editing) {
+      const ok = await updateProduct(editing.id, values)
+      if (ok) setDialogOpen(false)
+      return
+    }
+
+    const newId = await createProduct(values)
+    if (!newId) return
+
+    // Existencia inicial es opcional y solo aplica al dar de alta: no se
+    // guarda como campo del producto, dispara el mismo movimiento de
+    // entrada que ya registra Inventario, para no crear un segundo
+    // lugar donde "la cantidad" pueda desincronizarse de su bitácora.
+    const initialStock = Number(form.get('initial_stock') ?? 0)
+    if (trackInventory && initialStock > 0) {
+      await registerInitialStock({
+        productId: newId,
+        type: 'in',
+        quantity: initialStock,
+        notes: 'Existencia inicial',
+      })
+    }
+    setDialogOpen(false)
   }
 
   return (
@@ -604,6 +636,16 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     >
                       <Tag />
                     </Button>
+                    {product.track_inventory && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Ajustar existencia"
+                        onClick={() => setStockAdjustProductId(product.id)}
+                      >
+                        <Boxes />
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -741,6 +783,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
                         >
                           Etiqueta
                         </Button>
+                        {product.track_inventory && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setStockAdjustProductId(product.id)
+                            }
+                          >
+                            Existencia
+                          </Button>
+                        )}
                         {canDelete && (
                           <Button
                             variant="ghost"
@@ -846,12 +899,24 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 <Label htmlFor="product-sku">
                   SKU / código de barras (opcional)
                 </Label>
-                <Input
-                  id="product-sku"
-                  name="sku"
-                  defaultValue={editing?.sku ?? ''}
-                  placeholder="MOL-001"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    ref={skuInputRef}
+                    id="product-sku"
+                    name="sku"
+                    defaultValue={editing?.sku ?? ''}
+                    placeholder="MOL-001"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Escanear código de barras con la cámara"
+                    onClick={() => setScannerOpen(true)}
+                  >
+                    <ScanBarcode />
+                  </Button>
+                </div>
                 <p className="text-muted-foreground text-xs">
                   Si escaneas este código en Caja, el producto se agrega solo a
                   la venta.
@@ -1005,6 +1070,27 @@ export function ProductsTab({ role }: { role: Role | null }) {
                   onCheckedChange={setTrackInventory}
                 />
               </div>
+
+              {!editing && trackInventory && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="product-initial-stock">
+                    Existencia inicial (opcional)
+                    {unitId ? ` (${unitCode(unitId)})` : ''}
+                  </Label>
+                  <Input
+                    id="product-initial-stock"
+                    name="initial_stock"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    placeholder="0"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Registra de una vez cuánto tienes hoy. Para corregirla más
+                    adelante, usa "Ajustar existencia" en la lista.
+                  </p>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="border-border shrink-0 border-t pt-4">
@@ -1026,6 +1112,25 @@ export function ProductsTab({ role }: { role: Role | null }) {
           if (!open) setLabelProductId(null)
         }}
         onAssignSku={(id, sku) => updateProduct(id, { sku })}
+      />
+
+      <StockAdjustDialog
+        product={stockAdjustProduct}
+        unitLabel={
+          stockAdjustProduct ? unitCode(stockAdjustProduct.unit_id) : ''
+        }
+        onOpenChange={(open) => {
+          if (!open) setStockAdjustProductId(null)
+        }}
+        onDone={() => {}}
+      />
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onDetected={(code) => {
+          if (skuInputRef.current) skuInputRef.current.value = toCode(code)
+        }}
       />
 
       {/* Borrar es irreversible, así que se confirma nombrando el producto:
