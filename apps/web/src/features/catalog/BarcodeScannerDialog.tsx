@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import type { IScannerControls } from '@zxing/browser'
+import {
+  ChecksumException,
+  FormatException,
+  NotFoundException,
+} from '@zxing/library'
 import { Button } from '@/components/ui/button'
 
 /** Lector de código de barras con la cámara del celular. Se usa la
@@ -61,8 +66,17 @@ export function BarcodeScannerDialog({
     const start = async () => {
       let stream: MediaStream
       try {
+        // Resolución de baja calidad (el default sin pedir nada más
+        // suele rondar 640x480 en Android) deja las barras del código
+        // con muy pocos píxeles de ancho y el decodificador no logra
+        // distinguirlas -- pedir una resolución más alta es lo que de
+        // verdad hace la diferencia para leer un código de cerca.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         })
       } catch (err) {
         if (!cancelled) {
@@ -79,6 +93,19 @@ export function BarcodeScannerDialog({
         return
       }
       streamRef.current = stream
+
+      // Enfoque continuo es una extensión de Chrome en Android, no
+      // parte del estándar -- no todos los teléfonos la soportan, así
+      // que un fallo aquí se ignora en silencio y se sigue con el
+      // enfoque que haya dado la cámara por default.
+      const [track] = stream.getVideoTracks()
+      try {
+        await track?.applyConstraints({
+          advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+        })
+      } catch {
+        // sin soporte de enfoque continuo -- no es un error real
+      }
 
       const video = videoRef.current
       if (!video) return
@@ -100,11 +127,29 @@ export function BarcodeScannerDialog({
       setStreaming(true)
 
       const reader = new BrowserMultiFormatReader()
-      controlsRef.current = reader.scan(video, (result, _decodeError, controls) => {
-        if (cancelled || !result) return
-        controls.stop()
-        onDetectedRef.current(result.getText())
-        onOpenChangeRef.current(false)
+      controlsRef.current = reader.scan(video, (result, decodeError, controls) => {
+        if (cancelled) return
+        if (result) {
+          controls.stop()
+          onDetectedRef.current(result.getText())
+          onOpenChangeRef.current(false)
+          return
+        }
+        // NotFound/Checksum/Format solo significan "este cuadro no
+        // traía un código legible" -- normal en casi todos los cuadros
+        // mientras se apunta. Cualquier otro error sí detiene el ciclo
+        // de escaneo del lado de la librería (scan() no vuelve a
+        // intentar), y sin esto se quedaba la cámara prendida para
+        // siempre sin decir por qué ya no iba a capturar nada.
+        const isScanMiss =
+          decodeError instanceof NotFoundException ||
+          decodeError instanceof ChecksumException ||
+          decodeError instanceof FormatException
+        if (!isScanMiss) {
+          setError(
+            `El lector se detuvo (${decodeError instanceof Error ? decodeError.message : String(decodeError)}). Cierra y vuelve a abrir para intentar de nuevo.`,
+          )
+        }
       })
     }
 
