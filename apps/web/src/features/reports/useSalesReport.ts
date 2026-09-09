@@ -55,7 +55,7 @@ export function useSalesReport(from: string, to: string) {
             .in('sale_id', saleIds),
           supabase
             .from('sale_items')
-            .select('quantity, subtotal, product_id, product:products(name)')
+            .select('quantity, subtotal, unit_cost, product_id, product:products(name)')
             .in('sale_id', saleIds),
         ])
 
@@ -78,14 +78,10 @@ export function useSalesReport(from: string, to: string) {
         }
         products = [...productMap.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 10)
 
-        // El costo es admin-only (CLAUDE.md §6) -- seguro pedirlo aquí porque
-        // Reportes ya está gateado a owner/local_admin a nivel de ruta.
-        const productIds = [...new Set((itemRows ?? []).map((r) => r.product_id))]
-        if (productIds.length > 0) {
-          const { data: costRows } = await supabase.from('products').select('id, cost').in('id', productIds)
-          const costMap = new Map((costRows ?? []).map((p) => [p.id, p.cost]))
-          cost = (itemRows ?? []).reduce((sum, r) => sum + r.quantity * (costMap.get(r.product_id) ?? 0), 0)
-        }
+        // El costo queda congelado en cada renglón al momento de la venta
+        // (sale_items.unit_cost) -- así el margen de un periodo ya
+        // cerrado no cambia solo porque el costo de hoy sea distinto.
+        cost = (itemRows ?? []).reduce((sum, r) => sum + r.quantity * (r.unit_cost ?? 0), 0)
       }
 
       const { data: sessions } = await supabase

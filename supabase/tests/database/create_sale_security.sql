@@ -6,33 +6,35 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(27);
+select plan(29);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
 insert into units_of_measure (id, code, name)
 values ('00000000-0000-0000-0000-00000000001a', 'KG', 'Kilogramo');
 
-insert into products (id, name, price, unit_id, sold_by_weight, price_per_100g)
+insert into products (id, name, price, unit_id, sold_by_weight, price_per_100g, cost)
 values (
   '00000000-0000-0000-0000-000000000001',
   'Producto de prueba',
   50.00,
   '00000000-0000-0000-0000-00000000001a',
   false,
-  null
+  null,
+  30.00
 );
 
 -- Producto a granel para probar el quiebre de tarifa (mismos números
 -- reales que Chile Puya, 2026-09-02: $160/kg, $19/100g).
-insert into products (id, name, price, unit_id, sold_by_weight, price_per_100g)
+insert into products (id, name, price, unit_id, sold_by_weight, price_per_100g, cost)
 values (
   '00000000-0000-0000-0000-000000000009',
   'Producto a granel de prueba',
   160.00,
   '00000000-0000-0000-0000-00000000001a',
   true,
-  19.00
+  19.00,
+  100.00
 );
 
 insert into auth.users (id, email, raw_user_meta_data)
@@ -122,6 +124,14 @@ select is(
   (select unit_price from sale_items where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
   50.00,
   'El precio guardado en sale_items es el del catálogo ($50), nunca el unit_price forjado ($1) que traía el item'
+);
+
+-- Test 6b: el costo también se congela en sale_items al momento de la
+-- venta -- Reportes ya no debe recalcular el margen con el costo de hoy.
+select is(
+  (select unit_cost from sale_items where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
+  30.00,
+  'El costo guardado en sale_items es el del catálogo ($30) al momento de la venta, no null'
 );
 
 -- Test 7: un cajero no puede insertar directo en sale_items (reusa la
@@ -271,6 +281,11 @@ select is(
   (select subtotal from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.25),
   40.00,
   'sale_items guarda 250g a la tarifa de kilo proporcional ($40), no a la de menudeo'
+);
+select is(
+  (select unit_cost from sale_items where product_id = '00000000-0000-0000-0000-000000000009' and quantity = 0.25),
+  100.00,
+  'El costo también se congela en una venta a granel ($100/kg del catálogo)'
 );
 
 -- Test 17/18: el regresivo que de verdad importa -- 400g (entre 250g y

@@ -43,6 +43,27 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   // cambio es peor que no mostrarlo: se ve como una función rota.
   const canEditRoles = currentUserRole === 'owner'
 
+  // Mismo patrón que anular una venta (ReportsPage.tsx): un clic no debe
+  // bastar para un cambio de acceso -- ya no es la única barrera contra
+  // un escalamiento de rol (eso lo bloquea el servidor), pero sigue
+  // siendo fácil desactivar o cambiar de rol a alguien por accidente.
+  const handleRoleChange = (profile: Profile, role: Role) => {
+    if (
+      window.confirm(
+        `¿Cambiar el rol de ${profile.full_name} a "${ROLE_LABELS[role]}"?`,
+      )
+    ) {
+      updateRole(profile.id, role)
+    }
+  }
+
+  const handleToggleActive = (profile: Profile) => {
+    const accion = profile.active ? 'Desactivar' : 'Activar'
+    if (window.confirm(`¿${accion} a ${profile.full_name}?`)) {
+      toggleActive(profile)
+    }
+  }
+
   const handleSubmitName = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!editingName) return
@@ -93,7 +114,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     <Select
                       items={ROLE_ITEMS}
                       value={profile.role}
-                      onValueChange={(value) => value && updateRole(profile.id, value as Role)}
+                      onValueChange={(value) => value && handleRoleChange(profile, value as Role)}
                       disabled={isSelf}
                     >
                       <SelectTrigger className="w-48" size="sm">
@@ -124,7 +145,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     variant="ghost"
                     size="sm"
                     disabled={isSelf || (!canEditRoles && profile.role !== 'cashier')}
-                    onClick={() => toggleActive(profile)}
+                    onClick={() => handleToggleActive(profile)}
                   >
                     {profile.active ? 'Desactivar' : 'Activar'}
                   </Button>
