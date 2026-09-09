@@ -65,6 +65,7 @@ import { usePagination } from '@/lib/usePagination'
 import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
 import { useProductCosts } from './useProductCosts'
+import { isEnPerdida } from '@/lib/pricing'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
 import { useRegisterMovement } from '@/features/inventory/useRegisterMovement'
@@ -94,15 +95,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const { costsById } = useProductCosts()
 
   const canManage = role !== null && CAN_MANAGE_PRODUCTS.includes(role)
-  // Costo ya alcanzó o superó el precio de venta: el negocio compra a
-  // precio variable (§8.1 del catálogo real) y el costo se actualiza solo
-  // al recibir una compra -- sin este aviso, un precio que dejó de ser
-  // rentable puede pasar meses sin que nadie lo note. No sugiere un
-  // precio nuevo (eso necesitaría saber qué margen quiere el dueño, que
-  // todavía no está definido) -- solo señala que hay que revisarlo.
   const enPerdida = (product: Product) => {
     const cost = costsById.get(product.id)
-    return product.active && product.price > 0 && cost !== undefined && cost >= product.price
+    return cost !== undefined && isEnPerdida({ active: product.active, price: product.price, cost })
   }
   // Borrar del catálogo es decisión de dueño: un administrador de local
   // desactiva, no borra (CLAUDE.md §6). El servidor lo vuelve a exigir --

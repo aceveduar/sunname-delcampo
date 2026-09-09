@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { isEnPerdida } from '../../lib/pricing'
 import type { Database } from '../../lib/database.types'
 
 type PurchaseOrderRow = Database['public']['Tables']['purchase_orders']['Row']
@@ -118,9 +119,12 @@ export function usePurchaseOrders() {
       const enPerdida = (orden?.purchase_order_items ?? []).filter(
         (item) =>
           item.unit_cost > 0 &&
-          !!item.product?.active &&
-          item.product.price > 0 &&
-          item.unit_cost >= item.product.price,
+          !!item.product &&
+          isEnPerdida({
+            active: item.product.active,
+            price: item.product.price,
+            cost: item.unit_cost,
+          }),
       )
       if (enPerdida.length > 0) {
         toast.warning(

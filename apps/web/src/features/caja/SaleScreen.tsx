@@ -220,18 +220,23 @@ export function SaleScreen({
     })
     if (!ok) return false
     setCart((prev) =>
-      prev.map((line) =>
-        line.product.id === productId
-          ? {
-              ...line,
-              product: {
-                ...line.product,
-                price,
-                price_per_100g: pricePer100g ?? line.product.price_per_100g,
-              },
-            }
-          : line,
-      ),
+      prev.map((line) => {
+        if (line.product.id !== productId) return line
+        const nextPricePer100g = pricePer100g ?? line.product.price_per_100g
+        return {
+          ...line,
+          product: { ...line.product, price, price_per_100g: nextPricePer100g },
+          // Una línea "por monto" (ej. "$50 de chile") pesaba lo que ese
+          // monto alcanzaba al precio viejo -- create_sale deriva el peso
+          // real del lado del servidor con el precio ya corregido, así
+          // que sin esto el cajero vería en pantalla un peso que ya no es
+          // el que de verdad se va a cobrar ni el que hay que pesar.
+          quantity:
+            line.amountMxn !== undefined
+              ? granelWeightKgFromAmount(line.amountMxn, price, nextPricePer100g ?? 0)
+              : line.quantity,
+        }
+      }),
     )
     return true
   }

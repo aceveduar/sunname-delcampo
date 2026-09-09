@@ -153,11 +153,18 @@ export function TicketCaptureDialog({
     // y se lee mal seguido (docs/captura-tickets-analisis.md).
     const nombreProveedor = resultado.extraccion.proveedor.nombre
     const idConfirmado = findSupplierId(nombreProveedor)
-    const proveedor = idConfirmado
+    // Si el proveedor confirmado ya no está activo (se desactivó después
+    // de haberlo confirmado), no hay que quedarse sin nada -- cae al
+    // parecido por nombre, igual que si nunca hubiera existido la
+    // confirmación.
+    const proveedorConfirmado = idConfirmado
       ? (activeSuppliers.find((s) => s.id === idConfirmado) ?? null)
-      : nombreProveedor
+      : null
+    const proveedor =
+      proveedorConfirmado ??
+      (nombreProveedor
         ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
-        : null
+        : null)
     if (proveedor) setSupplierId(proveedor.id)
 
     // Se usa el id resuelto aquí y no el del estado: setSupplierId no
