@@ -8,7 +8,12 @@ type PurchaseOrderRow = Database['public']['Tables']['purchase_orders']['Row']
 
 export type PurchaseOrder = PurchaseOrderRow & {
   supplier: { name: string } | null
-  purchase_order_items: { quantity: number; unit_cost: number; subtotal: number }[]
+  purchase_order_items: {
+    quantity: number
+    unit_cost: number
+    subtotal: number
+    product: { name: string } | null
+  }[]
 }
 
 export function usePurchaseOrders() {
@@ -19,7 +24,9 @@ export function usePurchaseOrders() {
     setLoading(true)
     const { data, error } = await supabase
       .from('purchase_orders')
-      .select('*, supplier:suppliers(name), purchase_order_items(quantity, unit_cost, subtotal)')
+      .select(
+        '*, supplier:suppliers(name), purchase_order_items(quantity, unit_cost, subtotal, product:products(name))',
+      )
       .order('created_at', { ascending: false })
 
     if (error) {

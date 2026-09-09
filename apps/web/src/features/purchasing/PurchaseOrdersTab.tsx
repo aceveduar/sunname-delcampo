@@ -1,4 +1,5 @@
-import { ClipboardList } from 'lucide-react'
+import { useState } from 'react'
+import { ClipboardList, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -7,10 +8,11 @@ import { EmptyState } from '@/components/EmptyState'
 import { formatCurrency } from '@/lib/currency'
 import { useProducts } from '@/features/catalog/useProducts'
 import { useUnits } from '@/features/catalog/useUnits'
-import { usePurchaseOrders } from './usePurchaseOrders'
+import { usePurchaseOrders, type PurchaseOrder } from './usePurchaseOrders'
 import { useSuppliers } from './useSuppliers'
 import { NewPurchaseOrderDialog } from './NewPurchaseOrderDialog'
 import { TicketCaptureDialog } from './TicketCaptureDialog'
+import { PurchaseOrderDetailDialog } from './PurchaseOrderDetailDialog'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
@@ -28,6 +30,7 @@ export function PurchaseOrdersTab() {
   const { suppliers, createSupplier } = useSuppliers()
   const { products, createProduct } = useProducts()
   const { units } = useUnits()
+  const [viewingOrder, setViewingOrder] = useState<PurchaseOrder | null>(null)
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,7 +94,15 @@ export function PurchaseOrdersTab() {
                   {STATUS_LABELS[order.status] ?? order.status}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">
+              <TableCell className="flex justify-end gap-1 text-right">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setViewingOrder(order)}
+                  aria-label="Ver detalle"
+                >
+                  <Eye />
+                </Button>
                 {order.status === 'ordered' && (
                   <Button variant="ghost" size="sm" onClick={() => receiveOrder(order.id)}>
                     Recibir
@@ -102,6 +113,13 @@ export function PurchaseOrdersTab() {
           ))}
         </TableBody>
       </Table>
+
+      <PurchaseOrderDetailDialog
+        order={viewingOrder}
+        onOpenChange={(open) => {
+          if (!open) setViewingOrder(null)
+        }}
+      />
     </div>
   )
 }
