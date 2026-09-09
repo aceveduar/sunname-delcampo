@@ -37,6 +37,12 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   const currentUserRole =
     profiles.find((p) => p.id === currentUserId)?.role ?? null
 
+  // Un administrador de local solo gestiona cajeros (CLAUDE.md §6) -- el
+  // servidor ya lo exige (trigger prevent_self_role_escalation), pero
+  // ofrecerle aquí un selector que de todos modos va a rechazar cualquier
+  // cambio es peor que no mostrarlo: se ve como una función rota.
+  const canEditRoles = currentUserRole === 'owner'
+
   const handleSubmitName = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!editingName) return
@@ -83,23 +89,27 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                   {isSelf && <span className="text-muted-foreground"> (tú)</span>}
                 </TableCell>
                 <TableCell>
-                  <Select
-                    items={ROLE_ITEMS}
-                    value={profile.role}
-                    onValueChange={(value) => value && updateRole(profile.id, value as Role)}
-                    disabled={isSelf}
-                  >
-                    <SelectTrigger className="w-48" size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_ITEMS.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {canEditRoles ? (
+                    <Select
+                      items={ROLE_ITEMS}
+                      value={profile.role}
+                      onValueChange={(value) => value && updateRole(profile.id, value as Role)}
+                      disabled={isSelf}
+                    >
+                      <SelectTrigger className="w-48" size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLE_ITEMS.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant="secondary">{ROLE_LABELS[profile.role]}</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Badge variant={profile.active ? 'default' : 'secondary'}>
@@ -113,7 +123,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={isSelf}
+                    disabled={isSelf || (!canEditRoles && profile.role !== 'cashier')}
                     onClick={() => toggleActive(profile)}
                   >
                     {profile.active ? 'Desactivar' : 'Activar'}
