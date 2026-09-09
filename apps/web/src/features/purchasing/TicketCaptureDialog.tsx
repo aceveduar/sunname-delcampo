@@ -91,6 +91,7 @@ export function TicketCaptureDialog({
     supplierId: string
     notes: string | null
     items: { productId: string; quantity: number; unitCost: number }[]
+    ticketDate?: string | null
   }) => Promise<boolean>
   onCreateSupplier: (values: { name: string }) => Promise<string | null>
   onCreateProduct: (values: {
@@ -322,7 +323,6 @@ export function TicketCaptureDialog({
     const notas = [
       'Capturada por foto.',
       doc.folio ? `Folio ${doc.folio}.` : null,
-      doc.fecha ? `Fecha del ticket: ${doc.fecha}.` : null,
       doc.total !== null ? `Total del ticket: ${formatCurrency(doc.total)}.` : null,
       `Foto: ${lectura.storagePath}`,
     ]
@@ -332,6 +332,7 @@ export function TicketCaptureDialog({
     const ok = await onCreate({
       supplierId,
       notes: notas,
+      ticketDate: doc.fecha,
       items: includedLines.map((l) => ({
         productId: l.productId,
         quantity: numero(l.quantity),

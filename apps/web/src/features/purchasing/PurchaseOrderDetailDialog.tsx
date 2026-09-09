@@ -43,10 +43,11 @@ export function PurchaseOrderDetailDialog({
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="text-muted-foreground">
-                {new Date(order.created_at).toLocaleDateString('es-MX', {
+                {new Date(order.ticket_date ?? order.created_at).toLocaleDateString('es-MX', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
+                  timeZone: order.ticket_date ? 'UTC' : undefined,
                 })}
               </span>
               <Badge variant={order.status === 'received' ? 'default' : 'secondary'}>
@@ -66,7 +67,9 @@ export function PurchaseOrderDetailDialog({
               <TableBody>
                 {order.purchase_order_items.map((item, index) => (
                   <TableRow key={index}>
-                    <TableCell>{item.product?.name ?? '—'}</TableCell>
+                    <TableCell className="whitespace-normal">
+                      {item.product?.name ?? '—'}
+                    </TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
                     <TableCell className="text-right">

@@ -82,10 +82,11 @@ export function PurchaseOrdersTab() {
             <TableRow key={order.id}>
               <TableCell className="font-medium">{order.supplier?.name ?? '—'}</TableCell>
               <TableCell>
-                {new Date(order.created_at).toLocaleDateString('es-MX', {
+                {new Date(order.ticket_date ?? order.created_at).toLocaleDateString('es-MX', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
+                  timeZone: order.ticket_date ? 'UTC' : undefined,
                 })}
               </TableCell>
               <TableCell>{formatCurrency(orderTotal(order))}</TableCell>

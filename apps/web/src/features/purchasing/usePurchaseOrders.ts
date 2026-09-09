@@ -46,6 +46,10 @@ export function usePurchaseOrders() {
       supplierId: string
       notes: string | null
       items: { productId: string; quantity: number; unitCost: number }[]
+      // La fecha real de compra (la impresa en el ticket), no la fecha en
+      // que se confirma la captura -- pueden ser días distintos. Ausente
+      // en una orden manual, que no viene de un ticket fechado.
+      ticketDate?: string | null
     }) => {
       const {
         data: { user },
@@ -59,6 +63,7 @@ export function usePurchaseOrders() {
           notes: values.notes,
           created_by: user.id,
           status: 'ordered',
+          ticket_date: values.ticketDate ?? null,
         })
         .select('id')
         .single()

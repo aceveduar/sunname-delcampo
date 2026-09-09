@@ -497,6 +497,7 @@ export type Database = {
           received_by: string | null
           status: Database["public"]["Enums"]["purchase_order_status"]
           supplier_id: string
+          ticket_date: string | null
         }
         Insert: {
           created_at?: string
@@ -507,6 +508,7 @@ export type Database = {
           received_by?: string | null
           status?: Database["public"]["Enums"]["purchase_order_status"]
           supplier_id: string
+          ticket_date?: string | null
         }
         Update: {
           created_at?: string
@@ -517,6 +519,7 @@ export type Database = {
           received_by?: string | null
           status?: Database["public"]["Enums"]["purchase_order_status"]
           supplier_id?: string
+          ticket_date?: string | null
         }
         Relationships: [
           {
