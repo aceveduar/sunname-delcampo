@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
-import { bestUnambiguous, rankCandidates, type Candidate } from '@/lib/match'
+import { bestUnambiguous, matchScore, rankCandidates, type Candidate } from '@/lib/match'
 import { empaqueDesdeTicket, nombreDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
 import type { Product } from '@/features/catalog/useProducts'
 import type { UnitOfMeasure } from '@/features/catalog/useUnits'
@@ -370,6 +370,18 @@ export function TicketCaptureDialog({
 
   const verificacion = lectura?.verificacion
 
+  // Si el proveedor elegido (solo o a mano) no se parece de verdad al
+  // nombre que trae el ticket, sigue haciendo falta la salida de "darlo
+  // de alta" -- si no, un emparejado equivocado (esta vez por otra razón
+  // que la ya corregida en lib/match.ts) queda tan invisible como estaba
+  // antes: el desplegable ya "tiene algo", y nada avisa que está mal.
+  const nombreTicketProveedor = lectura?.extraccion.proveedor.nombre ?? null
+  const proveedorSeleccionado = suppliers.find((s) => s.id === supplierId)
+  const proveedorNoCoincide =
+    !!nombreTicketProveedor &&
+    (!proveedorSeleccionado ||
+      matchScore(nombreTicketProveedor, proveedorSeleccionado.name) < UMBRAL_AUTOSELECCION)
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
@@ -489,8 +501,15 @@ export function TicketCaptureDialog({
                 </div>
                 {lectura.extraccion.proveedor.nombre && (
                   <div className="flex min-w-0 flex-wrap items-center gap-2 pb-1.5">
-                    <p className="text-muted-foreground text-xs">
-                      El ticket dice:{' '}
+                    <p
+                      className={`text-xs ${
+                        proveedorNoCoincide && supplierId
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {proveedorNoCoincide && supplierId ? '¿No es este proveedor? El ' : ''}
+                      {proveedorNoCoincide && supplierId ? 'ticket' : 'El ticket'} dice:{' '}
                       <span className="text-foreground font-medium">
                         {lectura.extraccion.proveedor.nombre}
                       </span>
@@ -500,8 +519,11 @@ export function TicketCaptureDialog({
                         subir la foto -- o sea a pagar otra lectura y capturar
                         todo de nuevo. En el primer ticket real no hay ningún
                         proveedor dado de alta, así que es el caso normal, no
-                        la excepción. */}
-                    {!supplierId && (
+                        la excepción. También se ofrece con un proveedor ya
+                        elegido: si no se parece de verdad al nombre del
+                        ticket, un emparejado equivocado no debe quedar
+                        atrapado detrás de un campo que "ya tiene algo". */}
+                    {proveedorNoCoincide && (
                       <Button
                         type="button"
                         variant="outline"
