@@ -25,6 +25,15 @@ describe('matchScore', () => {
   it('no confunde dos chiles distintos', () => {
     expect(matchScore('CHILE PULLA HERRADURA', 'Chile Guajillo Herradura')).toBeLessThan(0.9)
   })
+
+  it('ignora la razón social al comparar proveedores', () => {
+    // Visto en vivo: un proveedor nuevo sin dar de alta se emparejó con
+    // uno existente sin ninguna relación real, solo porque ambos traen
+    // "S.A. DE C.V." -- más de la mitad de las palabras del nombre.
+    expect(
+      matchScore('HERRADURA DE PLATA S.A. DE C.V.', 'Lacteos Marber S.A. De C.V.'),
+    ).toBe(0)
+  })
 })
 
 describe('bestUnambiguous', () => {

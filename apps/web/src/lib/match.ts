@@ -37,6 +37,24 @@ function tokenMatches(queryToken: string, candidateToken: string): boolean {
   return levenshtein(queryToken, candidateToken) <= maxDistance
 }
 
+// Palabras tan genéricas que casi cualquier nombre las comparte -- sobre
+// todo la razón social ("S.A. DE C.V."), que trae casi cualquier
+// proveedor real. Sin descartarlas, dos negocios que no tienen nada que
+// ver terminan compartiendo 3-4 de sus palabras y ganan por encima del
+// proveedor correcto: visto en vivo, "Herradura De Plata S.A. De C.V."
+// (proveedor nuevo, sin dar de alta) se emparejó con "Lacteos Marber
+// S.A. De C.V." (proveedor ya existente, sin relación real) porque
+// compartían "de", "s.a." y "c.v." -- más de la mitad de las palabras.
+const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 's.a.', 'sa', 'c.v.', 'cv'])
+
+/** Si quitar las palabras genéricas deja algo, se compara con eso -- un
+ * nombre que es puras palabras genéricas (caso raro) se compara tal cual
+ * en vez de quedarse sin nada que comparar. */
+function palabrasConSentido(tokens: string[]): string[] {
+  const sinGenericas = tokens.filter((t) => !STOPWORDS.has(t))
+  return sinGenericas.length > 0 ? sinGenericas : tokens
+}
+
 /** Qué tan bien "query" describe "candidateName", de 0 a 1. */
 export function matchScore(query: string, candidateName: string): number {
   const normalizedCandidate = normalizeSearch(candidateName)
@@ -44,8 +62,8 @@ export function matchScore(query: string, candidateName: string): number {
   if (!normalizedQuery) return 0
   if (normalizedCandidate.includes(normalizedQuery)) return 1
 
-  const qTokens = normalizedQuery.split(/\s+/).filter(Boolean)
-  const cTokens = normalizedCandidate.split(/\s+/).filter(Boolean)
+  const qTokens = palabrasConSentido(normalizedQuery.split(/\s+/).filter(Boolean))
+  const cTokens = palabrasConSentido(normalizedCandidate.split(/\s+/).filter(Boolean))
   if (qTokens.length === 0 || cTokens.length === 0) return 0
 
   const matched = qTokens.filter((qt) => cTokens.some((ct) => tokenMatches(qt, ct))).length
