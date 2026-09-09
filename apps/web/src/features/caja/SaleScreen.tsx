@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Plus, ScanBarcode, Search, Trash2 } from 'lucide-react'
+import { Minus, Pencil, Plus, ScanBarcode, Search, Trash2 } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import {
 import { formatCurrency } from '@/lib/currency'
 import { reportError } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/lib/database.types'
 import { useCategories } from '@/features/catalog/useCategories'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
 import { useCustomers } from '@/features/crm/useCustomers'
@@ -26,6 +27,9 @@ import { GranelDialog } from './GranelDialog'
 import { granelTotalFromWeightKg, granelWeightKgFromAmount } from '@/lib/granel'
 import { ReceiptDialog, type ReceiptData } from './ReceiptDialog'
 import { VoiceCommandButton } from './VoiceCommandButton'
+import { EditCartPriceDialog } from './EditCartPriceDialog'
+
+type Role = Database['public']['Enums']['user_role']
 
 // amountMxn solo existe en líneas pedidas "por monto" ("dame $50 de
 // piquín"): ahí el total de la línea es ese monto exacto y quantity es
@@ -35,11 +39,25 @@ type CartLine = { product: Product; quantity: number; amountMxn?: number }
 
 const NO_CUSTOMER = 'none'
 
-export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
-  const { products } = useProducts()
+export function SaleScreen({
+  cashSessionId,
+  role,
+}: {
+  cashSessionId: string
+  role: Role | null
+}) {
+  const { products, updateProduct } = useProducts()
   const paymentMethods = usePaymentMethods()
   const { customers } = useCustomers()
   const { categories } = useCategories()
+
+  // Mismo corte que el costo en Catálogo (CLAUDE.md §6): un cajero no
+  // debe poder tocar precios libremente -- eso reabriría justo lo que la
+  // auditoría del 20 de agosto cerró (un cajero forjando el precio para
+  // quedarse con la diferencia). Solo quien ya ve costos puede corregir
+  // un precio desde la venta en curso.
+  const canEditPrice = role === 'owner' || role === 'local_admin'
+  const [editingPriceProduct, setEditingPriceProduct] = useState<Product | null>(null)
 
   const [search, setSearch] = useState('')
   // Filtro secundario, opcional -- para cuando el cliente pide "algo de
@@ -185,6 +203,37 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
 
   const removeLine = (productId: string) => {
     setCart((prev) => prev.filter((line) => line.product.id !== productId))
+  }
+
+  // Corrige Catálogo y, de una vez, la línea ya agregada a esta venta --
+  // el carrito guarda una copia del producto al momento de agregarlo, así
+  // que sin esto el precio nuevo no se vería reflejado hasta la
+  // siguiente venta.
+  const handleSavePrice = async (
+    productId: string,
+    price: number,
+    pricePer100g: number | null,
+  ) => {
+    const ok = await updateProduct(productId, {
+      price,
+      ...(pricePer100g !== null ? { price_per_100g: pricePer100g } : {}),
+    })
+    if (!ok) return false
+    setCart((prev) =>
+      prev.map((line) =>
+        line.product.id === productId
+          ? {
+              ...line,
+              product: {
+                ...line.product,
+                price,
+                price_per_100g: pricePer100g ?? line.product.price_per_100g,
+              },
+            }
+          : line,
+      ),
+    )
+    return true
   }
 
   const findExactSkuMatch = (code: string) => {
@@ -452,10 +501,20 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
                     <p className="truncate text-sm font-medium">
                       {line.product.name}
                     </p>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground flex items-center gap-1 text-xs">
                       {line.product.sold_by_weight
                         ? `${Math.round(line.quantity * 1000)} g`
                         : `${formatCurrency(line.product.price)} c/u`}
+                      {canEditPrice && (
+                        <button
+                          type="button"
+                          aria-label="Corregir precio"
+                          onClick={() => setEditingPriceProduct(line.product)}
+                          className="hover:text-foreground shrink-0"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                      )}
                     </p>
                   </div>
                   {!line.product.sold_by_weight && (
@@ -634,6 +693,14 @@ export function SaleScreen({ cashSessionId }: { cashSessionId: string }) {
         open={scannerOpen}
         onOpenChange={setScannerOpen}
         onDetected={handleCameraScan}
+      />
+
+      <EditCartPriceDialog
+        product={editingPriceProduct}
+        onOpenChange={(open) => {
+          if (!open) setEditingPriceProduct(null)
+        }}
+        onSave={handleSavePrice}
       />
     </div>
   )

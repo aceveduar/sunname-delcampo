@@ -76,7 +76,7 @@ function App() {
     >
       <Routes>
         <Route path="/" element={<Navigate to="/caja" replace />} />
-        <Route path="/caja" element={<CajaPage />} />
+        <Route path="/caja" element={<CajaPage role={profile?.role ?? null} />} />
         <Route
           path="/catalogo"
           element={<CatalogPage role={profile?.role ?? null} />}

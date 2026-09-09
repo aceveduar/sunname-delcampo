@@ -1,10 +1,13 @@
 import { formatCurrency } from '@/lib/currency'
+import type { Database } from '@/lib/database.types'
 import { useCashSession } from './useCashSession'
 import { OpenSessionCard } from './OpenSessionCard'
 import { CloseSessionDialog } from './CloseSessionDialog'
 import { SaleScreen } from './SaleScreen'
 
-export function CajaPage() {
+type Role = Database['public']['Enums']['user_role']
+
+export function CajaPage({ role }: { role: Role | null }) {
   const { session, loading, openSession, closeSession } = useCashSession()
 
   if (loading) {
@@ -40,7 +43,7 @@ export function CajaPage() {
         <CloseSessionDialog onClose={closeSession} />
       </div>
 
-      <SaleScreen cashSessionId={session.id} />
+      <SaleScreen cashSessionId={session.id} role={role} />
     </div>
   )
 }
