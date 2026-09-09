@@ -20,6 +20,7 @@ import type { UnitOfMeasure } from '@/features/catalog/useUnits'
 import type { Supplier } from './useSuppliers'
 import { useTicketCapture, type TicketLectura, type TicketRenglon } from './useTicketCapture'
 import { useSupplierAliases } from './useSupplierAliases'
+import { useSupplierNameAliases } from './useSupplierNameAliases'
 
 // Arriba de este puntaje, el producto se preselecciona solo; abajo, la
 // línea se queda sin producto y obliga a elegirlo a mano. El objetivo no
@@ -112,6 +113,11 @@ export function TicketCaptureDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = useTicketCapture()
   const { findAlias, rememberAliases } = useSupplierAliases()
+  const {
+    isConfirmed: proveedorYaConfirmado,
+    findSupplierId,
+    rememberSupplierName,
+  } = useSupplierNameAliases()
 
   const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
   const inactiveProducts = useMemo(() => products.filter((p) => !p.active), [products])
@@ -139,13 +145,19 @@ export function TicketCaptureDialog({
 
     setLectura(resultado)
 
-    // Proveedor: se propone el más parecido por nombre. El RFC no sirve
-    // para esto -- en los tickets reales viene sellado o encimado y se
-    // lee mal seguido (docs/captura-tickets-analisis.md).
+    // Proveedor: primero se pregunta si ya se confirmó antes este nombre
+    // exacto de ticket para algún proveedor (cubre el caso de un
+    // proveedor que sella un nombre comercial distinto a su razón
+    // social); si no, se propone el más parecido por nombre. El RFC no
+    // sirve para esto -- en los tickets reales viene sellado o encimado
+    // y se lee mal seguido (docs/captura-tickets-analisis.md).
     const nombreProveedor = resultado.extraccion.proveedor.nombre
-    const proveedor = nombreProveedor
-      ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
-      : null
+    const idConfirmado = findSupplierId(nombreProveedor)
+    const proveedor = idConfirmado
+      ? (activeSuppliers.find((s) => s.id === idConfirmado) ?? null)
+      : nombreProveedor
+        ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
+        : null
     if (proveedor) setSupplierId(proveedor.id)
 
     // Se usa el id resuelto aquí y no el del estado: setSupplierId no
@@ -341,6 +353,15 @@ export function TicketCaptureDialog({
     })
 
     if (ok) {
+      // Si el nombre del ticket no se parecía al del proveedor elegido y
+      // aun así se confirmó (el aviso "¿No es este proveedor?" estaba
+      // activo), se recuerda -- así la próxima vez que este proveedor
+      // selle un nombre distinto al de su razón social, no se vuelve a
+      // preguntar.
+      if (proveedorNoCoincide && nombreTicketProveedor) {
+        await rememberSupplierName(supplierId, nombreTicketProveedor)
+      }
+
       // Se aprende de lo que la persona acabó eligiendo, incluida la
       // conversión de empaque: si el ticket decía 1 bulto y se capturaron
       // 25 kg, el próximo ticket de este proveedor ya llega convertido.
@@ -377,10 +398,14 @@ export function TicketCaptureDialog({
   // antes: el desplegable ya "tiene algo", y nada avisa que está mal.
   const nombreTicketProveedor = lectura?.extraccion.proveedor.nombre ?? null
   const proveedorSeleccionado = suppliers.find((s) => s.id === supplierId)
+  const proveedorPorNombreCoincide =
+    !!proveedorSeleccionado &&
+    !!nombreTicketProveedor &&
+    matchScore(nombreTicketProveedor, proveedorSeleccionado.name) >= UMBRAL_AUTOSELECCION
   const proveedorNoCoincide =
     !!nombreTicketProveedor &&
-    (!proveedorSeleccionado ||
-      matchScore(nombreTicketProveedor, proveedorSeleccionado.name) < UMBRAL_AUTOSELECCION)
+    !proveedorPorNombreCoincide &&
+    !proveedorYaConfirmado(supplierId, nombreTicketProveedor)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

@@ -753,6 +753,45 @@ export type Database = {
           },
         ]
       }
+      supplier_name_aliases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          supplier_id: string
+          ticket_text: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          supplier_id: string
+          ticket_text: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          supplier_id?: string
+          ticket_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_name_aliases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_name_aliases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           active: boolean
