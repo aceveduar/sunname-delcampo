@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
 import { compressImage } from '../../lib/image'
+import { withUploadTimeout } from '../../lib/upload'
 
 // Lo que la función extract-purchase-ticket regresa. Se declara aquí a
 // mano (no sale de database.types.ts) porque es la respuesta de una edge
@@ -65,9 +66,11 @@ export function useTicketCapture() {
       const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.8 })
 
       const storagePath = `${crypto.randomUUID()}.jpg`
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(storagePath, compressed, { contentType: compressed.type })
+      const { error: uploadError } = await withUploadTimeout(
+        supabase.storage
+          .from(BUCKET)
+          .upload(storagePath, compressed, { contentType: compressed.type }),
+      )
 
       if (uploadError) {
         reportError('No se pudo subir la foto del ticket', uploadError)

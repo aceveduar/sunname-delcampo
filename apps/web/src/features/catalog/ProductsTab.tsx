@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase'
 import { reportError } from '@/lib/errors'
 import { compressImage } from '@/lib/image'
+import { withUploadTimeout } from '@/lib/upload'
 import {
   Select,
   SelectContent,
@@ -290,9 +291,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
       const compressed = await compressImage(imageFile)
       const ext = compressed.name.split('.').pop() ?? 'jpg'
       const path = `${crypto.randomUUID()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(path, compressed)
+      const { error: uploadError } = await withUploadTimeout(
+        supabase.storage.from('product-images').upload(path, compressed),
+      )
       setUploading(false)
 
       if (uploadError) {
