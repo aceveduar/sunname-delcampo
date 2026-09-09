@@ -12,7 +12,7 @@ export type PurchaseOrder = PurchaseOrderRow & {
     quantity: number
     unit_cost: number
     subtotal: number
-    product: { name: string } | null
+    product: { name: string; price: number; active: boolean } | null
   }[]
 }
 
@@ -25,7 +25,7 @@ export function usePurchaseOrders() {
     const { data, error } = await supabase
       .from('purchase_orders')
       .select(
-        '*, supplier:suppliers(name), purchase_order_items(quantity, unit_cost, subtotal, product:products(name))',
+        '*, supplier:suppliers(name), purchase_order_items(quantity, unit_cost, subtotal, product:products(name, price, active))',
       )
       .order('created_at', { ascending: false })
 
@@ -106,10 +106,33 @@ export function usePurchaseOrders() {
         return false
       }
       toast.success('Orden recibida — inventario actualizado')
+
+      // receive_purchase_order acaba de fijar products.cost al unit_cost
+      // de cada renglón (si no era cero) -- es el momento correcto para
+      // avisar si ese costo nuevo ya alcanzó o superó el precio de venta.
+      // No se sugiere un precio nuevo (haría falta saber qué margen
+      // quiere el dueño); solo se señala que hay que revisarlo, aquí
+      // mismo en vez de esperar a que alguien lo note por accidente en
+      // Catálogo.
+      const orden = orders.find((o) => o.id === orderId)
+      const enPerdida = (orden?.purchase_order_items ?? []).filter(
+        (item) =>
+          item.unit_cost > 0 &&
+          !!item.product?.active &&
+          item.product.price > 0 &&
+          item.unit_cost >= item.product.price,
+      )
+      if (enPerdida.length > 0) {
+        toast.warning(
+          `Revisa el precio de venta: ${enPerdida.map((i) => i.product!.name).join(', ')} -- su costo ya alcanzó o superó lo que cobras por él.`,
+          { duration: 10000 },
+        )
+      }
+
       await refresh()
       return true
     },
-    [refresh],
+    [refresh, orders],
   )
 
   return { orders, loading, createOrder, receiveOrder }

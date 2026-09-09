@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from 'react'
 import {
+  AlertTriangle,
   Boxes,
   ImageOff,
   LayoutGrid,
@@ -63,6 +64,7 @@ import { normalizeSearch, toCode, toTitleCase } from '@/lib/text'
 import { usePagination } from '@/lib/usePagination'
 import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
+import { useProductCosts } from './useProductCosts'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
 import { useRegisterMovement } from '@/features/inventory/useRegisterMovement'
@@ -89,8 +91,19 @@ export function ProductsTab({ role }: { role: Role | null }) {
   } = useProducts()
   const { categories } = useCategories()
   const { units } = useUnits()
+  const { costsById } = useProductCosts()
 
   const canManage = role !== null && CAN_MANAGE_PRODUCTS.includes(role)
+  // Costo ya alcanzó o superó el precio de venta: el negocio compra a
+  // precio variable (§8.1 del catálogo real) y el costo se actualiza solo
+  // al recibir una compra -- sin este aviso, un precio que dejó de ser
+  // rentable puede pasar meses sin que nadie lo note. No sugiere un
+  // precio nuevo (eso necesitaría saber qué margen quiere el dueño, que
+  // todavía no está definido) -- solo señala que hay que revisarlo.
+  const enPerdida = (product: Product) => {
+    const cost = costsById.get(product.id)
+    return product.active && product.price > 0 && cost !== undefined && cost >= product.price
+  }
   // Borrar del catálogo es decisión de dueño: un administrador de local
   // desactiva, no borra (CLAUDE.md §6). El servidor lo vuelve a exigir --
   // esconder el botón es comodidad, no la seguridad.
@@ -606,6 +619,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     formatCurrency(product.price)
                   )}
                 </p>
+                {canManage && enPerdida(product) && (
+                  <p className="text-destructive flex items-center gap-1 text-xs font-medium">
+                    <AlertTriangle className="size-3" /> En pérdida
+                  </p>
+                )}
                 {canManage && (
                   // Solo íconos en tarjeta (a diferencia de la tabla, que
                   // sí tiene ancho de sobra): tres textos no cabían en una
@@ -766,6 +784,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     </span>
                   ) : (
                     formatCurrency(product.price)
+                  )}
+                  {!priceEditMode && canManage && enPerdida(product) && (
+                    <p className="text-destructive mt-0.5 flex items-center gap-1 text-xs font-medium">
+                      <AlertTriangle className="size-3" /> En pérdida
+                    </p>
                   )}
                 </TableCell>
                 <TableCell>
