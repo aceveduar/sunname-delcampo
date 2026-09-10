@@ -495,14 +495,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
           )}
         </Button>
         {/* Acciones (Nuevo producto/Editar precios/Precios por foto) solo
-            en mobile: en sm+ ya están arriba como botones completos. */}
+            en mobile: en sm+ ya están arriba como botones completos.
+            Sin variant="outline" a propósito -- relleno, como ya es
+            "Nuevo producto" en escritorio (el único de los tres que no
+            es outline), para que se distinga de los íconos neutros de
+            buscar/escanear/filtro que tiene al lado. */}
         {canManage && !priceEditMode && (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <Button
                   type="button"
-                  variant="outline"
                   size="icon"
                   aria-label="Acciones de catálogo"
                   className="sm:hidden"
