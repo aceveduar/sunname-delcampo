@@ -207,7 +207,11 @@ export function AppShell({
                 <Menu className="size-5" />
                 <span className="sr-only">Menú</span>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              {/* w-56 explícito: sin esto el ancho del menú sigue al del
+                  botón hamburguesa (solo ícono), y con etiquetas largas
+                  como "Configuración" el texto queda cortado por el
+                  overflow-x-hidden del propio menú. */}
+              <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuGroup>
                   {visibleNavItems.map(({ to, label, icon: Icon }) => {
                     const isActive = location.pathname === to
@@ -217,8 +221,8 @@ export function AppShell({
                         render={<Link to={to} />}
                         className={
                           isActive
-                            ? 'bg-sidebar-primary text-sidebar-primary-foreground focus:bg-sidebar-primary focus:text-sidebar-primary-foreground'
-                            : undefined
+                            ? 'py-2 bg-sidebar-primary text-sidebar-primary-foreground focus:bg-sidebar-primary focus:text-sidebar-primary-foreground'
+                            : 'py-2'
                         }
                       >
                         <Icon /> {label}
@@ -242,7 +246,10 @@ export function AppShell({
                   {displayName}
                 </span>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              {/* Mismo ajuste de ancho que el menú hamburguesa: sin
+                  w-56 el nombre y el rol se partían a la mitad contra
+                  el ancho del botón (solo iniciales en mobile). */}
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>
                     <p className="font-medium">{displayName}</p>
@@ -253,6 +260,7 @@ export function AppShell({
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  className="py-2"
                   onClick={() => supabase.auth.signOut()}
                   variant="destructive"
                 >
