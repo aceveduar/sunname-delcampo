@@ -391,7 +391,7 @@ export function SaleScreen({
             value={search}
             onChange={setSearch}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Buscar producto o código de barras…"
+            placeholder="Buscar producto…"
             containerClassName="min-w-[200px] flex-1"
             autoFocus
           />
@@ -435,12 +435,14 @@ export function SaleScreen({
           </Select>
         </div>
 
+        {/* Sin invitación a buscar aquí a propósito: el placeholder del
+            buscador ya dice qué hacer, y en la pantalla de mayor uso del
+            sistema esa ilustración solo empujaba todo hacia abajo antes
+            del primer producto. "Sin resultados" sí se queda completo --
+            ahí el cajero necesita saber que algo salió distinto a lo
+            esperado, no solo "todavía no escribiste nada". */}
         {search.trim() === '' && filterCategory === 'all' ? (
-          <EmptyState
-            icon={Search}
-            title="Busca un producto"
-            description="Escribe un nombre o escanea el código de barras para agregarlo a la venta."
-          />
+          null
         ) : results.length === 0 ? (
           <EmptyState
             icon={Search}
@@ -574,106 +576,117 @@ export function SaleScreen({
             <span className="text-brand-gold">{formatCurrency(total)}</span>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Select
-              items={paymentMethods.map((m) => ({
-                value: m.id,
-                label: m.name,
-              }))}
-              value={paymentMethodId}
-              onValueChange={(value) => setPaymentMethodId(value ?? '')}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Método de pago" />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentMethods.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedMethod?.code === 'cash' && (
-            <div className="flex flex-col gap-1.5">
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                autoComplete="off"
-                placeholder="Efectivo recibido"
-                value={cashReceived}
-                onChange={(event) => setCashReceived(event.target.value)}
-              />
-              {change !== null && cashReceived !== '' && (
-                <p
-                  className={
-                    change < 0
-                      ? 'text-destructive text-sm'
-                      : 'text-success text-sm'
-                  }
+          {/* Método de pago, efectivo, cliente y el botón de cobrar solo
+              aparecen con algo en el carrito -- con $0.00 no hay nada que
+              cobrar, y mostrarlos igual era ruido antes del primer
+              producto en la pantalla que más se usa del sistema. */}
+          {cart.length > 0 && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Select
+                  items={paymentMethods.map((m) => ({
+                    value: m.id,
+                    label: m.name,
+                  }))}
+                  value={paymentMethodId}
+                  onValueChange={(value) => setPaymentMethodId(value ?? '')}
                 >
-                  {/* Se probó mostrar aquí una sugerencia de cambio
-                      redondeado y se quitó (2026-09-03): redondear al peso
-                      más cercano cae hacia abajo cuando el cambio es menor
-                      a $0.50, y terminaba sugiriendo "redondeado: $0.00"
-                      sobre un cambio real de $0.40 -- o sea, quedarse con
-                      el dinero del cliente. Qué monedas dar es criterio del
-                      cajero, que sabe qué tiene en la caja; el sistema solo
-                      dice el número exacto. */}
-                  {change < 0
-                    ? `Falta ${formatCurrency(Math.abs(change))}`
-                    : `Cambio: ${formatCurrency(change)}`}
-                </p>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Método de pago" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedMethod?.code === 'cash' && (
+                <div className="flex flex-col gap-1.5">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    autoComplete="off"
+                    placeholder="Efectivo recibido"
+                    value={cashReceived}
+                    onChange={(event) => setCashReceived(event.target.value)}
+                  />
+                  {change !== null && cashReceived !== '' && (
+                    <p
+                      className={
+                        change < 0
+                          ? 'text-destructive text-sm'
+                          : 'text-success text-sm'
+                      }
+                    >
+                      {/* Se probó mostrar aquí una sugerencia de cambio
+                          redondeado y se quitó (2026-09-03): redondear al peso
+                          más cercano cae hacia abajo cuando el cambio es menor
+                          a $0.50, y terminaba sugiriendo "redondeado: $0.00"
+                          sobre un cambio real de $0.40 -- o sea, quedarse con
+                          el dinero del cliente. Qué monedas dar es criterio del
+                          cajero, que sabe qué tiene en la caja; el sistema solo
+                          dice el número exacto. */}
+                      {change < 0
+                        ? `Falta ${formatCurrency(Math.abs(change))}`
+                        : `Cambio: ${formatCurrency(change)}`}
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
+
+              {/* Cliente va al final a propósito: en un negocio de mostrador
+                  como Del Campo casi toda venta es anónima -- método de pago
+                  y efectivo recibido se tocan siempre, cliente solo a veces.
+                  El orden visual debe reflejar qué tan seguido se usa cada
+                  campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
+              <div className="flex flex-col gap-1.5">
+                <Select
+                  items={[
+                    { value: NO_CUSTOMER, label: 'Sin cliente' },
+                    ...activeCustomers.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    })),
+                  ]}
+                  value={customerId}
+                  onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sin cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
+                    {activeCustomers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={handleCheckout} disabled={checkoutDisabled}>
+                {submitting ? (
+                  'Cobrando…'
+                ) : (
+                  <>
+                    {`Cobrar ${formatCurrency(total)}`}
+                    {/* El atajo es para quien tiene teclado (PC del negocio) --
+                        en un celular/tablet por touch no aplica y solo le
+                        resta espacio al botón en la pantalla más angosta. */}
+                    <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
+                      F9
+                    </kbd>
+                  </>
+                )}
+              </Button>
+            </>
           )}
-
-          {/* Cliente va al final a propósito: en un negocio de mostrador
-              como Del Campo casi toda venta es anónima -- método de pago
-              y efectivo recibido se tocan siempre, cliente solo a veces.
-              El orden visual debe reflejar qué tan seguido se usa cada
-              campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
-          <div className="flex flex-col gap-1.5">
-            <Select
-              items={[
-                { value: NO_CUSTOMER, label: 'Sin cliente' },
-                ...activeCustomers.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-              value={customerId}
-              onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Sin cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
-                {activeCustomers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button onClick={handleCheckout} disabled={checkoutDisabled}>
-            {submitting ? (
-              'Cobrando…'
-            ) : (
-              <>
-                {`Cobrar ${formatCurrency(total)}`}
-                {/* El atajo es para quien tiene teclado (PC del negocio) --
-                    en un celular/tablet por touch no aplica y solo le
-                    resta espacio al botón en la pantalla más angosta. */}
-                <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
-                  F9
-                </kbd>
-              </>
-            )}
-          </Button>
         </CardContent>
       </Card>
 
