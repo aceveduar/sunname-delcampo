@@ -120,7 +120,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
           value={filterCategory}
           onValueChange={(value) => setFilterCategory(value ?? 'all')}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full shrink-0 sm:w-48">
             <SelectValue placeholder="Todas las categorías" />
           </SelectTrigger>
           <SelectContent>
