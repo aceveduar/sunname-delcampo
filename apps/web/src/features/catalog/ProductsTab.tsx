@@ -420,73 +420,34 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 </Button>
               </>
             ) : (
-              <>
-                {/* Desktop: los tres botones completos, con espacio de
-                    sobra. En mobile viven agrupados en el menú "+" de
-                    abajo -- con ícono + texto no caben en una sola fila
-                    sin empujar la página más ancha que la pantalla. */}
-                <div className="hidden gap-2 sm:flex">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setView('table')
-                      setPriceEditMode(true)
-                    }}
-                  >
-                    <Pencil /> Editar precios
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPriceSheetOpen(true)}
-                  >
-                    <FileImage /> Precios por foto
-                  </Button>
-                  <Button
-                    onClick={openCreate}
-                    size="sm"
-                    disabled={activeUnits.length === 0}
-                  >
-                    <Plus /> Nuevo producto
-                  </Button>
-                </div>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Acciones de catálogo"
-                        className="sm:hidden"
-                      />
-                    }
-                  >
-                    <Plus />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={openCreate}
-                      disabled={activeUnits.length === 0}
-                    >
-                      <Plus /> Nuevo producto
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setView('table')
-                        setPriceEditMode(true)
-                      }}
-                    >
-                      <Pencil /> Editar precios
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setPriceSheetOpen(true)}>
-                      <FileImage /> Precios por foto
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
+              // Solo visible en sm+: en mobile las mismas tres acciones
+              // viven en el menú "+" junto al buscador, no aquí arriba.
+              <div className="hidden gap-2 sm:flex">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setView('table')
+                    setPriceEditMode(true)
+                  }}
+                >
+                  <Pencil /> Editar precios
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPriceSheetOpen(true)}
+                >
+                  <FileImage /> Precios por foto
+                </Button>
+                <Button
+                  onClick={openCreate}
+                  size="sm"
+                  disabled={activeUnits.length === 0}
+                >
+                  <Plus /> Nuevo producto
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -499,12 +460,15 @@ export function ProductsTab({ role }: { role: Role | null }) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Sin justify-between: con los botones nuevos, si la fila se ve
+          obligada a bajar de línea en mobile, space-between separaba lo
+          que quedaba en cada línea a los extremos en vez de agruparlo. */}
+      <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Buscar producto por nombre o SKU…"
-          containerClassName="max-w-sm min-w-[300px] flex-1"
+          containerClassName="max-w-sm min-w-0 flex-1 sm:min-w-[300px]"
         />
         <Button
           type="button"
@@ -530,6 +494,44 @@ export function ProductsTab({ role }: { role: Role | null }) {
             <span className="bg-primary absolute top-1.5 right-1.5 size-1.5 rounded-full" />
           )}
         </Button>
+        {/* Acciones (Nuevo producto/Editar precios/Precios por foto) solo
+            en mobile: en sm+ ya están arriba como botones completos. */}
+        {canManage && !priceEditMode && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Acciones de catálogo"
+                  className="sm:hidden"
+                />
+              }
+            >
+              <Plus />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={openCreate}
+                disabled={activeUnits.length === 0}
+              >
+                <Plus /> Nuevo producto
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setView('table')
+                  setPriceEditMode(true)
+                }}
+              >
+                <Pencil /> Editar precios
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPriceSheetOpen(true)}>
+                <FileImage /> Precios por foto
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <div className="border-border flex items-center gap-1 rounded-lg border p-0.5">
           <Button
             variant={view === 'table' ? 'default' : 'ghost'}
