@@ -514,14 +514,21 @@ export function ProductsTab({ role }: { role: Role | null }) {
             >
               <Plus />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            {/* w-56 explícito: el ancho por default del menú sigue al
+                del botón que lo abre (w-(--anchor-width) en
+                dropdown-menu.tsx) -- con un trigger de solo ícono
+                (32px), "Precios por foto" partía en dos líneas y el
+                ícono quedaba descentrado contra el texto. */}
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem
+                className="py-2"
                 onClick={openCreate}
                 disabled={activeUnits.length === 0}
               >
                 <Plus /> Nuevo producto
               </DropdownMenuItem>
               <DropdownMenuItem
+                className="py-2"
                 onClick={() => {
                   setView('table')
                   setPriceEditMode(true)
@@ -529,7 +536,10 @@ export function ProductsTab({ role }: { role: Role | null }) {
               >
                 <Pencil /> Editar precios
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPriceSheetOpen(true)}>
+              <DropdownMenuItem
+                className="py-2"
+                onClick={() => setPriceSheetOpen(true)}
+              >
                 <FileImage /> Precios por foto
               </DropdownMenuItem>
             </DropdownMenuContent>
