@@ -532,7 +532,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <div className="border-border flex items-center gap-1 rounded-lg border p-0.5">
+        {/* Solo en sm+: en mobile la tabla obliga a scroll lateral, así
+            que ahí siempre es tarjetas, sin selector que ofrezca la
+            opción peor. "Editar precios" (que sí necesita tabla) sigue
+            forzando la vista por código, sin depender de este botón. */}
+        <div className="border-border hidden items-center gap-1 rounded-lg border p-0.5 sm:flex">
           <Button
             variant={view === 'table' ? 'default' : 'ghost'}
             size="icon-sm"
