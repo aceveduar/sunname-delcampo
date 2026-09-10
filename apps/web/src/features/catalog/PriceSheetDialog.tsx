@@ -9,7 +9,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
 import { bestUnambiguous, rankCandidates } from '@/lib/match'
@@ -66,11 +65,15 @@ function opcionesOrdenadas(descripcion: string | null, products: Product[]) {
 }
 
 export function PriceSheetDialog({
+  open,
+  onOpenChange,
   products,
   units,
   onApply,
   onCreateProduct,
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   products: Product[]
   units: UnitOfMeasure[]
   onApply: (
@@ -87,7 +90,6 @@ export function PriceSheetDialog({
     active: boolean
   }) => Promise<string | null>
 }) {
-  const [open, setOpen] = useState(false)
   const [lectura, setLectura] = useState<PriceSheetLectura | null>(null)
   const [rows, setRows] = useState<DraftRow[]>([])
   const [activar, setActivar] = useState(true)
@@ -107,7 +109,7 @@ export function PriceSheetDialog({
   const inactiveProducts = useMemo(() => products.filter((p) => !p.active), [products])
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next)
+    onOpenChange(next)
     if (!next) {
       setLectura(null)
       setRows([])
@@ -246,13 +248,6 @@ export function PriceSheetDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          <Button variant="outline" size="sm">
-            <FileImage className="size-4" /> Precios por foto
-          </Button>
-        }
-      />
       <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-4xl lg:max-w-6xl">
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>Cargar precios desde una hoja</DialogTitle>

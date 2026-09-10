@@ -8,11 +8,13 @@ import {
 import {
   AlertTriangle,
   Boxes,
+  FileImage,
   ImageOff,
   LayoutGrid,
   Package,
   PackageSearch,
   ScanBarcode,
+  SlidersHorizontal,
   Trash2,
   Pencil,
   Plus,
@@ -47,6 +49,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Table,
   TableBody,
@@ -132,6 +140,10 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all')
   const [filterGranel, setFilterGranel] = useState<'all' | 'yes' | 'no'>('all')
   const [filterNoPrice, setFilterNoPrice] = useState(false)
+  // Hoja de filtros: solo existe para el toolbar compacto de mobile --
+  // en sm+ los 4 controles ya se ven inline, no hay nada que abrir.
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [priceSheetOpen, setPriceSheetOpen] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
@@ -209,6 +221,33 @@ export function ProductsTab({ role }: { role: Role | null }) {
   // de alta, cae a la primera unidad disponible.
   const defaultUnitId =
     activeUnits.find((u) => u.code === 'PZA')?.id ?? activeUnits[0]?.id ?? ''
+
+  const categoryFilterItems = [
+    { value: 'all', label: 'Todas las categorías' },
+    { value: NO_CATEGORY, label: 'Sin categoría' },
+    ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
+  ]
+  const statusFilterItems = [
+    { value: 'all', label: 'Todos los estados' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' },
+  ]
+  const granelFilterItems = [
+    { value: 'all', label: 'A granel: todos' },
+    { value: 'yes', label: 'Solo a granel' },
+    { value: 'no', label: 'Solo precio fijo' },
+  ]
+  const filtersActive =
+    filterCategory !== 'all' ||
+    filterActive !== 'all' ||
+    filterGranel !== 'all' ||
+    filterNoPrice
+  const clearFilters = () => {
+    setFilterCategory('all')
+    setFilterActive('all')
+    setFilterGranel('all')
+    setFilterNoPrice(false)
+  }
 
   const filteredProducts = useMemo(() => {
     const query = normalizeSearch(search)
@@ -362,10 +401,6 @@ export function ProductsTab({ role }: { role: Role | null }) {
           Productos que vendes, con su precio, categoría y unidad.
         </p>
         {canManage && (
-          // flex-wrap: "Editar precios" + "Precios por foto" + "Nuevo
-          // producto" (cada uno con ícono + texto) no caben en una sola
-          // fila en un celular -- sin poder bajar de línea, empujaban
-          // toda la página más ancha que la pantalla.
           <div className="flex flex-wrap gap-2">
             {priceEditMode ? (
               <>
@@ -386,29 +421,71 @@ export function ProductsTab({ role }: { role: Role | null }) {
               </>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setView('table')
-                    setPriceEditMode(true)
-                  }}
-                >
-                  <Pencil /> Editar precios
-                </Button>
-                <PriceSheetDialog
-                  products={products}
-                  units={activeUnits}
-                  onApply={updatePrices}
-                  onCreateProduct={createProduct}
-                />
-                <Button
-                  onClick={openCreate}
-                  size="sm"
-                  disabled={activeUnits.length === 0}
-                >
-                  <Plus /> Nuevo producto
-                </Button>
+                {/* Desktop: los tres botones completos, con espacio de
+                    sobra. En mobile viven agrupados en el menú "+" de
+                    abajo -- con ícono + texto no caben en una sola fila
+                    sin empujar la página más ancha que la pantalla. */}
+                <div className="hidden gap-2 sm:flex">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setView('table')
+                      setPriceEditMode(true)
+                    }}
+                  >
+                    <Pencil /> Editar precios
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPriceSheetOpen(true)}
+                  >
+                    <FileImage /> Precios por foto
+                  </Button>
+                  <Button
+                    onClick={openCreate}
+                    size="sm"
+                    disabled={activeUnits.length === 0}
+                  >
+                    <Plus /> Nuevo producto
+                  </Button>
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label="Acciones de catálogo"
+                        className="sm:hidden"
+                      />
+                    }
+                  >
+                    <Plus />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={openCreate}
+                      disabled={activeUnits.length === 0}
+                    >
+                      <Plus /> Nuevo producto
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setView('table')
+                        setPriceEditMode(true)
+                      }}
+                    >
+                      <Pencil /> Editar precios
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setPriceSheetOpen(true)}>
+                      <FileImage /> Precios por foto
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>
@@ -438,6 +515,21 @@ export function ProductsTab({ role }: { role: Role | null }) {
         >
           <ScanBarcode />
         </Button>
+        {/* Filtros solo en mobile: en sm+ los 4 controles ya están
+            visibles justo abajo, no hace falta un botón para abrirlos. */}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="relative sm:hidden"
+          aria-label="Filtros"
+          onClick={() => setFiltersOpen(true)}
+        >
+          <SlidersHorizontal />
+          {filtersActive && (
+            <span className="bg-primary absolute top-1.5 right-1.5 size-1.5 rounded-full" />
+          )}
+        </Button>
         <div className="border-border flex items-center gap-1 rounded-lg border p-0.5">
           <Button
             variant={view === 'table' ? 'default' : 'ghost'}
@@ -459,74 +551,62 @@ export function ProductsTab({ role }: { role: Role | null }) {
         </div>
       </div>
 
-      {/* Grid de 2 columnas en mobile -- con ancho fijo por selector
-          (pensado para escritorio) el flex-wrap de antes los acomodaba
-          como podía, dejando "A granel" solo en su fila con un hueco
-          enorme antes de "Sin precio". En sm+ vuelve a fila horizontal,
-          cada selector con su ancho de siempre. */}
-      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
+      {/* Solo en sm+: en mobile estos mismos 4 controles viven en la
+          hoja de "Filtros" de abajo, para no apilar seis controles
+          antes del primer producto. */}
+      <div className="hidden gap-3 sm:flex sm:flex-wrap sm:items-center">
         <Select
-          items={[
-            { value: 'all', label: 'Todas las categorías' },
-            { value: NO_CATEGORY, label: 'Sin categoría' },
-            ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
-          ]}
+          items={categoryFilterItems}
           value={filterCategory}
           onValueChange={(value) => setFilterCategory(value ?? 'all')}
         >
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder="Todas las categorías" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas las categorías</SelectItem>
-            <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
-            {activeCategories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
+            {categoryFilterItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <Select
-          items={[
-            { value: 'all', label: 'Todos los estados' },
-            { value: 'active', label: 'Activos' },
-            { value: 'inactive', label: 'Inactivos' },
-          ]}
+          items={statusFilterItems}
           value={filterActive}
           onValueChange={(value) =>
             setFilterActive((value as typeof filterActive) ?? 'all')
           }
         >
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className="w-44">
             <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="active">Activos</SelectItem>
-            <SelectItem value="inactive">Inactivos</SelectItem>
+            {statusFilterItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         <Select
-          items={[
-            { value: 'all', label: 'A granel: todos' },
-            { value: 'yes', label: 'Solo a granel' },
-            { value: 'no', label: 'Solo precio fijo' },
-          ]}
+          items={granelFilterItems}
           value={filterGranel}
           onValueChange={(value) =>
             setFilterGranel((value as typeof filterGranel) ?? 'all')
           }
         >
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="A granel: todos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">A granel: todos</SelectItem>
-            <SelectItem value="yes">Solo a granel</SelectItem>
-            <SelectItem value="no">Solo precio fijo</SelectItem>
+            {granelFilterItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -1136,6 +1216,112 @@ export function ProductsTab({ role }: { role: Role | null }) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <PriceSheetDialog
+        open={priceSheetOpen}
+        onOpenChange={setPriceSheetOpen}
+        products={products}
+        units={activeUnits}
+        onApply={updatePrices}
+        onCreateProduct={createProduct}
+      />
+
+      {/* Hoja de filtros de mobile: mismos 4 controles que la fila de
+          sm+, en un diálogo aparte para no forzar el scroll antes de ver
+          un producto. "Aplicar" solo cierra -- los filtros ya actúan en
+          vivo, igual que en escritorio. */}
+      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Filtros</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label>Categoría</Label>
+              <Select
+                items={categoryFilterItems}
+                value={filterCategory}
+                onValueChange={(value) => setFilterCategory(value ?? 'all')}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas las categorías" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryFilterItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Estado</Label>
+              <Select
+                items={statusFilterItems}
+                value={filterActive}
+                onValueChange={(value) =>
+                  setFilterActive((value as typeof filterActive) ?? 'all')
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusFilterItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Venta a granel</Label>
+              <Select
+                items={granelFilterItems}
+                value={filterGranel}
+                onValueChange={(value) =>
+                  setFilterGranel((value as typeof filterGranel) ?? 'all')
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="A granel: todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  {granelFilterItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <label className="border-border flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+              Sin precio
+              <Switch
+                checked={filterNoPrice}
+                onCheckedChange={setFilterNoPrice}
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={clearFilters}
+              disabled={!filtersActive}
+            >
+              Limpiar
+            </Button>
+            <Button onClick={() => setFiltersOpen(false)}>
+              Aplicar filtros
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
