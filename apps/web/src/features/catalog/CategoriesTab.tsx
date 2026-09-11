@@ -59,11 +59,11 @@ export function CategoriesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
           Agrupa los productos del catálogo. Pueden anidarse (categoría dentro de categoría).
         </p>
-        <Button onClick={openCreate} size="sm">
+        <Button onClick={openCreate} size="sm" className="self-start">
           <Plus /> Nueva categoría
         </Button>
       </div>

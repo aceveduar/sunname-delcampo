@@ -76,7 +76,7 @@ export function InventoryPage({ role }: { role: Role | null }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-foreground text-2xl font-semibold">Inventario</h1>
           <p className="text-muted-foreground text-sm">
@@ -84,12 +84,14 @@ export function InventoryPage({ role }: { role: Role | null }) {
           </p>
         </div>
         {canRegister && (
-          <NewMovementDialog
-            triggerLabel="Nuevo movimiento"
-            rows={rows}
-            unitCode={unitCode}
-            onRegister={registerMovement}
-          />
+          <div className="self-start">
+            <NewMovementDialog
+              triggerLabel="Nuevo movimiento"
+              rows={rows}
+              unitCode={unitCode}
+              onRegister={registerMovement}
+            />
+          </div>
         )}
       </div>
 

@@ -71,14 +71,14 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-foreground text-2xl font-semibold">Reportes</h1>
           <p className="text-muted-foreground text-sm">
             Ventas e historial de caja del periodo.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <Button
               key={p.key}

@@ -45,11 +45,11 @@ export function UnitsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
           Unidades en las que se venden y miden los productos (pieza, kilogramo, litro...).
         </p>
-        <Button onClick={openCreate} size="sm">
+        <Button onClick={openCreate} size="sm" className="self-start">
           <Plus /> Nueva unidad
         </Button>
       </div>

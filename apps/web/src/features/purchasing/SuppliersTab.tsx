@@ -51,9 +51,9 @@ export function SuppliersTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">Tus proveedores.</p>
-        <Button onClick={openCreate} size="sm">
+        <Button onClick={openCreate} size="sm" className="self-start">
           <Plus /> Nuevo proveedor
         </Button>
       </div>

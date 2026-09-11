@@ -28,7 +28,7 @@ export function CajaPage({ role }: { role: Role | null }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Caja</h1>
           <p className="text-muted-foreground text-sm">
@@ -40,7 +40,9 @@ export function CajaPage({ role }: { role: Role | null }) {
             con {formatCurrency(session.opening_amount)}.
           </p>
         </div>
-        <CloseSessionDialog onClose={closeSession} />
+        <div className="self-start">
+          <CloseSessionDialog onClose={closeSession} />
+        </div>
       </div>
 
       <SaleScreen cashSessionId={session.id} role={role} />
