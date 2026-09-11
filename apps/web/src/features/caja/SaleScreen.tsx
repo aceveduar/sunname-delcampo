@@ -505,7 +505,12 @@ export function SaleScreen({
                   className="flex items-center gap-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
+                    {/* line-clamp-2, no truncate: con nombres largos que
+                        comparten prefijo (dos "Chipotles Adobados..." con
+                        precio distinto), una sola línea cortada los deja
+                        indistinguibles -- en la pantalla donde se cobra
+                        dinero real, eso pesa más que ahorrar una línea. */}
+                    <p className="line-clamp-2 text-sm font-medium">
                       {line.product.name}
                     </p>
                     <p className="text-muted-foreground flex items-center gap-1 text-xs">
@@ -517,7 +522,7 @@ export function SaleScreen({
                           type="button"
                           aria-label="Corregir precio"
                           onClick={() => setEditingPriceProduct(line.product)}
-                          className="hover:text-foreground shrink-0"
+                          className="hover:text-foreground -m-1.5 shrink-0 p-1.5"
                         >
                           <Pencil className="size-3" />
                         </button>
