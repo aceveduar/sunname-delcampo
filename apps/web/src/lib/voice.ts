@@ -24,11 +24,14 @@ const ACTION_WORDS = [
 const FILLER_PHRASES = ['por favor', 'porfavor']
 const AMOUNT_UNIT_WORDS = ['pesos', 'peso']
 const QUANTITY_UNIT_WORDS = ['piezas', 'pieza', 'unidades', 'unidad', 'paquetes', 'paquete']
-// "100 gramos de alpiste" no se traduce a un peso exacto (mismo límite que
-// "medio kilo de..." -- ver CLAUDE.md) pero SÍ se reconoce como unidad de
-// peso, para no confundirla con cantidad de piezas ("100 gramos" no son
-// 100 piezas) ni dejarla pegada al texto de búsqueda del producto.
-const WEIGHT_UNIT_WORDS = ['gramos', 'gramo', 'kilos', 'kilo', 'kg']
+// "100 gramos de alpiste" se reconoce como unidad de peso -- no se
+// traduce a una venta sola (el cajero sigue pesando físicamente y
+// confirmando en el diálogo manual), pero el número sí se conserva para
+// pre-llenar ese diálogo, en vez de descartarlo y dejar que el cajero lo
+// vuelva a teclear.
+const GRAM_WEIGHT_WORDS = ['gramos', 'gramo']
+const KILO_WEIGHT_WORDS = ['kilos', 'kilo', 'kg']
+const WEIGHT_UNIT_WORDS = [...GRAM_WEIGHT_WORDS, ...KILO_WEIGHT_WORDS]
 
 // Números hablados que de verdad se usan al pedir un monto en una tienda
 // de mostrador -- no es un parser numérico general, cubre lo que un
@@ -125,6 +128,7 @@ function extractLeadingNumber(text: string): { value: number; rest: string } | n
 export type VoiceCommand =
   | { kind: 'amount'; amountMxn: number; productQuery: string }
   | { kind: 'quantity'; quantity: number; productQuery: string }
+  | { kind: 'weight'; grams: number; productQuery: string }
   | { kind: 'plain'; productQuery: string }
 
 /** Reduce una transcripción libre a una acción + texto de producto.
@@ -166,7 +170,11 @@ export function parseVoiceCommand(raw: string): VoiceCommand | null {
 
   if (WEIGHT_UNIT_WORDS.includes(unitWord)) {
     const productQuery = stripLeading(restWords.slice(1).join(' '), ['de'])
-    return productQuery ? { kind: 'plain', productQuery } : null
+    if (!productQuery) return null
+    const grams = KILO_WEIGHT_WORDS.includes(unitWord)
+      ? numberMatch.value * 1000
+      : numberMatch.value
+    return { kind: 'weight', grams, productQuery }
   }
 
   // Sin unidad explícita ("agrega dos chocolates abuelita") -- el número

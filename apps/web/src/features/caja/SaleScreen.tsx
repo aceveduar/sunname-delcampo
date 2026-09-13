@@ -71,6 +71,7 @@ export function SaleScreen({
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [submitting, setSubmitting] = useState(false)
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
+  const [granelInitialGrams, setGranelInitialGrams] = useState<number | undefined>(undefined)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -184,11 +185,17 @@ export function SaleScreen({
 
   const handleProductClick = (product: Product) => {
     if (product.sold_by_weight) {
+      setGranelInitialGrams(undefined)
       setGranelProduct(product)
       return
     }
     addToCart(product)
     afterAdd()
+  }
+
+  const handleOpenManualWeight = (product: Product, initialGrams?: number) => {
+    setGranelInitialGrams(initialGrams)
+    setGranelProduct(product)
   }
 
   const setQuantity = (productId: string, quantity: number) => {
@@ -400,7 +407,7 @@ export function SaleScreen({
             products={products}
             onAddByAmount={handleVoiceAmount}
             onAddByQuantity={handleVoiceQuantity}
-            onOpenManualWeight={setGranelProduct}
+            onOpenManualWeight={handleOpenManualWeight}
           />
 
           <Button
@@ -697,8 +704,12 @@ export function SaleScreen({
 
       <GranelDialog
         product={granelProduct}
+        initialGrams={granelInitialGrams}
         onOpenChange={(open) => {
-          if (!open) setGranelProduct(null)
+          if (!open) {
+            setGranelProduct(null)
+            setGranelInitialGrams(undefined)
+          }
         }}
         onConfirm={(weightKg, amountMxn) => {
           if (granelProduct) {
@@ -706,6 +717,7 @@ export function SaleScreen({
             toast.success(`Agregado: ${granelProduct.name}`)
           }
           setGranelProduct(null)
+          setGranelInitialGrams(undefined)
           afterAdd()
         }}
       />

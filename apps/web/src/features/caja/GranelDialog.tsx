@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,10 +16,15 @@ import type { Product } from '@/features/catalog/useProducts'
 
 export function GranelDialog({
   product,
+  initialGrams,
   onConfirm,
   onOpenChange,
 }: {
   product: Product | null
+  // Viene del comando de voz cuando ya dijo un peso ("100 gramos de
+  // alpiste") -- se pre-llena el campo para que el cajero solo confirme
+  // (o corrija) en vez de volver a teclear el número que ya dijo.
+  initialGrams?: number
   // amountMxn viene solo cuando se pidió por monto: en ese caso el total
   // de la línea es ese monto exacto y el peso es el derivado, no al
   // revés (regla confirmada con el dueño, 2026-09-03).
@@ -28,6 +33,12 @@ export function GranelDialog({
 }) {
   const [grams, setGrams] = useState('')
   const [amount, setAmount] = useState('')
+
+  // Se dispara al abrir (cambia el producto) -- no en cada render, para
+  // no borrarle al cajero lo que ya está corrigiendo a mano.
+  useEffect(() => {
+    if (product) setGrams(initialGrams ? String(initialGrams) : '')
+  }, [product, initialGrams])
 
   if (!product) return null
 

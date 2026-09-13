@@ -21,15 +21,21 @@ function speak(text: string) {
   window.speechSynthesis.speak(utterance)
 }
 
+function formatGrams(grams: number): string {
+  return grams % 1000 === 0 ? `${grams / 1000} kg` : `${grams} g`
+}
+
 function candidateHint(command: VoiceCommand, product: Product): string {
   if (command.kind === 'amount') return formatCurrency(command.amountMxn)
   if (command.kind === 'quantity') return `x${command.quantity}`
+  if (command.kind === 'weight') return formatGrams(command.grams)
   return product.sold_by_weight ? 'Pesar a mano' : 'x1'
 }
 
 function describe(command: VoiceCommand, product: Product): string {
   if (command.kind === 'amount') return `${formatCurrency(command.amountMxn)} de ${product.name}, ¿lo agrego?`
   if (command.kind === 'quantity') return `${command.quantity} de ${product.name}, ¿lo agrego?`
+  if (command.kind === 'weight') return `${formatGrams(command.grams)} de ${product.name}, confirma el peso`
   return `${product.name}, ¿lo agrego?`
 }
 
@@ -48,7 +54,7 @@ export function VoiceCommandButton({
   products: Product[]
   onAddByAmount: (product: Product, amountMxn: number) => void
   onAddByQuantity: (product: Product, quantity: number) => void
-  onOpenManualWeight: (product: Product) => void
+  onOpenManualWeight: (product: Product, initialGrams?: number) => void
 }) {
   const { supported, listening, transcript, error, start, stop } = useVoiceCommand()
   const [pending, setPending] = useState<{
@@ -68,7 +74,7 @@ export function VoiceCommandButton({
     }
 
     const pool =
-      command.kind === 'amount'
+      command.kind === 'amount' || command.kind === 'weight'
         ? products.filter((p) => p.active && p.sold_by_weight)
         : command.kind === 'quantity'
           ? products.filter((p) => p.active && !p.sold_by_weight)
@@ -94,6 +100,8 @@ export function VoiceCommandButton({
       onAddByAmount(product, command.amountMxn)
     } else if (command.kind === 'quantity') {
       onAddByQuantity(product, command.quantity)
+    } else if (command.kind === 'weight') {
+      onOpenManualWeight(product, command.grams)
     } else if (product.sold_by_weight) {
       onOpenManualWeight(product)
     } else {
