@@ -24,6 +24,11 @@ const ACTION_WORDS = [
 const FILLER_PHRASES = ['por favor', 'porfavor']
 const AMOUNT_UNIT_WORDS = ['pesos', 'peso']
 const QUANTITY_UNIT_WORDS = ['piezas', 'pieza', 'unidades', 'unidad', 'paquetes', 'paquete']
+// "100 gramos de alpiste" no se traduce a un peso exacto (mismo límite que
+// "medio kilo de..." -- ver CLAUDE.md) pero SÍ se reconoce como unidad de
+// peso, para no confundirla con cantidad de piezas ("100 gramos" no son
+// 100 piezas) ni dejarla pegada al texto de búsqueda del producto.
+const WEIGHT_UNIT_WORDS = ['gramos', 'gramo', 'kilos', 'kilo', 'kg']
 
 // Números hablados que de verdad se usan al pedir un monto en una tienda
 // de mostrador -- no es un parser numérico general, cubre lo que un
@@ -157,6 +162,11 @@ export function parseVoiceCommand(raw: string): VoiceCommand | null {
     return productQuery
       ? { kind: 'quantity', quantity: numberMatch.value, productQuery }
       : null
+  }
+
+  if (WEIGHT_UNIT_WORDS.includes(unitWord)) {
+    const productQuery = stripLeading(restWords.slice(1).join(' '), ['de'])
+    return productQuery ? { kind: 'plain', productQuery } : null
   }
 
   // Sin unidad explícita ("agrega dos chocolates abuelita") -- el número

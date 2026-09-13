@@ -73,6 +73,24 @@ describe('parseVoiceCommand', () => {
     })
   })
 
+  it('reconoce "gramos" como unidad de peso, no como cantidad de piezas', () => {
+    expect(parseVoiceCommand('100 gramos alpiste')).toEqual({
+      kind: 'plain',
+      productQuery: 'alpiste',
+    })
+  })
+
+  it('reconoce "kilo"/"kilos"/"kg" como unidad de peso', () => {
+    expect(parseVoiceCommand('agrega dos kilos de comino')).toEqual({
+      kind: 'plain',
+      productQuery: 'comino',
+    })
+    expect(parseVoiceCommand('dos kg de chile guajillo')).toEqual({
+      kind: 'plain',
+      productQuery: 'chile guajillo',
+    })
+  })
+
   it('regresa null si tras quitar muletillas no queda nada', () => {
     expect(parseVoiceCommand('caja')).toBeNull()
     expect(parseVoiceCommand('')).toBeNull()
