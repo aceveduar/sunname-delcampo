@@ -453,7 +453,7 @@ export function SaleScreen({
   }, [granelProduct, receipt, checkoutDisabled, search])
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px]">
+    <div className="grid gap-6 md:grid-cols-[1fr_370px] xl:grid-cols-[1fr_400px]">
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
           <SearchInput
