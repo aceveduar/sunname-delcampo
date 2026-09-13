@@ -272,7 +272,16 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      {/* Caja es la pantalla de mayor uso y la más densa en contenido
+          interactivo (rejilla de productos + carrito) -- se le da más
+          ancho que al resto (que siguen a max-w-6xl, pensado para
+          lectura -- tablas, formularios) para que un monitor grande no
+          se desperdicie en margen vacío mientras se cobra. */}
+      <main
+        className={`mx-auto px-4 py-8 ${location.pathname === '/caja' ? 'max-w-[100rem]' : 'max-w-6xl'}`}
+      >
+        {children}
+      </main>
     </div>
   )
 }

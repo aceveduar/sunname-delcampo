@@ -453,7 +453,7 @@ export function SaleScreen({
   }, [granelProduct, receipt, checkoutDisabled, search])
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <div className="grid gap-6 md:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px]">
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
           <SearchInput
@@ -518,7 +518,7 @@ export function SaleScreen({
                 <TrendingUp className="size-3.5" />
                 Más vendidos
               </p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {topProducts.map((product, index) => (
                   <ProductResultCard
                     key={product.id}
@@ -541,7 +541,7 @@ export function SaleScreen({
             }
           />
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {results.map((product) => (
               <ProductResultCard
                 key={product.id}
@@ -553,7 +553,7 @@ export function SaleScreen({
         )}
       </div>
 
-      <Card className="h-fit lg:sticky lg:top-20">
+      <Card className="h-fit md:sticky md:top-20">
         <CardHeader>
           <CardTitle>Venta actual</CardTitle>
         </CardHeader>
