@@ -12,6 +12,7 @@ import { PurchasingPage } from '@/features/purchasing/PurchasingPage'
 import { UsersPage } from '@/features/users/UsersPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { useTenantModules } from '@/features/settings/useTenantModules'
+import { CartProvider } from '@/features/caja/CartContext'
 import { isAdminRole, isOwnerRole } from '@/lib/roles'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
@@ -74,67 +75,69 @@ function App() {
       isModuleEnabled={isModuleEnabled}
       onToggleLargeText={toggleLargeText}
     >
-      <Routes>
-        <Route path="/" element={<Navigate to="/caja" replace />} />
-        <Route path="/caja" element={<CajaPage role={profile?.role ?? null} />} />
-        <Route
-          path="/catalogo"
-          element={<CatalogPage role={profile?.role ?? null} />}
-        />
-        <Route
-          path="/inventario"
-          element={<InventoryPage role={profile?.role ?? null} />}
-        />
-        <Route
-          path="/clientes"
-          element={
-            isModuleEnabled('crm') ? (
-              <CustomersPage />
-            ) : (
-              <Navigate to="/caja" replace />
-            )
-          }
-        />
-        <Route
-          path="/compras"
-          element={
-            isAdmin && isModuleEnabled('purchasing') ? (
-              <PurchasingPage />
-            ) : (
-              <Navigate to="/caja" replace />
-            )
-          }
-        />
-        <Route
-          path="/reportes"
-          element={isAdmin ? <ReportsPage /> : <Navigate to="/caja" replace />}
-        />
-        <Route
-          path="/facturacion"
-          element={
-            isAdmin && isModuleEnabled('billing') ? (
-              <BillingPage />
-            ) : (
-              <Navigate to="/caja" replace />
-            )
-          }
-        />
-        <Route
-          path="/usuarios"
-          element={
-            isAdmin ? (
-              <UsersPage currentUserId={session.user.id} />
-            ) : (
-              <Navigate to="/caja" replace />
-            )
-          }
-        />
-        <Route
-          path="/configuracion"
-          element={isOwner ? <SettingsPage /> : <Navigate to="/caja" replace />}
-        />
-        <Route path="*" element={<Navigate to="/caja" replace />} />
-      </Routes>
+      <CartProvider>
+        <Routes>
+          <Route path="/" element={<Navigate to="/caja" replace />} />
+          <Route path="/caja" element={<CajaPage role={profile?.role ?? null} />} />
+          <Route
+            path="/catalogo"
+            element={<CatalogPage role={profile?.role ?? null} />}
+          />
+          <Route
+            path="/inventario"
+            element={<InventoryPage role={profile?.role ?? null} />}
+          />
+          <Route
+            path="/clientes"
+            element={
+              isModuleEnabled('crm') ? (
+                <CustomersPage />
+              ) : (
+                <Navigate to="/caja" replace />
+              )
+            }
+          />
+          <Route
+            path="/compras"
+            element={
+              isAdmin && isModuleEnabled('purchasing') ? (
+                <PurchasingPage />
+              ) : (
+                <Navigate to="/caja" replace />
+              )
+            }
+          />
+          <Route
+            path="/reportes"
+            element={isAdmin ? <ReportsPage /> : <Navigate to="/caja" replace />}
+          />
+          <Route
+            path="/facturacion"
+            element={
+              isAdmin && isModuleEnabled('billing') ? (
+                <BillingPage />
+              ) : (
+                <Navigate to="/caja" replace />
+              )
+            }
+          />
+          <Route
+            path="/usuarios"
+            element={
+              isAdmin ? (
+                <UsersPage currentUserId={session.user.id} />
+              ) : (
+                <Navigate to="/caja" replace />
+              )
+            }
+          />
+          <Route
+            path="/configuracion"
+            element={isOwner ? <SettingsPage /> : <Navigate to="/caja" replace />}
+          />
+          <Route path="*" element={<Navigate to="/caja" replace />} />
+        </Routes>
+      </CartProvider>
     </AppShell>
   )
 }

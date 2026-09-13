@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Pencil, Plus, ScanBarcode, Search, Trash2 } from 'lucide-react'
+import { Minus, Pencil, Plus, ScanBarcode, Search, Trash2, TrendingUp } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 import { Button } from '@/components/ui/button'
@@ -28,16 +28,47 @@ import { granelTotalFromWeightKg, granelWeightKgFromAmount } from '@/lib/granel'
 import { ReceiptDialog, type ReceiptData } from './ReceiptDialog'
 import { VoiceCommandButton } from './VoiceCommandButton'
 import { EditCartPriceDialog } from './EditCartPriceDialog'
+import { useTopSellingProducts } from './useTopSellingProducts'
+import { useCart, NO_CUSTOMER, type CartLine } from './CartContext'
 
 type Role = Database['public']['Enums']['user_role']
 
-// amountMxn solo existe en líneas pedidas "por monto" ("dame $50 de
-// piquín"): ahí el total de la línea es ese monto exacto y quantity es
-// el peso derivado. En las demás líneas el total sale de quantity ×
-// tarifa, como siempre.
-type CartLine = { product: Product; quantity: number; amountMxn?: number }
-
-const NO_CUSTOMER = 'none'
+function ProductResultCard({
+  product,
+  onClick,
+}: {
+  product: Product
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="hover:bg-muted border-border bg-card flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors"
+    >
+      {product.image_url && (
+        <img
+          src={product.image_url}
+          alt=""
+          className="border-border size-10 shrink-0 rounded-md border object-cover"
+        />
+      )}
+      <div className="flex flex-col items-start gap-0.5">
+        <span className="font-medium">{product.name}</span>
+        {product.price === 0 ? (
+          <span className="text-destructive text-sm font-medium">
+            Sin precio
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-sm">
+            {product.sold_by_weight
+              ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
+              : formatCurrency(product.price)}
+          </span>
+        )}
+      </div>
+    </button>
+  )
+}
 
 export function SaleScreen({
   cashSessionId,
@@ -50,6 +81,16 @@ export function SaleScreen({
   const paymentMethods = usePaymentMethods()
   const { customers } = useCustomers()
   const { categories } = useCategories()
+  const topSellingIds = useTopSellingProducts(12)
+  // La venta en curso vive en un contexto que envuelve las rutas (nunca
+  // se desmonta al navegar) -- así el cajero puede ir a consultar
+  // Catálogo o Inventario a media venta y volver sin perder el carrito.
+  const { cart, setCart, paymentMethodId, setPaymentMethodId, cashReceived, setCashReceived, customerId, setCustomerId, syncCashSession } =
+    useCart()
+
+  useEffect(() => {
+    syncCashSession(cashSessionId)
+  }, [cashSessionId])
 
   // Mismo corte que el costo en Catálogo (CLAUDE.md §6): un cajero no
   // debe poder tocar precios libremente -- eso reabriría justo lo que la
@@ -65,10 +106,6 @@ export function SaleScreen({
   // por texto de siempre: en 'all' (su default) el comportamiento es
   // idéntico al de antes de que existiera este filtro.
   const [filterCategory, setFilterCategory] = useState('all')
-  const [cart, setCart] = useState<CartLine[]>([])
-  const [paymentMethodId, setPaymentMethodId] = useState('')
-  const [cashReceived, setCashReceived] = useState('')
-  const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [submitting, setSubmitting] = useState(false)
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
   const [granelInitialGrams, setGranelInitialGrams] = useState<number | undefined>(undefined)
@@ -111,6 +148,17 @@ export function SaleScreen({
       )
       .slice(0, 20)
   }, [products, search, filterCategory])
+
+  // Solo se enseña en el estado inactivo (sin búsqueda ni filtro) -- ahí
+  // la pantalla quedaba en blanco y es donde de verdad ayuda un atajo,
+  // sin restarle nada a la velocidad de buscar/escanear.
+  const topProducts = useMemo(
+    () =>
+      topSellingIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => p !== undefined && p.active),
+    [topSellingIds, products],
+  )
 
   const lineTotal = (line: CartLine) =>
     line.amountMxn !== undefined
@@ -449,7 +497,23 @@ export function SaleScreen({
             ahí el cajero necesita saber que algo salió distinto a lo
             esperado, no solo "todavía no escribiste nada". */}
         {search.trim() === '' && filterCategory === 'all' ? (
-          null
+          topProducts.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
+                <TrendingUp className="size-3.5" />
+                Más vendidos
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {topProducts.map((product) => (
+                  <ProductResultCard
+                    key={product.id}
+                    product={product}
+                    onClick={() => handleProductClick(product)}
+                  />
+                ))}
+              </div>
+            </div>
+          )
         ) : results.length === 0 ? (
           <EmptyState
             icon={Search}
@@ -463,33 +527,11 @@ export function SaleScreen({
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((product) => (
-              <button
+              <ProductResultCard
                 key={product.id}
+                product={product}
                 onClick={() => handleProductClick(product)}
-                className="hover:bg-muted border-border bg-card flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors"
-              >
-                {product.image_url && (
-                  <img
-                    src={product.image_url}
-                    alt=""
-                    className="border-border size-10 shrink-0 rounded-md border object-cover"
-                  />
-                )}
-                <div className="flex flex-col items-start gap-0.5">
-                  <span className="font-medium">{product.name}</span>
-                  {product.price === 0 ? (
-                    <span className="text-destructive text-sm font-medium">
-                      Sin precio
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">
-                      {product.sold_by_weight
-                        ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
-                        : formatCurrency(product.price)}
-                    </span>
-                  )}
-                </div>
-              </button>
+              />
             ))}
           </div>
         )}
