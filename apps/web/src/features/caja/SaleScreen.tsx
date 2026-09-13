@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Pencil, Plus, ScanBarcode, Search, Trash2, TrendingUp } from 'lucide-react'
+import { Minus, Package, Pencil, Plus, ScanBarcode, Search, Trash2, TrendingUp } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 import { Button } from '@/components/ui/button'
@@ -35,25 +35,40 @@ type Role = Database['public']['Enums']['user_role']
 
 function ProductResultCard({
   product,
+  rank,
   onClick,
 }: {
   product: Product
+  // Solo se pasa desde la rejilla de "Más vendidos" -- una búsqueda
+  // normal nunca trae rank, así que nunca lleva insignia.
+  rank?: number
   onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      className="hover:bg-muted border-border bg-card flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors"
+      className="hover:bg-muted border-border bg-card flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors"
     >
-      {product.image_url && (
-        <img
-          src={product.image_url}
-          alt=""
-          className="border-border size-10 shrink-0 rounded-md border object-cover"
-        />
-      )}
-      <div className="flex flex-col items-start gap-0.5">
-        <span className="font-medium">{product.name}</span>
+      <div className="relative shrink-0">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt=""
+            className="border-border size-10 rounded-md border object-cover"
+          />
+        ) : (
+          <div className="border-border bg-muted flex size-10 items-center justify-center rounded-md border">
+            <Package className="text-muted-foreground size-4" />
+          </div>
+        )}
+        {rank !== undefined && rank <= 3 && (
+          <span className="bg-brand-gold text-brand-gold-foreground absolute -top-1.5 -left-1.5 flex size-4.5 items-center justify-center rounded-full text-[10px] font-semibold">
+            {rank}
+          </span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+        <span className="line-clamp-2 min-h-[2lh] font-medium">{product.name}</span>
         {product.price === 0 ? (
           <span className="text-destructive text-sm font-medium">
             Sin precio
@@ -504,10 +519,11 @@ export function SaleScreen({
                 Más vendidos
               </p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {topProducts.map((product) => (
+                {topProducts.map((product, index) => (
                   <ProductResultCard
                     key={product.id}
                     product={product}
+                    rank={index + 1}
                     onClick={() => handleProductClick(product)}
                   />
                 ))}
