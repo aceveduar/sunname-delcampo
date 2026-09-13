@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
 import type { Product } from '@/features/catalog/useProducts'
 
 // amountMxn solo existe en líneas pedidas "por monto" ("dame $50 de
@@ -39,7 +39,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const cashSessionIdRef = useRef<string | null>(null)
 
-  const syncCashSession = (cashSessionId: string) => {
+  // Memoizada con identidad estable (deps vacías: solo usa refs y los
+  // setters de useState, que React garantiza estables) -- así SaleScreen
+  // puede declararla como dependencia real de su efecto en vez de dejar
+  // pasar el aviso de "dependencia faltante".
+  const syncCashSession = useCallback((cashSessionId: string) => {
     if (cashSessionIdRef.current !== null && cashSessionIdRef.current !== cashSessionId) {
       setCart([])
       setCashReceived('')
@@ -47,7 +51,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCustomerId(NO_CUSTOMER)
     }
     cashSessionIdRef.current = cashSessionId
-  }
+  }, [])
 
   return (
     <CartContext.Provider

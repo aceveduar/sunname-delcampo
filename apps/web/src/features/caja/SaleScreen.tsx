@@ -85,6 +85,11 @@ function ProductResultCard({
   )
 }
 
+// Compartida entre la rejilla de "Más vendidos" y los resultados de
+// búsqueda -- mismo tamaño de tarjeta en los dos casos, un solo lugar
+// para ajustar cuántas columnas caben en cada ancho.
+const PRODUCT_GRID_CLASS = 'grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+
 export function SaleScreen({
   cashSessionId,
   role,
@@ -96,7 +101,7 @@ export function SaleScreen({
   const paymentMethods = usePaymentMethods()
   const { customers } = useCustomers()
   const { categories } = useCategories()
-  const topSellingIds = useTopSellingProducts(12)
+  const topSellingIds = useTopSellingProducts()
   // La venta en curso vive en un contexto que envuelve las rutas (nunca
   // se desmonta al navegar) -- así el cajero puede ir a consultar
   // Catálogo o Inventario a media venta y volver sin perder el carrito.
@@ -105,7 +110,7 @@ export function SaleScreen({
 
   useEffect(() => {
     syncCashSession(cashSessionId)
-  }, [cashSessionId])
+  }, [cashSessionId, syncCashSession])
 
   // Mismo corte que el costo en Catálogo (CLAUDE.md §6): un cajero no
   // debe poder tocar precios libremente -- eso reabriría justo lo que la
@@ -136,7 +141,7 @@ export function SaleScreen({
 
   useEffect(() => {
     if (!paymentMethodId && defaultMethodId) setPaymentMethodId(defaultMethodId)
-  }, [defaultMethodId, paymentMethodId])
+  }, [defaultMethodId, paymentMethodId, setPaymentMethodId])
 
   // Una búsqueda = un producto agregado = listo para la siguiente -- igual
   // sea por clic o por escaneo, el buscador se limpia y recupera el foco
@@ -518,7 +523,7 @@ export function SaleScreen({
                 <TrendingUp className="size-3.5" />
                 Más vendidos
               </p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className={PRODUCT_GRID_CLASS}>
                 {topProducts.map((product, index) => (
                   <ProductResultCard
                     key={product.id}
@@ -541,7 +546,7 @@ export function SaleScreen({
             }
           />
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className={PRODUCT_GRID_CLASS}>
             {results.map((product) => (
               <ProductResultCard
                 key={product.id}
