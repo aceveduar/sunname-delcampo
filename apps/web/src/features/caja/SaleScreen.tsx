@@ -567,17 +567,20 @@ export function SaleScreen({
               {cart.map((line, index) => (
                 <div
                   key={`${line.product.id}-${index}`}
-                  className="flex items-center gap-2"
+                  className="flex flex-col gap-1.5"
                 >
-                  <div className="min-w-0 flex-1">
-                    {/* line-clamp-2, no truncate: con nombres largos que
-                        comparten prefijo (dos "Chipotles Adobados..." con
-                        precio distinto), una sola línea cortada los deja
-                        indistinguibles -- en la pantalla donde se cobra
-                        dinero real, eso pesa más que ahorrar una línea. */}
-                    <p className="line-clamp-2 text-sm font-medium">
-                      {line.product.name}
-                    </p>
+                  {/* Nombre en su propia fila, a todo el ancho de la
+                      tarjeta -- con nombres largos que comparten prefijo
+                      (dos "Chipotles Adobados..." con precio distinto),
+                      compartir la fila con el stepper y el precio dejaba
+                      tan poco ancho que ambos se veían idénticos aunque
+                      fueran presentaciones distintas. En la pantalla
+                      donde se cobra dinero real, poder distinguirlos pesa
+                      más que una fila más compacta. */}
+                  <p className="line-clamp-2 text-sm font-medium">
+                    {line.product.name}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-muted-foreground flex items-center gap-1 text-xs">
                       {line.product.sold_by_weight
                         ? `${Math.round(line.quantity * 1000)} g`
@@ -593,49 +596,51 @@ export function SaleScreen({
                         </button>
                       )}
                     </p>
-                  </div>
-                  {!line.product.sold_by_weight && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() =>
-                          setQuantity(line.product.id, line.quantity - 1)
-                        }
-                      >
-                        <Minus />
-                      </Button>
-                      <span className="w-6 text-center text-sm">
-                        {line.quantity}
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!line.product.sold_by_weight && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() =>
+                              setQuantity(line.product.id, line.quantity - 1)
+                            }
+                          >
+                            <Minus />
+                          </Button>
+                          <span className="w-6 text-center text-sm">
+                            {line.quantity}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() =>
+                              setQuantity(line.product.id, line.quantity + 1)
+                            }
+                          >
+                            <Plus />
+                          </Button>
+                        </div>
+                      )}
+                      <span className="w-16 text-right text-sm font-medium">
+                        {formatCurrency(lineTotal(line))}
                       </span>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="icon-sm"
                         onClick={() =>
-                          setQuantity(line.product.id, line.quantity + 1)
+                          line.product.sold_by_weight
+                            ? setCart((prev) => prev.filter((_, i) => i !== index))
+                            : removeLine(line.product.id)
                         }
                       >
-                        <Plus />
+                        <Trash2 />
                       </Button>
                     </div>
-                  )}
-                  <span className="w-16 text-right text-sm font-medium">
-                    {formatCurrency(lineTotal(line))}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() =>
-                      line.product.sold_by_weight
-                        ? setCart((prev) => prev.filter((_, i) => i !== index))
-                        : removeLine(line.product.id)
-                    }
-                  >
-                    <Trash2 />
-                  </Button>
+                  </div>
                 </div>
               ))}
             </div>
