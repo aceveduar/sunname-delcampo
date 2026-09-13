@@ -14,6 +14,8 @@ import { parseVoiceCommand, rankVoiceCandidates, type VoiceCandidate, type Voice
 import type { Product } from '@/features/catalog/useProducts'
 import { useVoiceCommand } from './useVoiceCommand'
 
+const MAX_CANDIDATES = 3
+
 function speak(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   const utterance = new SpeechSynthesisUtterance(text)
@@ -80,12 +82,26 @@ export function VoiceCommandButton({
           ? products.filter((p) => p.active && !p.sold_by_weight)
           : products.filter((p) => p.active)
 
-    const candidates = rankVoiceCandidates(command.productQuery, pool, (p) => p.name).slice(0, 3)
-    if (candidates.length === 0) {
+    const ranked = rankVoiceCandidates(command.productQuery, pool, (p) => p.name)
+    if (ranked.length === 0) {
       toast.error(`No encontré ningún producto parecido a "${command.productQuery}".`)
       return
     }
 
+    // Una palabra muy genérica ("chile" solo, sin apellido) empata en el
+    // primer lugar contra más productos de los que caben en la tarjeta --
+    // enseñar 3 al azar de esos empatados es peor que pedir que sea más
+    // específico: el que se quería podría ni aparecer.
+    const topScore = ranked[0].score
+    const tiedAtTop = ranked.filter((c) => c.score === topScore).length
+    if (tiedAtTop > MAX_CANDIDATES) {
+      toast.error(
+        `"${command.productQuery}" es muy genérico -- hay ${tiedAtTop} productos parecidos. Sé más específico.`,
+      )
+      return
+    }
+
+    const candidates = ranked.slice(0, MAX_CANDIDATES)
     setPending({ command, candidates })
 
     const [top, second] = candidates

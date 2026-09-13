@@ -81,6 +81,41 @@ const TENS: Record<string, number> = {
 }
 const HUNDRED: Record<string, number> = { cien: 100, ciento: 100 }
 
+/** Reconoce una fracción hablada de kilo al inicio del texto ("medio
+ * kilo de comino", "un cuarto de kilo de chile ancho", "tres cuartos de
+ * kilo de piloncillo") -- el caso real de cómo pide un cliente de
+ * mostrador, no cubierto por extractLeadingNumber (que no conoce
+ * "medio"/"cuarto" como número). Se resuelve aparte y antes, porque "un"
+ * y "tres" sí son números reconocidos y sin esto "un cuarto de kilo"
+ * se leería como "1" seguido de basura ("cuarto de kilo..."). */
+function extractLeadingWeightFraction(text: string): { grams: number; rest: string } | null {
+  const words = text.split(/\s+/).filter(Boolean)
+
+  if (words[0] === 'medio' && KILO_WEIGHT_WORDS.includes(words[1])) {
+    return { grams: 500, rest: words.slice(2).join(' ') }
+  }
+
+  const cuartoAt = words[0] === 'un' ? 1 : 0
+  if (
+    words[cuartoAt] === 'cuarto' &&
+    words[cuartoAt + 1] === 'de' &&
+    KILO_WEIGHT_WORDS.includes(words[cuartoAt + 2])
+  ) {
+    return { grams: 250, rest: words.slice(cuartoAt + 3).join(' ') }
+  }
+
+  if (
+    words[0] === 'tres' &&
+    (words[1] === 'cuartos' || words[1] === 'cuarto') &&
+    words[2] === 'de' &&
+    KILO_WEIGHT_WORDS.includes(words[3])
+  ) {
+    return { grams: 750, rest: words.slice(4).join(' ') }
+  }
+
+  return null
+}
+
 /** Quita frases completas (con espacios) del inicio del texto, las veces
  * que aparezcan seguidas -- así "caja agrega" se reduce en dos pasadas. */
 function stripLeading(text: string, phrases: string[]): string {
@@ -145,6 +180,12 @@ export function parseVoiceCommand(raw: string): VoiceCommand | null {
   text = stripLeading(text, ACTION_WORDS)
   text = stripLeading(text, FILLER_PHRASES)
   if (!text) return null
+
+  const fractionMatch = extractLeadingWeightFraction(text)
+  if (fractionMatch) {
+    const productQuery = stripLeading(fractionMatch.rest, ['de'])
+    return productQuery ? { kind: 'weight', grams: fractionMatch.grams, productQuery } : null
+  }
 
   const numberMatch = extractLeadingNumber(text)
   if (!numberMatch || numberMatch.value <= 0) {

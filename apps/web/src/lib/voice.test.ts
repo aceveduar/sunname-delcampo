@@ -94,6 +94,40 @@ describe('parseVoiceCommand', () => {
     })
   })
 
+  it('reconoce "medio kilo" como 500 gramos', () => {
+    expect(parseVoiceCommand('medio kilo de comino')).toEqual({
+      kind: 'weight',
+      grams: 500,
+      productQuery: 'comino',
+    })
+    expect(parseVoiceCommand('agrega medio kilo de comino')).toEqual({
+      kind: 'weight',
+      grams: 500,
+      productQuery: 'comino',
+    })
+  })
+
+  it('reconoce "un cuarto de kilo" / "cuarto de kilo" como 250 gramos', () => {
+    expect(parseVoiceCommand('un cuarto de kilo de chile ancho')).toEqual({
+      kind: 'weight',
+      grams: 250,
+      productQuery: 'chile ancho',
+    })
+    expect(parseVoiceCommand('cuarto de kilo de piloncillo')).toEqual({
+      kind: 'weight',
+      grams: 250,
+      productQuery: 'piloncillo',
+    })
+  })
+
+  it('reconoce "tres cuartos de kilo" como 750 gramos', () => {
+    expect(parseVoiceCommand('tres cuartos de kilo de frijol')).toEqual({
+      kind: 'weight',
+      grams: 750,
+      productQuery: 'frijol',
+    })
+  })
+
   it('regresa null si tras quitar muletillas no queda nada', () => {
     expect(parseVoiceCommand('caja')).toBeNull()
     expect(parseVoiceCommand('')).toBeNull()
