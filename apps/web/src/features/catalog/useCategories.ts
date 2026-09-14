@@ -7,6 +7,13 @@ import type { Database } from '../../lib/database.types'
 export type ProductCategory = Database['public']['Tables']['product_categories']['Row']
 type CategoryInsert = Database['public']['Tables']['product_categories']['Insert']
 
+/** Valor de filtro/select para "sin categoría" -- category_id es nulo en
+ * la base, pero un <select> nativo no puede tener un value null. Vive
+ * aquí (no en un módulo de filtros o de formulario) porque cualquier
+ * pantalla que filtre o edite por categoría lo necesita igual, dentro o
+ * fuera de Catálogo (ej. Inventario). */
+export const NO_CATEGORY = 'none'
+
 export function useCategories() {
   const [categories, setCategories] = useState<ProductCategory[]>([])
   const [loading, setLoading] = useState(true)

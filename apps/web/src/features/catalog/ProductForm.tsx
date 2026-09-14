@@ -32,9 +32,8 @@ import { compressImage } from '@/lib/image'
 import { withUploadTimeout } from '@/lib/upload'
 import { toCode, toTitleCase } from '@/lib/text'
 import { useRegisterMovement } from '@/features/inventory/useRegisterMovement'
-import { NO_CATEGORY } from './useProductFilters'
 import type { Product, useProducts } from './useProducts'
-import type { ProductCategory } from './useCategories'
+import { NO_CATEGORY, type ProductCategory } from './useCategories'
 import type { UnitOfMeasure } from './useUnits'
 
 /** Alta/edición de un producto -- diálogo completo, incluye subir foto,

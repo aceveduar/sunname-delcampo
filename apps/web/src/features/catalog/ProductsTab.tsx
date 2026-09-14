@@ -51,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PaginationControls } from '@/components/PaginationControls'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
@@ -153,6 +154,13 @@ export function ProductsTab({ role }: { role: Role | null }) {
   >(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const ok = await deleteProduct(deleteTarget.id)
+    setDeleting(false)
+    if (ok) setDeleteTarget(null)
+  }
   const labelProduct = products.find((p) => p.id === labelProductId) ?? null
   const stockAdjustProduct =
     products.find((p) => p.id === stockAdjustProductId) ?? null
@@ -950,47 +958,31 @@ export function ProductsTab({ role }: { role: Role | null }) {
           en una lista larga es fácil apretar el renglón de al lado. No se
           promete que vaya a funcionar -- si el producto ya tiene ventas o
           compras, el servidor lo rechaza y aquí se ve el motivo. */}
-      <Dialog
+      <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Borrar producto</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 text-sm">
-            <p>
+        title="Borrar producto"
+        description={
+          <div className="flex flex-col gap-3">
+            <p className="text-foreground">
               Se va a borrar <span className="font-semibold">{deleteTarget?.name}</span>{' '}
               del catálogo. No se puede deshacer.
             </p>
-            <p className="text-muted-foreground">
+            <p>
               Solo se puede borrar un producto que nunca se vendió, ni entró a
               inventario, ni se compró. Si ya tiene historia, el sistema no lo va a
               permitir y lo correcto es desactivarlo.
             </p>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleting}
-              onClick={async () => {
-                if (!deleteTarget) return
-                setDeleting(true)
-                const ok = await deleteProduct(deleteTarget.id)
-                setDeleting(false)
-                if (ok) setDeleteTarget(null)
-              }}
-            >
-              {deleting ? 'Borrando…' : 'Borrar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        }
+        confirmLabel="Borrar"
+        confirmingLabel="Borrando…"
+        variant="destructive"
+        confirming={deleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

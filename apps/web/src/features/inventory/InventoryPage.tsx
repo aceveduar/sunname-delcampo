@@ -21,7 +21,7 @@ import {
 import { PaginationControls } from '@/components/PaginationControls'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
-import { useCategories } from '@/features/catalog/useCategories'
+import { NO_CATEGORY, useCategories } from '@/features/catalog/useCategories'
 import { useUnits } from '@/features/catalog/useUnits'
 import type { Database } from '@/lib/database.types'
 import { usePagination } from '@/lib/usePagination'
@@ -33,7 +33,6 @@ import { NewMovementDialog } from './NewMovementDialog'
 type Role = Database['public']['Enums']['user_role']
 
 const CAN_REGISTER_MOVEMENTS: Role[] = ['owner', 'local_admin']
-const NO_CATEGORY = 'none'
 
 export function InventoryPage({ role }: { role: Role | null }) {
   const { rows, loading, refresh } = useInventoryStock()

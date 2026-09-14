@@ -2,9 +2,7 @@ import { useMemo, useState } from 'react'
 import { normalizeSearch } from '@/lib/text'
 import { usePagination } from '@/lib/usePagination'
 import type { Product } from './useProducts'
-import type { ProductCategory } from './useCategories'
-
-export const NO_CATEGORY = 'none'
+import { NO_CATEGORY, type ProductCategory } from './useCategories'
 
 type ActiveFilter = 'all' | 'active' | 'inactive'
 type GranelFilter = 'all' | 'yes' | 'no'

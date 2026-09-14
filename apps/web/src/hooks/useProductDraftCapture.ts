@@ -61,6 +61,13 @@ export function useProductDraftCapture<
   analyze: (file: File) => Promise<TLectura | null>
   products: Product[]
   units: UnitOfMeasure[]
+  /** Arma los renglones a partir de la lectura. Puede hacer más que solo
+   * construir el arreglo -- la captura de tickets lo usa también para
+   * resolver el proveedor del ticket y llamar `setSupplierId` como
+   * efecto secundario, porque necesita ese id ya resuelto (no el de
+   * `supplierId` en estado, que no surte efecto hasta el siguiente
+   * render) para buscar las equivalencias de ese proveedor. Es seguro:
+   * corre dentro del `handleFile` async, nunca durante el render. */
   buildRows: (
     lectura: TLectura,
     context: { activeProducts: Product[]; inactiveProducts: Product[] },
