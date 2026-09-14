@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import {
   Table,
@@ -56,17 +57,18 @@ export function ReportsPage() {
   const { from, to } = useMemo(() => rangeFor(preset), [preset])
   const report = useSalesReport(from, to)
   const { sales, loading: salesLoading, voidSale } = useSales(from, to)
+  const [voidTarget, setVoidTarget] = useState<{ id: string; total: number } | null>(null)
+  const [voiding, setVoiding] = useState(false)
 
-  const handleVoid = async (saleId: string, total: number) => {
-    if (
-      !window.confirm(
-        `¿Anular esta venta de ${formatCurrency(total)}? Repone el inventario vendido.`,
-      )
-    ) {
-      return
+  const handleVoid = async () => {
+    if (!voidTarget) return
+    setVoiding(true)
+    const ok = await voidSale(voidTarget.id)
+    setVoiding(false)
+    if (ok) {
+      setVoidTarget(null)
+      await report.refresh()
     }
-    const ok = await voidSale(saleId)
-    if (ok) await report.refresh()
   }
 
   return (
@@ -252,7 +254,7 @@ export function ReportsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleVoid(sale.id, sale.total)}
+                          onClick={() => setVoidTarget({ id: sale.id, total: sale.total })}
                         >
                           Anular
                         </Button>
@@ -323,6 +325,23 @@ export function ReportsPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={voidTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setVoidTarget(null)
+        }}
+        title="Anular venta"
+        description={
+          voidTarget &&
+          `¿Anular esta venta de ${formatCurrency(voidTarget.total)}? Repone el inventario vendido.`
+        }
+        confirmLabel="Anular"
+        confirmingLabel="Anulando…"
+        variant="destructive"
+        confirming={voiding}
+        onConfirm={handleVoid}
+      />
     </div>
   )
 }

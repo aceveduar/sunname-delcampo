@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import {
   Dialog,
   DialogContent,
@@ -47,21 +48,28 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   // bastar para un cambio de acceso -- ya no es la única barrera contra
   // un escalamiento de rol (eso lo bloquea el servidor), pero sigue
   // siendo fácil desactivar o cambiar de rol a alguien por accidente.
-  const handleRoleChange = (profile: Profile, role: Role) => {
-    if (
-      window.confirm(
-        `¿Cambiar el rol de ${profile.full_name} a "${ROLE_LABELS[role]}"?`,
-      )
-    ) {
-      updateRole(profile.id, role)
-    }
+  const [roleChangeTarget, setRoleChangeTarget] = useState<{
+    profile: Profile
+    role: Role
+  } | null>(null)
+  const [changingRole, setChangingRole] = useState(false)
+  const [toggleTarget, setToggleTarget] = useState<Profile | null>(null)
+  const [togglingActive, setTogglingActive] = useState(false)
+
+  const handleConfirmRoleChange = async () => {
+    if (!roleChangeTarget) return
+    setChangingRole(true)
+    const ok = await updateRole(roleChangeTarget.profile.id, roleChangeTarget.role)
+    setChangingRole(false)
+    if (ok) setRoleChangeTarget(null)
   }
 
-  const handleToggleActive = (profile: Profile) => {
-    const accion = profile.active ? 'Desactivar' : 'Activar'
-    if (window.confirm(`¿${accion} a ${profile.full_name}?`)) {
-      toggleActive(profile)
-    }
+  const handleConfirmToggleActive = async () => {
+    if (!toggleTarget) return
+    setTogglingActive(true)
+    const ok = await toggleActive(toggleTarget)
+    setTogglingActive(false)
+    if (ok) setToggleTarget(null)
   }
 
   const handleSubmitName = async (event: FormEvent<HTMLFormElement>) => {
@@ -116,7 +124,9 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     <Select
                       items={ROLE_ITEMS}
                       value={profile.role}
-                      onValueChange={(value) => value && handleRoleChange(profile, value as Role)}
+                      onValueChange={(value) =>
+                        value && setRoleChangeTarget({ profile, role: value as Role })
+                      }
                       disabled={isSelf}
                     >
                       <SelectTrigger className="w-48" size="sm">
@@ -147,7 +157,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     variant="ghost"
                     size="sm"
                     disabled={isSelf || (!canEditRoles && profile.role !== 'cashier')}
-                    onClick={() => handleToggleActive(profile)}
+                    onClick={() => setToggleTarget(profile)}
                   >
                     {profile.active ? 'Desactivar' : 'Activar'}
                   </Button>
@@ -180,6 +190,39 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={roleChangeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRoleChangeTarget(null)
+        }}
+        title="Cambiar rol"
+        description={
+          roleChangeTarget &&
+          `¿Cambiar el rol de ${roleChangeTarget.profile.full_name} a "${ROLE_LABELS[roleChangeTarget.role]}"?`
+        }
+        confirmLabel="Cambiar rol"
+        confirmingLabel="Cambiando…"
+        confirming={changingRole}
+        onConfirm={handleConfirmRoleChange}
+      />
+
+      <ConfirmDialog
+        open={toggleTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setToggleTarget(null)
+        }}
+        title={toggleTarget?.active ? 'Desactivar usuario' : 'Activar usuario'}
+        description={
+          toggleTarget &&
+          `¿${toggleTarget.active ? 'Desactivar' : 'Activar'} a ${toggleTarget.full_name}?`
+        }
+        confirmLabel={toggleTarget?.active ? 'Desactivar' : 'Activar'}
+        confirmingLabel="Guardando…"
+        variant={toggleTarget?.active ? 'destructive' : 'default'}
+        confirming={togglingActive}
+        onConfirm={handleConfirmToggleActive}
+      />
     </div>
   )
 }
