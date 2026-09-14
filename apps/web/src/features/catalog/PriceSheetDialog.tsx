@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle, Check, FileImage, Loader2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,12 @@ import {
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
 import { bestUnambiguous, rankCandidates } from '@/lib/match'
-import { nombreDesdeTicket } from '@/lib/text'
+import {
+  numero,
+  opcionesOrdenadas,
+  useProductDraftCapture,
+  type DraftRowBase,
+} from '@/hooks/useProductDraftCapture'
 import type { Product } from './useProducts'
 import type { UnitOfMeasure } from './useUnits'
 import {
@@ -34,35 +39,13 @@ const UMBRAL_AUTOSELECCION = 0.6
 // real sin marcar cada ajuste de temporada.
 const CAMBIO_BRUSCO = 0.4
 
-type DraftRow = {
-  key: string
-  origen: PriceSheetRenglon
-  productId: string
+type DraftRow = DraftRowBase<PriceSheetRenglon> & {
   precioKilo: string
   precio100g: string
-  include: boolean
 }
 
-function numero(value: string): number {
-  const parsed = Number(value.replace(',', '.'))
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-/** Los más parecidos primero (activos antes que inactivos a igual
- * parecido), luego el resto del catálogo. Se ofrece el catálogo completo:
- * los productos que esta hoja viene a poner en precio están justamente
- * inactivos por no tenerlo. */
-function opcionesOrdenadas(descripcion: string | null, products: Product[]) {
-  if (!descripcion) return products
-  const activos = products.filter((p) => p.active)
-  const inactivos = products.filter((p) => !p.active)
-  const porParecido = [
-    ...rankCandidates(descripcion, activos, (p) => p.name ?? '').map((c) => c.item),
-    ...rankCandidates(descripcion, inactivos, (p) => p.name ?? '').map((c) => c.item),
-  ]
-  const yaListados = new Set(porParecido.map((p) => p.id))
-  return [...porParecido, ...products.filter((p) => !yaListados.has(p.id))]
-}
+const defaultUnitId = (units: UnitOfMeasure[]) =>
+  units.find((u) => u.code === 'KG')?.id ?? units[0]?.id ?? ''
 
 export function PriceSheetDialog({
   open,
@@ -90,42 +73,39 @@ export function PriceSheetDialog({
     active: boolean
   }) => Promise<string | null>
 }) {
-  const [lectura, setLectura] = useState<PriceSheetLectura | null>(null)
-  const [rows, setRows] = useState<DraftRow[]>([])
   const [activar, setActivar] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [altaEnFila, setAltaEnFila] = useState<string | null>(null)
-  const [nuevoProducto, setNuevoProducto] = useState({ name: '', unitId: '' })
-  const [creandoProducto, setCreandoProducto] = useState(false)
   // El visor de la hoja: en escritorio va fijo al lado de los renglones;
   // en pantalla chica se abre a pantalla completa, porque lado a lado en
   // 390px no le sirve a nadie.
   const [verHoja, setVerHoja] = useState(false)
   const [zoom, setZoom] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = usePriceSheetCapture()
 
-  const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
-  const inactiveProducts = useMemo(() => products.filter((p) => !p.active), [products])
-
-  const handleOpenChange = (next: boolean) => {
-    onOpenChange(next)
-    if (!next) {
-      setLectura(null)
-      setRows([])
-      setAltaEnFila(null)
-      setActivar(true)
-      setVerHoja(false)
-      setZoom(false)
-    }
-  }
-
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return
-    const resultado = await analyze(file)
-    if (!resultado) return
-    setLectura(resultado)
-    setRows(
+  const {
+    lectura,
+    rows,
+    includedRows,
+    altaEnFila,
+    setAltaEnFila,
+    nuevoProducto,
+    setNuevoProducto,
+    creandoProducto,
+    fileInputRef,
+    reset: resetCapture,
+    handleFile,
+    updateRow,
+    abrirAlta,
+    handleCreateProduct,
+  } = useProductDraftCapture<PriceSheetLectura, PriceSheetRenglon, DraftRow>({
+    analyze,
+    products,
+    units,
+    onCreateProduct,
+    defaultUnitId,
+    // Se crea inactivo: lo va a activar el propio guardado de esta hoja,
+    // en cuanto quede con precio.
+    buildRows: (resultado, { activeProducts, inactiveProducts }) =>
       resultado.verificacion.renglones.map((renglon): DraftRow => {
         // Se prefiere un activo, pero se propone el inactivo si es el
         // único parecido razonable: casi todo el catálogo está inactivo
@@ -149,40 +129,18 @@ export function PriceSheetDialog({
           include: true,
         }
       }),
-    )
-  }
+  })
 
-  const updateRow = (key: string, patch: Partial<DraftRow>) => {
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)))
-  }
-
-  const abrirAlta = (row: DraftRow) => {
-    setAltaEnFila(row.key)
-    setNuevoProducto({
-      name: nombreDesdeTicket(row.origen.descripcion ?? ''),
-      unitId: units.find((u) => u.code === 'KG')?.id ?? units[0]?.id ?? '',
-    })
-  }
-
-  const handleCreateProduct = async (key: string) => {
-    const nombre = nuevoProducto.name.trim()
-    if (!nombre || !nuevoProducto.unitId) return
-    setCreandoProducto(true)
-    // Se crea inactivo: lo va a activar el propio guardado de esta hoja,
-    // en cuanto quede con precio.
-    const id = await onCreateProduct({
-      name: nombre,
-      unit_id: nuevoProducto.unitId,
-      active: false,
-    })
-    setCreandoProducto(false)
-    if (id) {
-      updateRow(key, { productId: id })
-      setAltaEnFila(null)
+  const handleOpenChange = (next: boolean) => {
+    onOpenChange(next)
+    if (!next) {
+      resetCapture()
+      setActivar(true)
+      setVerHoja(false)
+      setZoom(false)
     }
   }
 
-  const includedRows = rows.filter((r) => r.include)
   // Un producto no puede aparecer dos veces: el segundo pisaría al
   // primero en silencio y quedaría el precio equivocado.
   const duplicados = useMemo(() => {

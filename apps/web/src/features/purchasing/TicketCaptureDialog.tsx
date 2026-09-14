@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle, Camera, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,13 @@ import {
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
 import { bestUnambiguous, matchScore, rankCandidates, type Candidate } from '@/lib/match'
-import { empaqueDesdeTicket, nombreDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
+import { empaqueDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
+import {
+  numero,
+  opcionesOrdenadas,
+  useProductDraftCapture,
+  type DraftRowBase,
+} from '@/hooks/useProductDraftCapture'
 import type { Product } from '@/features/catalog/useProducts'
 import type { UnitOfMeasure } from '@/features/catalog/useUnits'
 import type { Supplier } from './useSuppliers'
@@ -22,19 +28,15 @@ import { useTicketCapture, type TicketLectura, type TicketRenglon } from './useT
 import { useSupplierAliases } from './useSupplierAliases'
 import { useSupplierNameAliases } from './useSupplierNameAliases'
 
-// Arriba de este puntaje, el producto se preselecciona solo; abajo, la
-// línea se queda sin producto y obliga a elegirlo a mano. El objetivo no
+// Arriba de este puntaje, el producto/proveedor se preselecciona solo;
+// abajo, se queda sin elegir y obliga a hacerlo a mano. El objetivo no
 // es acertar siempre, es no rellenar en silencio algo que está mal: un
 // producto equivocado aquí mete costo y existencias falsas al inventario.
 const UMBRAL_AUTOSELECCION = 0.6
 
-type DraftLine = {
-  key: string
-  origen: TicketRenglon
-  productId: string
+type DraftLine = DraftRowBase<TicketRenglon> & {
   quantity: string
   unitCost: string
-  include: boolean
   /** Cuántas unidades del producto se contaron por cada unidad del
    * ticket. 1 = se capturó tal cual viene. 25 = un bulto de 25 kg. */
   packFactor: number
@@ -46,32 +48,6 @@ type DraftLine = {
 const redondear = (valor: number, decimales: number) => {
   const f = 10 ** decimales
   return Math.round(valor * f) / f
-}
-
-function numero(value: string): number {
-  const parsed = Number(value.replace(',', '.'))
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-/** Los más parecidos primero (activos antes que inactivos a igual
- * parecido), luego el resto del catálogo en orden alfabético.
- *
- * Se ofrece el catálogo COMPLETO, no solo lo activo: "activo" dice si un
- * producto se puede vender hoy, no si se puede comprar. Un producto
- * desactivado por no tener precio todavía es justo el que se compra para
- * poder ponerlo a la venta. Filtrar por activo aquí escondía la mayor
- * parte del catálogo real y forzaba a elegir entre productos que no
- * tenían nada que ver con el ticket. */
-function opcionesOrdenadas(descripcion: string | null, products: Product[]) {
-  if (!descripcion) return products
-  const activos = products.filter((p) => p.active)
-  const inactivos = products.filter((p) => !p.active)
-  const porParecido = [
-    ...rankCandidates(descripcion, activos, (p) => p.name ?? '').map((c) => c.item),
-    ...rankCandidates(descripcion, inactivos, (p) => p.name ?? '').map((c) => c.item),
-  ]
-  const yaListados = new Set(porParecido.map((p) => p.id))
-  return [...porParecido, ...products.filter((p) => !yaListados.has(p.id))]
 }
 
 const mejorInequivoco = <T,>(candidatos: Candidate<T>[]) =>
@@ -102,15 +78,9 @@ export function TicketCaptureDialog({
   }) => Promise<string | null>
 }) {
   const [open, setOpen] = useState(false)
-  const [lectura, setLectura] = useState<TicketLectura | null>(null)
-  const [lines, setLines] = useState<DraftLine[]>([])
   const [supplierId, setSupplierId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [creandoProveedor, setCreandoProveedor] = useState(false)
-  const [altaEnLinea, setAltaEnLinea] = useState<string | null>(null)
-  const [nuevoProducto, setNuevoProducto] = useState({ name: '', unitId: '' })
-  const [creandoProducto, setCreandoProducto] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const { analyzing, analyze } = useTicketCapture()
   const { findAlias, rememberAliases } = useSupplierAliases()
   const {
@@ -119,17 +89,120 @@ export function TicketCaptureDialog({
     rememberSupplierName,
   } = useSupplierNameAliases()
 
-  const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
-  const inactiveProducts = useMemo(() => products.filter((p) => !p.active), [products])
   const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers])
   const unitById = useMemo(
     () => new Map(units.map((u) => [u.id, u])),
     [units],
   )
 
+  const {
+    lectura,
+    rows: lines,
+    setRows: setLines,
+    includedRows: includedLines,
+    fileInputRef,
+    altaEnFila: altaEnLinea,
+    setAltaEnFila: setAltaEnLinea,
+    nuevoProducto,
+    setNuevoProducto,
+    creandoProducto,
+    reset: resetCapture,
+    handleFile,
+    updateRow: updateLine,
+    abrirAlta,
+    handleCreateProduct,
+  } = useProductDraftCapture<TicketLectura, TicketRenglon, DraftLine>({
+    analyze,
+    products,
+    units,
+    onCreateProduct,
+    // Alta de un producto que el ticket trae pero el catálogo todavía
+    // no. Se crea INACTIVO y sin precio, que es justo la convención que
+    // ya usa el negocio: el producto existe y se puede comprar, pero no
+    // se vende hasta que alguien le ponga precio. El costo se lo pone la
+    // recepción de esta misma orden.
+    formatNewProductName: toTitleCase,
+    // Arma el borrador. Primero resuelve el proveedor del ticket (se
+    // necesita su id ya resuelto, no el de `supplierId` -- setSupplierId
+    // no surte efecto hasta el siguiente render -- para buscar las
+    // equivalencias de ese proveedor), luego cada renglón pregunta si ya
+    // se aprendió qué es para ese proveedor; solo si no, cae al parecido
+    // de nombres.
+    buildRows: (resultado, { activeProducts, inactiveProducts }) => {
+      // Proveedor: primero se pregunta si ya se confirmó antes este
+      // nombre exacto de ticket para algún proveedor (cubre el caso de
+      // un proveedor que sella un nombre comercial distinto a su razón
+      // social); si no, se propone el más parecido por nombre. El RFC no
+      // sirve para esto -- en los tickets reales viene sellado o
+      // encimado y se lee mal seguido (docs/captura-tickets-analisis.md).
+      const nombreProveedor = resultado.extraccion.proveedor.nombre
+      const idConfirmado = findSupplierId(nombreProveedor)
+      // Si el proveedor confirmado ya no está activo (se desactivó
+      // después de haberlo confirmado), no hay que quedarse sin nada --
+      // cae al parecido por nombre, igual que si nunca hubiera existido
+      // la confirmación.
+      const proveedorConfirmado = idConfirmado
+        ? (activeSuppliers.find((s) => s.id === idConfirmado) ?? null)
+        : null
+      const proveedor =
+        proveedorConfirmado ??
+        (nombreProveedor
+          ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
+          : null)
+      if (proveedor) setSupplierId(proveedor.id)
+      const supplierIdResuelto = proveedor?.id ?? ''
+
+      return resultado.verificacion.renglones.map((renglon): DraftLine => {
+        const alias = findAlias(
+          supplierIdResuelto,
+          renglon.descripcion,
+          renglon.codigo_proveedor,
+        )
+        const productoAprendido = alias
+          ? (products.find((p) => p.id === alias.product_id) ?? null)
+          : null
+
+        // La conversión de empaque solo se aplica sola cuando ya la
+        // confirmó una persona antes (viene de una equivalencia
+        // guardada). Lo que se deduce leyendo el ticket se ofrece, no se
+        // aplica: el negocio compra por bulto y vende por kilo, pero de
+        // "20 LT" no se puede saber si el producto se mide en litros o
+        // en garrafas.
+        const factor = alias ? Number(alias.units_per_package) : 1
+        const sugerenciaEmpaque =
+          !alias && renglon.descripcion ? empaqueDesdeTicket(renglon.descripcion) : null
+
+        const sugerido =
+          productoAprendido ??
+          (renglon.descripcion
+            ? (mejorInequivoco(
+                rankCandidates(renglon.descripcion, activeProducts, (p) => p.name ?? ''),
+              ) ??
+              mejorInequivoco(
+                rankCandidates(renglon.descripcion, inactiveProducts, (p) => p.name ?? ''),
+              ))
+            : null)
+
+        return {
+          key: `renglon-${renglon.indice}`,
+          origen: renglon,
+          productId: sugerido?.id ?? '',
+          quantity:
+            renglon.cantidad !== null ? String(redondear(renglon.cantidad * factor, 3)) : '',
+          unitCost:
+            renglon.precio_unitario !== null
+              ? String(redondear(renglon.precio_unitario / factor, 2))
+              : '',
+          include: true,
+          packFactor: factor,
+          packHint: sugerenciaEmpaque,
+        }
+      })
+    },
+  })
+
   const reset = () => {
-    setLectura(null)
-    setLines([])
+    resetCapture()
     setSupplierId('')
   }
 
@@ -137,90 +210,6 @@ export function TicketCaptureDialog({
     setOpen(next)
     if (!next) reset()
   }
-
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return
-    const resultado = await analyze(file)
-    if (!resultado) return
-
-    setLectura(resultado)
-
-    // Proveedor: primero se pregunta si ya se confirmó antes este nombre
-    // exacto de ticket para algún proveedor (cubre el caso de un
-    // proveedor que sella un nombre comercial distinto a su razón
-    // social); si no, se propone el más parecido por nombre. El RFC no
-    // sirve para esto -- en los tickets reales viene sellado o encimado
-    // y se lee mal seguido (docs/captura-tickets-analisis.md).
-    const nombreProveedor = resultado.extraccion.proveedor.nombre
-    const idConfirmado = findSupplierId(nombreProveedor)
-    // Si el proveedor confirmado ya no está activo (se desactivó después
-    // de haberlo confirmado), no hay que quedarse sin nada -- cae al
-    // parecido por nombre, igual que si nunca hubiera existido la
-    // confirmación.
-    const proveedorConfirmado = idConfirmado
-      ? (activeSuppliers.find((s) => s.id === idConfirmado) ?? null)
-      : null
-    const proveedor =
-      proveedorConfirmado ??
-      (nombreProveedor
-        ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
-        : null)
-    if (proveedor) setSupplierId(proveedor.id)
-
-    // Se usa el id resuelto aquí y no el del estado: setSupplierId no
-    // surte efecto hasta el siguiente render, y las equivalencias
-    // aprendidas se buscan por proveedor.
-    setLines(construirLineas(resultado, proveedor?.id ?? ''))
-  }
-
-  /** Arma el borrador. Primero pregunta si ya se aprendió qué es este
-   * renglón para este proveedor; solo si no, cae al parecido de nombres. */
-  const construirLineas = (resultado: TicketLectura, supplierIdResuelto: string) =>
-    resultado.verificacion.renglones.map((renglon): DraftLine => {
-      const alias = findAlias(
-        supplierIdResuelto,
-        renglon.descripcion,
-        renglon.codigo_proveedor,
-      )
-      const productoAprendido = alias
-        ? (products.find((p) => p.id === alias.product_id) ?? null)
-        : null
-
-      // La conversión de empaque solo se aplica sola cuando ya la
-      // confirmó una persona antes (viene de una equivalencia guardada).
-      // Lo que se deduce leyendo el ticket se ofrece, no se aplica: el
-      // negocio compra por bulto y vende por kilo, pero de "20 LT" no se
-      // puede saber si el producto se mide en litros o en garrafas.
-      const factor = alias ? Number(alias.units_per_package) : 1
-      const sugerenciaEmpaque =
-        !alias && renglon.descripcion ? empaqueDesdeTicket(renglon.descripcion) : null
-
-      const sugerido =
-        productoAprendido ??
-        (renglon.descripcion
-          ? (mejorInequivoco(
-              rankCandidates(renglon.descripcion, activeProducts, (p) => p.name ?? ''),
-            ) ??
-            mejorInequivoco(
-              rankCandidates(renglon.descripcion, inactiveProducts, (p) => p.name ?? ''),
-            ))
-          : null)
-
-      return {
-        key: `renglon-${renglon.indice}`,
-        origen: renglon,
-        productId: sugerido?.id ?? '',
-        quantity:
-          renglon.cantidad !== null ? String(redondear(renglon.cantidad * factor, 3)) : '',
-        unitCost:
-          renglon.precio_unitario !== null
-            ? String(redondear(renglon.precio_unitario / factor, 2))
-            : '',
-        include: true,
-        packFactor: factor,
-        packHint: sugerenciaEmpaque,
-      }
-    })
 
   const handleCreateSupplier = async () => {
     const nombre = lectura?.extraccion.proveedor.nombre
@@ -232,42 +221,6 @@ export function TicketCaptureDialog({
     const id = await onCreateSupplier({ name: nombre })
     setCreandoProveedor(false)
     if (id) setSupplierId(id)
-  }
-
-  // Alta de un producto que el ticket trae pero el catálogo todavía no.
-  // Se crea INACTIVO y sin precio, que es justo la convención que ya usa
-  // el negocio: el producto existe y se puede comprar, pero no se vende
-  // hasta que alguien le ponga precio. El costo se lo pone la recepción
-  // de esta misma orden.
-  const handleCreateProduct = async (key: string) => {
-    const nombre = nuevoProducto.name.trim()
-    if (!nombre || !nuevoProducto.unitId) return
-    setCreandoProducto(true)
-    const id = await onCreateProduct({
-      name: toTitleCase(nombre),
-      unit_id: nuevoProducto.unitId,
-      active: false,
-    })
-    setCreandoProducto(false)
-    if (id) {
-      updateLine(key, { productId: id })
-      setAltaEnLinea(null)
-    }
-  }
-
-  const abrirAlta = (line: DraftLine) => {
-    setAltaEnLinea(line.key)
-    setNuevoProducto({
-      // El ticket escribe con las palabras del proveedor ("ARROZ SAMAN
-      // C/25 KG"); se propone en formato de catálogo pero editable, porque
-      // el nombre bueno es el que usa el negocio, no el del proveedor.
-      name: nombreDesdeTicket(line.origen.descripcion ?? ''),
-      unitId: units[0]?.id ?? '',
-    })
-  }
-
-  const updateLine = (key: string, patch: Partial<DraftLine>) => {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
   }
 
   /** Aplica la conversión que sugiere el ticket: si el bulto trae 25 kg,
@@ -321,7 +274,6 @@ export function TicketCaptureDialog({
     )
   }
 
-  const includedLines = lines.filter((l) => l.include)
   const total = includedLines.reduce(
     (sum, l) => sum + numero(l.quantity) * numero(l.unitCost),
     0,
