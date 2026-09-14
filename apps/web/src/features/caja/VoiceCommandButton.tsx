@@ -34,29 +34,47 @@ function candidateHint(command: VoiceCommand, product: Product): string {
   return product.sold_by_weight ? 'Pesar a mano' : 'x1'
 }
 
+// Se usa tanto para lo que se dice cuando el match es confiado (ya se
+// agregó, es un aviso) como para lo que se muestra/dice cuando hace
+// falta elegir en el selector (todavía es una pregunta) -- por eso
+// "agregado" en vez de "¿lo agrego?": con match confiado ya no hay
+// nada que confirmar, el aviso llega después del hecho.
 function describe(command: VoiceCommand, product: Product): string {
-  if (command.kind === 'amount') return `${formatCurrency(command.amountMxn)} de ${product.name}, ¿lo agrego?`
-  if (command.kind === 'quantity') return `${command.quantity} de ${product.name}, ¿lo agrego?`
-  if (command.kind === 'weight') return `${formatGrams(command.grams)} de ${product.name}, confirma el peso`
-  return `${product.name}, ¿lo agrego?`
+  if (command.kind === 'amount') return `Agregado: ${formatCurrency(command.amountMxn)} de ${product.name}`
+  if (command.kind === 'quantity') return `Agregado: ${command.quantity} de ${product.name}`
+  if (command.kind === 'weight') return `Agregado: ${formatGrams(command.grams)} de ${product.name}`
+  // Sin número dicho: si es a granel no hay nada que agregar todavía
+  // (applyCommand abre el diálogo de báscula), para los demás sí ya se
+  // agregó 1 pieza.
+  return product.sold_by_weight ? `${product.name}, pésalo y confirma` : `Agregado: ${product.name}`
 }
 
-// Voz es solo otra forma de llenar el mismo carrito que llenaría un
-// clic o un escaneo -- nunca cobra directo de lo reconocido. Todo pasa
-// por esta tarjeta de confirmación con tap explícito antes de tocar la
-// venta (CLAUDE.md: el candado real de create_sale sigue siendo el
-// servidor, esto solo evita que un error de reconocimiento agregue algo
-// que nadie pidió).
+// Voz es otra forma de llenar el mismo carrito que llenaría un clic o
+// un escaneo. Cuando el match de producto es confiado, agrega directo
+// sin ningún tap -- incluido el peso, que hasta el 2026-09-14 siempre
+// paraba en el diálogo de báscula para que alguien confirmara el peso
+// real contra lo pedido. Decisión explícita del dueño ese día, contra
+// la recomendación original (que era dejar ese único tap): ya no hay
+// ningún punto donde el sistema verifique el gramaje dicho contra una
+// báscula real -- lo que se dice en voz alta es, desde entonces, lo
+// que se cobra. El candado real de create_sale sigue siendo el
+// servidor (el precio nunca sale de lo que dice el cliente); esto solo
+// decide qué cantidad/peso/monto se manda. Si el reconocimiento
+// mal-entiende un número seguido, revertir este commit deja el sistema
+// exactamente como estaba (selector siempre visible, peso siempre por
+// báscula).
 export function VoiceCommandButton({
   products,
   onAddByAmount,
   onAddByQuantity,
+  onAddByWeight,
   onOpenManualWeight,
 }: {
   products: Product[]
   onAddByAmount: (product: Product, amountMxn: number) => void
   onAddByQuantity: (product: Product, quantity: number) => void
-  onOpenManualWeight: (product: Product, initialGrams?: number) => void
+  onAddByWeight: (product: Product, grams: number) => void
+  onOpenManualWeight: (product: Product) => void
 }) {
   const { supported, listening, transcript, error, start, stop } = useVoiceCommand()
   const [pending, setPending] = useState<{
@@ -105,22 +123,20 @@ export function VoiceCommandButton({
     const [top, second] = candidates
     const confident = top.score >= 0.75 && (candidates.length === 1 || top.score - second.score >= 0.2)
 
-    // "Confiado" salta el selector de producto -- pero solo cuando lo
-    // que sigue todavía exige un tap explícito antes de tocar el
-    // carrito (peso: el diálogo de báscula, que hay que confirmar
-    // después de pesar de verdad). Un monto o una cantidad van directo
-    // al carrito sin ningún otro paso -- ahí el selector SIGUE siendo
-    // el único tap de seguridad, y no se salta aunque el match sea
-    // perfecto: "nunca cobra directo de lo reconocido" no admite
-    // excepciones para esos dos casos.
-    if (confident && command.kind === 'weight') {
+    // "Confiado" salta el selector de producto y agrega directo,
+    // cualquiera que sea el tipo de comando (ver comentario de arriba
+    // del componente). Cuando NO es confiado (match ambiguo, más de un
+    // producto parecido) el selector se sigue mostrando siempre -- ahí
+    // sí hace falta que una persona elija, independientemente de qué
+    // tan directo sea el resto del flujo.
+    if (confident) {
       speak(describe(command, top.item))
       applyCommand(top.item, command)
       return
     }
 
     setPending({ command, candidates })
-    speak(confident ? describe(command, top.item) : 'No estoy seguro, elige el producto correcto.')
+    speak('No estoy seguro, elige el producto correcto.')
   }
 
   const applyCommand = (product: Product, command: VoiceCommand) => {
@@ -129,8 +145,11 @@ export function VoiceCommandButton({
     } else if (command.kind === 'quantity') {
       onAddByQuantity(product, command.quantity)
     } else if (command.kind === 'weight') {
-      onOpenManualWeight(product, command.grams)
+      onAddByWeight(product, command.grams)
     } else if (product.sold_by_weight) {
+      // Sin número dicho ("chile puya" a secas) no hay nada que agregar
+      // directo -- no hay peso que mandar, así que aquí sí hace falta
+      // la báscula y el diálogo manual, igual que un clic normal.
       onOpenManualWeight(product)
     } else {
       onAddByQuantity(product, 1)

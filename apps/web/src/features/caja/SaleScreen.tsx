@@ -186,9 +186,12 @@ export function SaleScreen({
     })
   }
 
-  // Voz solo llena este mismo carrito -- nunca cobra directo. El monto
-  // manda a la misma cuenta de create_sale del lado del servidor
-  // (VoiceCommandButton ya exigió confirmación antes de llegar aquí).
+  // Voz llena este mismo carrito. El precio/importe siempre sale de
+  // create_sale del lado del servidor a partir del catálogo -- voz
+  // nunca manda un precio, solo cantidad/peso/monto, así que un
+  // reconocimiento equivocado cobra mal la cantidad pero nunca a un
+  // precio forjado (VoiceCommandButton ya exigió confianza de match
+  // antes de llegar aquí).
   const handleVoiceAmount = (product: Product, amountMxn: number) => {
     const weightKg = granelWeightKgFromAmount(
       amountMxn,
@@ -206,6 +209,17 @@ export function SaleScreen({
 
   const handleVoiceQuantity = (product: Product, quantity: number) => {
     addToCart(product, undefined, undefined, quantity)
+    toast.success(`Agregado: ${product.name}`)
+    afterAdd()
+  }
+
+  // Decisión explícita del dueño (2026-09-14), contra la recomendación
+  // original: el peso dicho en voz ("100 gramos") se agrega tal cual,
+  // sin pasar por la báscula real -- antes esto siempre abría
+  // GranelDialog para que alguien pesara y confirmara. Ver el
+  // comentario completo en VoiceCommandButton.tsx.
+  const handleVoiceWeight = (product: Product, grams: number) => {
+    addToCart(product, grams / 1000)
     toast.success(`Agregado: ${product.name}`)
     afterAdd()
   }
@@ -379,6 +393,7 @@ export function SaleScreen({
             products={products}
             onAddByAmount={handleVoiceAmount}
             onAddByQuantity={handleVoiceQuantity}
+            onAddByWeight={handleVoiceWeight}
             onOpenManualWeight={handleOpenManualWeight}
           />
 
