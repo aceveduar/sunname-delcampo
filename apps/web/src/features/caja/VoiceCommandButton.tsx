@@ -102,16 +102,28 @@ export function VoiceCommandButton({
     }
 
     const candidates = ranked.slice(0, MAX_CANDIDATES)
-    setPending({ command, candidates })
-
     const [top, second] = candidates
     const confident = top.score >= 0.75 && (candidates.length === 1 || top.score - second.score >= 0.2)
+
+    // "Confiado" salta el selector de producto -- pero solo cuando lo
+    // que sigue todavía exige un tap explícito antes de tocar el
+    // carrito (peso: el diálogo de báscula, que hay que confirmar
+    // después de pesar de verdad). Un monto o una cantidad van directo
+    // al carrito sin ningún otro paso -- ahí el selector SIGUE siendo
+    // el único tap de seguridad, y no se salta aunque el match sea
+    // perfecto: "nunca cobra directo de lo reconocido" no admite
+    // excepciones para esos dos casos.
+    if (confident && command.kind === 'weight') {
+      speak(describe(command, top.item))
+      applyCommand(top.item, command)
+      return
+    }
+
+    setPending({ command, candidates })
     speak(confident ? describe(command, top.item) : 'No estoy seguro, elige el producto correcto.')
   }
 
-  const handleConfirm = (product: Product) => {
-    if (!pending) return
-    const { command } = pending
+  const applyCommand = (product: Product, command: VoiceCommand) => {
     if (command.kind === 'amount') {
       onAddByAmount(product, command.amountMxn)
     } else if (command.kind === 'quantity') {
@@ -123,6 +135,11 @@ export function VoiceCommandButton({
     } else {
       onAddByQuantity(product, 1)
     }
+  }
+
+  const handleConfirm = (product: Product) => {
+    if (!pending) return
+    applyCommand(product, pending.command)
     setPending(null)
   }
 
