@@ -572,78 +572,96 @@ export function SaleScreen({
               {cart.map((line, index) => (
                 <div
                   key={`${line.product.id}-${index}`}
-                  className="flex flex-col gap-1.5"
+                  className="flex items-start gap-2.5"
                 >
-                  {/* Nombre en su propia fila, a todo el ancho de la
-                      tarjeta -- con nombres largos que comparten prefijo
-                      (dos "Chipotles Adobados..." con precio distinto),
-                      compartir la fila con el stepper y el precio dejaba
-                      tan poco ancho que ambos se veían idénticos aunque
-                      fueran presentaciones distintas. En la pantalla
-                      donde se cobra dinero real, poder distinguirlos pesa
-                      más que una fila más compacta. */}
-                  <p className="line-clamp-2 text-sm font-medium">
-                    {line.product.name}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                      {line.product.sold_by_weight
-                        ? `${Math.round(line.quantity * 1000)} g`
-                        : `${formatCurrency(line.product.price)} c/u`}
-                      {canEditPrice && (
-                        <button
-                          type="button"
-                          aria-label="Corregir precio"
-                          onClick={() => setEditingPriceProduct(line.product)}
-                          className="hover:text-foreground -m-1.5 shrink-0 p-1.5"
-                        >
-                          <Pencil className="size-3" />
-                        </button>
-                      )}
+                  {/* Miniatura -- mismo estilo y placeholder que la
+                      rejilla de productos, no solo decorativa: es una
+                      segunda confirmación visual antes de cobrar, además
+                      del nombre a todo el ancho, para distinguir de un
+                      vistazo presentaciones parecidas (dos "Chipotles
+                      Adobados..." con gramaje y precio distinto). */}
+                  {line.product.image_url ? (
+                    <img
+                      src={line.product.image_url}
+                      alt=""
+                      className="border-border size-10 shrink-0 rounded-md border object-cover"
+                    />
+                  ) : (
+                    <div className="border-border bg-muted flex size-10 shrink-0 items-center justify-center rounded-md border">
+                      <Package className="text-muted-foreground size-4" />
+                    </div>
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    {/* Nombre en su propia fila, a todo el ancho
+                        disponible -- con nombres largos que comparten
+                        prefijo, compartir la fila con el stepper y el
+                        precio dejaba tan poco ancho que se veían
+                        idénticos aunque fueran presentaciones distintas.
+                        En la pantalla donde se cobra dinero real, poder
+                        distinguirlos pesa más que una fila más compacta. */}
+                    <p className="line-clamp-2 text-sm font-medium">
+                      {line.product.name}
                     </p>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {!line.product.sold_by_weight && (
-                        <div className="flex items-center gap-1">
-                          <Button
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                        {line.product.sold_by_weight
+                          ? `${Math.round(line.quantity * 1000)} g`
+                          : `${formatCurrency(line.product.price)} c/u`}
+                        {canEditPrice && (
+                          <button
                             type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() =>
-                              setQuantity(line.product.id, line.quantity - 1)
-                            }
+                            aria-label="Corregir precio"
+                            onClick={() => setEditingPriceProduct(line.product)}
+                            className="hover:text-foreground -m-1.5 shrink-0 p-1.5"
                           >
-                            <Minus />
-                          </Button>
-                          <span className="w-6 text-center text-sm">
-                            {line.quantity}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() =>
-                              setQuantity(line.product.id, line.quantity + 1)
-                            }
-                          >
-                            <Plus />
-                          </Button>
-                        </div>
-                      )}
-                      <span className="w-16 text-right text-sm font-medium">
-                        {formatCurrency(lineTotal(line))}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() =>
-                          line.product.sold_by_weight
-                            ? setCart((prev) => prev.filter((_, i) => i !== index))
-                            : removeLine(line.product.id)
-                        }
-                      >
-                        <Trash2 />
-                      </Button>
+                            <Pencil className="size-3" />
+                          </button>
+                        )}
+                      </p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {!line.product.sold_by_weight && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              onClick={() =>
+                                setQuantity(line.product.id, line.quantity - 1)
+                              }
+                            >
+                              <Minus />
+                            </Button>
+                            <span className="w-6 text-center text-sm">
+                              {line.quantity}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              onClick={() =>
+                                setQuantity(line.product.id, line.quantity + 1)
+                              }
+                            >
+                              <Plus />
+                            </Button>
+                          </div>
+                        )}
+                        <span className="w-16 text-right text-sm font-medium">
+                          {formatCurrency(lineTotal(line))}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() =>
+                            line.product.sold_by_weight
+                              ? setCart((prev) => prev.filter((_, i) => i !== index))
+                              : removeLine(line.product.id)
+                          }
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
