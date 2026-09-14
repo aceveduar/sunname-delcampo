@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { Minus, Package, Pencil, Plus, ScanBarcode, Search, Trash2, TrendingUp } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
@@ -132,6 +132,31 @@ export function SaleScreen({
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Mismo patrón que la sombra de scroll de la tabla compartida
+  // (components/ui/table.tsx), pero en vertical: con el carrito
+  // desplazándose internamente (ver más abajo), sin esto el último
+  // producto se veía cortado a la mitad sin ninguna pista de que hay
+  // más abajo.
+  const cartListRef = useRef<HTMLDivElement>(null)
+  const [cartCanScrollUp, setCartCanScrollUp] = useState(false)
+  const [cartCanScrollDown, setCartCanScrollDown] = useState(false)
+
+  const updateCartScrollShadows = useCallback(() => {
+    const el = cartListRef.current
+    if (!el) return
+    setCartCanScrollUp(el.scrollTop > 0)
+    setCartCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1)
+  }, [])
+
+  useEffect(() => {
+    const el = cartListRef.current
+    if (!el) return
+    updateCartScrollShadows()
+    const observer = new ResizeObserver(updateCartScrollShadows)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [updateCartScrollShadows, cart.length])
 
   // Cada negocio marca cuál es su método de pago más usado (es_default en
   // payment_methods, configurable por tenant) -- no se asume "efectivo"
@@ -568,7 +593,24 @@ export function SaleScreen({
               Aún no hay productos en la venta.
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
+            // Scroll propio de la lista, no de toda la página -- con
+            // muchas líneas, el carrito (sticky) podía crecer más alto
+            // que la pantalla y el Total/Cobrar quedaban fuera de vista
+            // hasta desplazar toda la página, mientras la columna de
+            // productos ya había terminado y dejaba hueco vacío al lado.
+            // Total, método de pago y Cobrar siempre visibles.
+            <div className="relative">
+              {cartCanScrollUp && (
+                <div
+                  aria-hidden
+                  className="from-card pointer-events-none absolute top-0 right-0 left-0 z-10 h-6 bg-gradient-to-b to-transparent"
+                />
+              )}
+              <div
+                ref={cartListRef}
+                onScroll={updateCartScrollShadows}
+                className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto pr-1"
+              >
               {cart.map((line, index) => (
                 <div
                   key={`${line.product.id}-${index}`}
@@ -666,6 +708,13 @@ export function SaleScreen({
                   </div>
                 </div>
               ))}
+              </div>
+              {cartCanScrollDown && (
+                <div
+                  aria-hidden
+                  className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-6 bg-gradient-to-t to-transparent"
+                />
+              )}
             </div>
           )}
 
