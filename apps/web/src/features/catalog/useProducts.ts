@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 // products_select en RLS es admin-only (cost es información de margen
@@ -19,23 +20,19 @@ export type Product = Omit<Database['public']['Tables']['products']['Row'], 'cos
 type ProductInsert = Database['public']['Tables']['products']['Insert']
 
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
+  // product_catalog es una vista (ver comentario de arriba): Postgres no
+  // propaga NOT NULL a sus columnas, así que el tipo generado las marca
+  // todas nullable -- se castea aquí, en el único lugar que lee la
+  // vista completa, en vez de repetirlo en cada consumidor.
+  const fetchProducts = useCallback(async () => {
     const { data, error } = await supabase.from('product_catalog').select('*').order('name')
-    if (error) {
-      reportError('No se pudieron cargar los productos', error)
-    } else {
-      setProducts((data ?? []) as Product[])
-    }
-    setLoading(false)
+    return { data: data as Product[] | null, error }
   }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const {
+    items: products,
+    loading,
+    refresh,
+  } = useSupabaseList<Product>(fetchProducts, 'No se pudieron cargar los productos')
 
   /** Regresa el id del producto creado, o null si falló. Se necesita el id
    * (no un booleano) para poder dejarlo ya seleccionado en la captura de

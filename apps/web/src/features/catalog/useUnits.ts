@@ -1,30 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 export type UnitOfMeasure = Database['public']['Tables']['units_of_measure']['Row']
 type UnitInsert = Database['public']['Tables']['units_of_measure']['Insert']
 
 export function useUnits() {
-  const [units, setUnits] = useState<UnitOfMeasure[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase.from('units_of_measure').select('*').order('name')
-    if (error) {
-      reportError('No se pudieron cargar las unidades de medida', error)
-    } else {
-      setUnits(data ?? [])
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const fetchUnits = useCallback(
+    () => supabase.from('units_of_measure').select('*').order('name'),
+    [],
+  )
+  const {
+    items: units,
+    loading,
+    refresh,
+  } = useSupabaseList<UnitOfMeasure>(fetchUnits, 'No se pudieron cargar las unidades de medida')
 
   const createUnit = useCallback(
     async (values: UnitInsert) => {

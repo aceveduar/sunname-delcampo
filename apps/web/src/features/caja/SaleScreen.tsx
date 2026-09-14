@@ -47,7 +47,7 @@ export function SaleScreen({
   role: Role | null
 }) {
   const { products, updateProduct } = useProducts()
-  const paymentMethods = usePaymentMethods()
+  const { items: paymentMethods } = usePaymentMethods()
   const { customers } = useCustomers()
   const { categories } = useCategories()
   const topSellingIds = useTopSellingProducts()

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 type Product = Database['public']['Tables']['products']['Row']
@@ -11,11 +11,7 @@ export type StockRow = {
 }
 
 export function useInventoryStock() {
-  const [rows, setRows] = useState<StockRow[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
+  const fetchStock = useCallback(async () => {
     const [{ data: products, error: productsError }, { data: stock, error: stockError }] =
       await Promise.all([
         supabase
@@ -28,27 +24,23 @@ export function useInventoryStock() {
       ])
 
     const error = productsError ?? stockError
-    if (error) {
-      reportError('No se pudo cargar el inventario', error)
-      setLoading(false)
-      return
-    }
+    if (error) return { data: null, error }
 
     const stockMap = new Map(
       (stock ?? []).map((row) => [row.product_id, row.quantity_on_hand ?? 0]),
     )
-    setRows(
-      (products ?? []).map((product) => ({
-        product,
-        quantityOnHand: stockMap.get(product.id) ?? 0,
-      })),
-    )
-    setLoading(false)
+    const data: StockRow[] = (products ?? []).map((product) => ({
+      product,
+      quantityOnHand: stockMap.get(product.id) ?? 0,
+    }))
+    return { data, error: null }
   }, [])
 
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const {
+    items: rows,
+    loading,
+    refresh,
+  } = useSupabaseList<StockRow>(fetchStock, 'No se pudo cargar el inventario')
 
   return { rows, loading, refresh }
 }

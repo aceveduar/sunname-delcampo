@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 export type ProductCategory = Database['public']['Tables']['product_categories']['Row']
@@ -15,23 +16,15 @@ type CategoryInsert = Database['public']['Tables']['product_categories']['Insert
 export const NO_CATEGORY = 'none'
 
 export function useCategories() {
-  const [categories, setCategories] = useState<ProductCategory[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase.from('product_categories').select('*').order('name')
-    if (error) {
-      reportError('No se pudieron cargar las categorías', error)
-    } else {
-      setCategories(data ?? [])
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const fetchCategories = useCallback(
+    () => supabase.from('product_categories').select('*').order('name'),
+    [],
+  )
+  const {
+    items: categories,
+    loading,
+    refresh,
+  } = useSupabaseList<ProductCategory>(fetchCategories, 'No se pudieron cargar las categorías')
 
   const createCategory = useCallback(
     async (values: CategoryInsert) => {

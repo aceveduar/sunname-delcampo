@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
 import { isEnPerdida } from '../../lib/pricing'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 type PurchaseOrderRow = Database['public']['Tables']['purchase_orders']['Row']
@@ -18,29 +19,23 @@ export type PurchaseOrder = PurchaseOrderRow & {
 }
 
 export function usePurchaseOrders() {
-  const [orders, setOrders] = useState<PurchaseOrder[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
+  // El join no coincide exacto con el tipo generado (las relaciones
+  // anidadas salen más laxas de lo que sabemos que son) -- se castea
+  // aquí, en el único lugar que arma esta consulta.
+  const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
       .from('purchase_orders')
       .select(
         '*, supplier:suppliers(name), purchase_order_items(quantity, unit_cost, subtotal, product:products(name, price, active))',
       )
       .order('created_at', { ascending: false })
-
-    if (error) {
-      reportError('No se pudieron cargar las órdenes de compra', error)
-    } else {
-      setOrders((data ?? []) as PurchaseOrder[])
-    }
-    setLoading(false)
+    return { data: data as PurchaseOrder[] | null, error }
   }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const {
+    items: orders,
+    loading,
+    refresh,
+  } = useSupabaseList<PurchaseOrder>(fetchOrders, 'No se pudieron cargar las órdenes de compra')
 
   const createOrder = useCallback(
     async (values: {

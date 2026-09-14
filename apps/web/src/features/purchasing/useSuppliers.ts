@@ -1,30 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 export type Supplier = Database['public']['Tables']['suppliers']['Row']
 type SupplierInsert = Database['public']['Tables']['suppliers']['Insert']
 
 export function useSuppliers() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase.from('suppliers').select('*').order('name')
-    if (error) {
-      reportError('No se pudieron cargar los proveedores', error)
-    } else {
-      setSuppliers(data ?? [])
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const fetchSuppliers = useCallback(
+    () => supabase.from('suppliers').select('*').order('name'),
+    [],
+  )
+  const {
+    items: suppliers,
+    loading,
+    refresh,
+  } = useSupabaseList<Supplier>(fetchSuppliers, 'No se pudieron cargar los proveedores')
 
   /** Regresa el id del proveedor creado, o null si falló. Se necesita el
    * id (no un booleano) para poder dejarlo ya seleccionado en la captura

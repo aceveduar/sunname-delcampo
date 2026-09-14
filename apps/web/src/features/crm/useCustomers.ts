@@ -1,30 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 export type Customer = Database['public']['Tables']['customers']['Row']
 type CustomerInsert = Database['public']['Tables']['customers']['Insert']
 
 export function useCustomers() {
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase.from('customers').select('*').order('name')
-    if (error) {
-      reportError('No se pudieron cargar los clientes', error)
-    } else {
-      setCustomers(data ?? [])
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const fetchCustomers = useCallback(
+    () => supabase.from('customers').select('*').order('name'),
+    [],
+  )
+  const {
+    items: customers,
+    loading,
+    refresh,
+  } = useSupabaseList<Customer>(fetchCustomers, 'No se pudieron cargar los clientes')
 
   const createCustomer = useCallback(
     async (values: CustomerInsert) => {

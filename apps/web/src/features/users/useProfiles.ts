@@ -1,30 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
+import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
 type Role = Database['public']['Enums']['user_role']
 
 export function useProfiles() {
-  const [profiles, setProfiles] = useState<Profile[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase.from('profiles').select('*').order('full_name')
-    if (error) {
-      reportError('No se pudo cargar el equipo', error)
-    } else {
-      setProfiles(data ?? [])
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const fetchProfiles = useCallback(
+    () => supabase.from('profiles').select('*').order('full_name'),
+    [],
+  )
+  const {
+    items: profiles,
+    loading,
+    refresh,
+  } = useSupabaseList<Profile>(fetchProfiles, 'No se pudo cargar el equipo')
 
   const updateRole = useCallback(
     async (id: string, role: Role) => {
