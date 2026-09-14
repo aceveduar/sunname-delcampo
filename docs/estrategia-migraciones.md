@@ -22,6 +22,27 @@ Preferir cambios **aditivos primero, destructivos después, en una migración ap
 
 **Migración a producción primero, frontend después.** Ya es la práctica real de este proyecto (`supabase db push --linked` a mano, luego `git push` dispara `deploy`); el job `migration-check` de CI (2026-09-01) ahora falla el build si alguien lo olvida, en vez de descubrirlo semanas después como pasó con el candado de `create_sale`.
 
+## Migraciones que crean un bucket de Storage: deben ser idempotentes
+
+`insert into storage.buckets (...)` sin `on conflict` y `create policy` sin `drop policy if exists` antes fallan si el bucket o la política ya existen -- y como una migración corre dentro de una transacción, ese error aborta la migración **completa**, dejando cualquier política que sí se alcanzó a crear antes sin aplicar. Pasó de verdad con el bucket de `price-sheets` (2026-09-03): correrla con el bucket ya creado a mano abortó la transacción a medias.
+
+Patrón correcto, ya usado en `supabase/migrations/20260903210000_price_sheets_bucket.sql`:
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('mi-bucket', 'mi-bucket', false)
+on conflict (id) do nothing;
+
+drop policy if exists mi_bucket_select on storage.objects;
+create policy mi_bucket_select on storage.objects for select
+  to authenticated
+  using (bucket_id = 'mi-bucket' and current_role_key() in ('owner', 'local_admin'));
+```
+
+Toda migración nueva que cree un bucket o sus políticas debe seguir este patrón desde el día uno, no solo cuando falle en la práctica.
+
+Dos migraciones más viejas (`20260820213000_product_images.sql`, `20260903150000_purchase_tickets_bucket.sql`) no son idempotentes y se quedan así **a propósito**: ya están aplicadas en producción y en todo proyecto de desarrollo, así que no hay ningún escenario real en el que vuelvan a correr contra un bucket que ya existe -- corregirlas no cambia nada hoy, y una migración ya aplicada no se edita (ver regla de abajo). El riesgo real era que la próxima migración de bucket repitiera el mismo bug sin darse cuenta; esta nota y el ejemplo de `price-sheets` son lo que lo evita.
+
 ## Cuando exista un segundo o tercer tenant (todavía no aplica)
 
 Cada tenant sigue siendo su propio proyecto de Supabase -- la migración se aplica **una vez por tenant, nunca todas a la vez**:
