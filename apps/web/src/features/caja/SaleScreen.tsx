@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { Minus, Package, Pencil, Plus, ScanBarcode, Search, Trash2, TrendingUp } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
@@ -15,8 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/currency'
-import { reportError } from '@/lib/errors'
-import { supabase } from '@/lib/supabase'
+import { useScrollShadows } from '@/hooks/useScrollShadows'
 import type { Database } from '@/lib/database.types'
 import { useCategories } from '@/features/catalog/useCategories'
 import { useProducts, type Product } from '@/features/catalog/useProducts'
@@ -24,66 +23,16 @@ import { useCustomers } from '@/features/crm/useCustomers'
 import { normalizeSearch } from '@/lib/text'
 import { usePaymentMethods } from './usePaymentMethods'
 import { GranelDialog } from './GranelDialog'
-import { granelTotalFromWeightKg, granelWeightKgFromAmount } from '@/lib/granel'
-import { ReceiptDialog, type ReceiptData } from './ReceiptDialog'
+import { granelWeightKgFromAmount } from '@/lib/granel'
+import { ReceiptDialog } from './ReceiptDialog'
 import { VoiceCommandButton } from './VoiceCommandButton'
 import { EditCartPriceDialog } from './EditCartPriceDialog'
 import { useTopSellingProducts } from './useTopSellingProducts'
-import { useCart, NO_CUSTOMER, type CartLine } from './CartContext'
+import { useCart, NO_CUSTOMER } from './CartContext'
+import { useSubmitSale } from './useSubmitSale'
+import { ProductResultCard } from './ProductResultCard'
 
 type Role = Database['public']['Enums']['user_role']
-
-function ProductResultCard({
-  product,
-  rank,
-  onClick,
-}: {
-  product: Product
-  // Solo se pasa desde la rejilla de "Más vendidos" -- una búsqueda
-  // normal nunca trae rank, así que nunca lleva insignia.
-  rank?: number
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="hover:bg-muted border-border bg-card flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors"
-    >
-      <div className="relative shrink-0">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt=""
-            className="border-border size-10 rounded-md border object-cover"
-          />
-        ) : (
-          <div className="border-border bg-muted flex size-10 items-center justify-center rounded-md border">
-            <Package className="text-muted-foreground size-4" />
-          </div>
-        )}
-        {rank !== undefined && rank <= 3 && (
-          <span className="bg-brand-gold text-brand-gold-foreground absolute -top-1.5 -left-1.5 flex size-4.5 items-center justify-center rounded-full text-[10px] font-semibold">
-            {rank}
-          </span>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-        <span className="line-clamp-2 min-h-[2lh] font-medium">{product.name}</span>
-        {product.price === 0 ? (
-          <span className="text-destructive text-sm font-medium">
-            Sin precio
-          </span>
-        ) : (
-          <span className="text-muted-foreground text-sm">
-            {product.sold_by_weight
-              ? `${formatCurrency(product.price)}/kg · ${formatCurrency(product.price_per_100g ?? 0)}/100g`
-              : formatCurrency(product.price)}
-          </span>
-        )}
-      </div>
-    </button>
-  )
-}
 
 // Compartida entre la rejilla de "Más vendidos" y los resultados de
 // búsqueda -- mismo tamaño de tarjeta en los dos casos, un solo lugar
@@ -105,8 +54,17 @@ export function SaleScreen({
   // La venta en curso vive en un contexto que envuelve las rutas (nunca
   // se desmonta al navegar) -- así el cajero puede ir a consultar
   // Catálogo o Inventario a media venta y volver sin perder el carrito.
-  const { cart, setCart, paymentMethodId, setPaymentMethodId, cashReceived, setCashReceived, customerId, setCustomerId, syncCashSession } =
-    useCart()
+  const {
+    cart,
+    setCart,
+    paymentMethodId,
+    setPaymentMethodId,
+    cashReceived,
+    setCashReceived,
+    customerId,
+    setCustomerId,
+    syncCashSession,
+  } = useCart()
 
   useEffect(() => {
     syncCashSession(cashSessionId)
@@ -126,37 +84,10 @@ export function SaleScreen({
   // por texto de siempre: en 'all' (su default) el comportamiento es
   // idéntico al de antes de que existiera este filtro.
   const [filterCategory, setFilterCategory] = useState('all')
-  const [submitting, setSubmitting] = useState(false)
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
   const [granelInitialGrams, setGranelInitialGrams] = useState<number | undefined>(undefined)
-  const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-
-  // Mismo patrón que la sombra de scroll de la tabla compartida
-  // (components/ui/table.tsx), pero en vertical: con el carrito
-  // desplazándose internamente (ver más abajo), sin esto el último
-  // producto se veía cortado a la mitad sin ninguna pista de que hay
-  // más abajo.
-  const cartListRef = useRef<HTMLDivElement>(null)
-  const [cartCanScrollUp, setCartCanScrollUp] = useState(false)
-  const [cartCanScrollDown, setCartCanScrollDown] = useState(false)
-
-  const updateCartScrollShadows = useCallback(() => {
-    const el = cartListRef.current
-    if (!el) return
-    setCartCanScrollUp(el.scrollTop > 0)
-    setCartCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1)
-  }, [])
-
-  useEffect(() => {
-    const el = cartListRef.current
-    if (!el) return
-    updateCartScrollShadows()
-    const observer = new ResizeObserver(updateCartScrollShadows)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [updateCartScrollShadows, cart.length])
 
   // Cada negocio marca cuál es su método de pago más usado (es_default en
   // payment_methods, configurable por tenant) -- no se asume "efectivo"
@@ -167,6 +98,31 @@ export function SaleScreen({
   useEffect(() => {
     if (!paymentMethodId && defaultMethodId) setPaymentMethodId(defaultMethodId)
   }, [defaultMethodId, paymentMethodId, setPaymentMethodId])
+
+  // El cobro (create_sale + ticket) vive aparte -- ver useSubmitSale.
+  const {
+    total,
+    selectedMethod,
+    change,
+    checkoutDisabled,
+    submitting,
+    receipt,
+    setReceipt,
+    handleCheckout,
+    lineTotal,
+  } = useSubmitSale({ cashSessionId, paymentMethods, customers, defaultMethodId })
+
+  // Sombra de scroll del carrito -- ver hooks/useScrollShadows. Se le
+  // pasa cart.length como dependencia extra porque el contenedor tiene
+  // altura máxima fija (max-h-[45vh]): agregar una línea no cambia la
+  // caja del propio contenedor (lo que ResizeObserver vigila), solo su
+  // scrollHeight interno.
+  const {
+    ref: cartListRef,
+    canScrollUp: cartCanScrollUp,
+    canScrollDown: cartCanScrollDown,
+    onScroll: updateCartScrollShadows,
+  } = useScrollShadows<HTMLDivElement>(cart.length)
 
   // Una búsqueda = un producto agregado = listo para la siguiente -- igual
   // sea por clic o por escaneo, el buscador se limpia y recupera el foco
@@ -204,28 +160,6 @@ export function SaleScreen({
         .filter((p): p is Product => p !== undefined && p.active),
     [topSellingIds, products],
   )
-
-  const lineTotal = (line: CartLine) =>
-    line.amountMxn !== undefined
-      ? line.amountMxn
-      : line.product.sold_by_weight
-        ? granelTotalFromWeightKg(
-            line.quantity,
-            line.product.price,
-            line.product.price_per_100g ?? 0,
-          )
-        : line.product.price * line.quantity
-
-  const total = cart.reduce((sum, line) => sum + lineTotal(line), 0)
-
-  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId)
-  const received = Number(cashReceived || 0)
-  const change = selectedMethod?.code === 'cash' ? received - total : null
-  const checkoutDisabled =
-    cart.length === 0 ||
-    !paymentMethodId ||
-    submitting ||
-    (selectedMethod?.code === 'cash' && received < total)
 
   const addToCart = (
     product: Product,
@@ -389,61 +323,6 @@ export function SaleScreen({
       return
     }
     addScannedProduct(scanned)
-  }
-
-  const resetSale = () => {
-    setCart([])
-    setCashReceived('')
-    setPaymentMethodId(defaultMethodId)
-    setCustomerId(NO_CUSTOMER)
-  }
-
-  const handleCheckout = async () => {
-    if (cart.length === 0 || !paymentMethodId) return
-    setSubmitting(true)
-
-    const { data: saleId, error } = await supabase.rpc('create_sale', {
-      p_client_uuid: crypto.randomUUID(),
-      p_cash_session_id: cashSessionId,
-      p_items: cart.map((line) => ({
-        product_id: line.product.id,
-        quantity: line.quantity,
-        // Si la línea se pidió por monto, manda el monto: create_sale
-        // deriva el peso y cobra ese monto exacto.
-        ...(line.amountMxn !== undefined ? { amount: line.amountMxn } : {}),
-      })),
-      p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
-      p_customer_id: customerId === NO_CUSTOMER ? undefined : customerId,
-    })
-
-    setSubmitting(false)
-
-    if (error) {
-      reportError('No se pudo registrar la venta', error)
-      return
-    }
-
-    toast.success('Venta registrada')
-    setReceipt({
-      saleId: saleId as string,
-      createdAt: new Date().toISOString(),
-      lines: cart.map((line) => ({
-        name: line.product.name,
-        detail: line.product.sold_by_weight
-          ? `${Math.round(line.quantity * 1000)} g`
-          : `${line.quantity} x ${formatCurrency(line.product.price)}`,
-        total: lineTotal(line),
-      })),
-      total,
-      paymentMethodName: selectedMethod?.name ?? '—',
-      cashReceived: selectedMethod?.code === 'cash' ? received : null,
-      change: selectedMethod?.code === 'cash' ? change : null,
-      customerName:
-        customerId === NO_CUSTOMER
-          ? null
-          : (customers.find((c) => c.id === customerId)?.name ?? null),
-    })
-    resetSale()
   }
 
   // handleCheckout se vuelve a crear en cada render (no memoizado, cierra
@@ -611,103 +490,103 @@ export function SaleScreen({
                 onScroll={updateCartScrollShadows}
                 className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto pr-1"
               >
-              {cart.map((line, index) => (
-                <div
-                  key={`${line.product.id}-${index}`}
-                  className="flex items-start gap-2.5"
-                >
-                  {/* Miniatura -- mismo estilo y placeholder que la
-                      rejilla de productos, no solo decorativa: es una
-                      segunda confirmación visual antes de cobrar, además
-                      del nombre a todo el ancho, para distinguir de un
-                      vistazo presentaciones parecidas (dos "Chipotles
-                      Adobados..." con gramaje y precio distinto). */}
-                  {line.product.image_url ? (
-                    <img
-                      src={line.product.image_url}
-                      alt=""
-                      className="border-border size-10 shrink-0 rounded-md border object-cover"
-                    />
-                  ) : (
-                    <div className="border-border bg-muted flex size-10 shrink-0 items-center justify-center rounded-md border">
-                      <Package className="text-muted-foreground size-4" />
-                    </div>
-                  )}
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    {/* Nombre en su propia fila, a todo el ancho
-                        disponible -- con nombres largos que comparten
-                        prefijo, compartir la fila con el stepper y el
-                        precio dejaba tan poco ancho que se veían
-                        idénticos aunque fueran presentaciones distintas.
-                        En la pantalla donde se cobra dinero real, poder
-                        distinguirlos pesa más que una fila más compacta. */}
-                    <p className="line-clamp-2 text-sm font-medium">
-                      {line.product.name}
-                    </p>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                        {line.product.sold_by_weight
-                          ? `${Math.round(line.quantity * 1000)} g`
-                          : `${formatCurrency(line.product.price)} c/u`}
-                        {canEditPrice && (
-                          <button
-                            type="button"
-                            aria-label="Corregir precio"
-                            onClick={() => setEditingPriceProduct(line.product)}
-                            className="hover:text-foreground -m-1.5 shrink-0 p-1.5"
-                          >
-                            <Pencil className="size-3" />
-                          </button>
-                        )}
+                {cart.map((line, index) => (
+                  <div
+                    key={`${line.product.id}-${index}`}
+                    className="flex items-start gap-2.5"
+                  >
+                    {/* Miniatura -- mismo estilo y placeholder que la
+                        rejilla de productos, no solo decorativa: es una
+                        segunda confirmación visual antes de cobrar, además
+                        del nombre a todo el ancho, para distinguir de un
+                        vistazo presentaciones parecidas (dos "Chipotles
+                        Adobados..." con gramaje y precio distinto). */}
+                    {line.product.image_url ? (
+                      <img
+                        src={line.product.image_url}
+                        alt=""
+                        className="border-border size-10 shrink-0 rounded-md border object-cover"
+                      />
+                    ) : (
+                      <div className="border-border bg-muted flex size-10 shrink-0 items-center justify-center rounded-md border">
+                        <Package className="text-muted-foreground size-4" />
+                      </div>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      {/* Nombre en su propia fila, a todo el ancho
+                          disponible -- con nombres largos que comparten
+                          prefijo, compartir la fila con el stepper y el
+                          precio dejaba tan poco ancho que se veían
+                          idénticos aunque fueran presentaciones distintas.
+                          En la pantalla donde se cobra dinero real, poder
+                          distinguirlos pesa más que una fila más compacta. */}
+                      <p className="line-clamp-2 text-sm font-medium">
+                        {line.product.name}
                       </p>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {!line.product.sold_by_weight && (
-                          <div className="flex items-center gap-1">
-                            <Button
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                          {line.product.sold_by_weight
+                            ? `${Math.round(line.quantity * 1000)} g`
+                            : `${formatCurrency(line.product.price)} c/u`}
+                          {canEditPrice && (
+                            <button
                               type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              onClick={() =>
-                                setQuantity(line.product.id, line.quantity - 1)
-                              }
+                              aria-label="Corregir precio"
+                              onClick={() => setEditingPriceProduct(line.product)}
+                              className="hover:text-foreground -m-1.5 shrink-0 p-1.5"
                             >
-                              <Minus />
-                            </Button>
-                            <span className="w-6 text-center text-sm">
-                              {line.quantity}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              onClick={() =>
-                                setQuantity(line.product.id, line.quantity + 1)
-                              }
-                            >
-                              <Plus />
-                            </Button>
-                          </div>
-                        )}
-                        <span className="w-16 text-right text-sm font-medium">
-                          {formatCurrency(lineTotal(line))}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() =>
-                            line.product.sold_by_weight
-                              ? setCart((prev) => prev.filter((_, i) => i !== index))
-                              : removeLine(line.product.id)
-                          }
-                        >
-                          <Trash2 />
-                        </Button>
+                              <Pencil className="size-3" />
+                            </button>
+                          )}
+                        </p>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {!line.product.sold_by_weight && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() =>
+                                  setQuantity(line.product.id, line.quantity - 1)
+                                }
+                              >
+                                <Minus />
+                              </Button>
+                              <span className="w-6 text-center text-sm">
+                                {line.quantity}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() =>
+                                  setQuantity(line.product.id, line.quantity + 1)
+                                }
+                              >
+                                <Plus />
+                              </Button>
+                            </div>
+                          )}
+                          <span className="w-16 text-right text-sm font-medium">
+                            {formatCurrency(lineTotal(line))}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() =>
+                              line.product.sold_by_weight
+                                ? setCart((prev) => prev.filter((_, i) => i !== index))
+                                : removeLine(line.product.id)
+                            }
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
               </div>
               {cartCanScrollDown && (
                 <div
