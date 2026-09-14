@@ -119,10 +119,10 @@ export function SaleScreen({
   // scrollHeight interno.
   const {
     ref: cartListRef,
-    canScrollUp: cartCanScrollUp,
-    canScrollDown: cartCanScrollDown,
+    canScrollStart: cartCanScrollUp,
+    canScrollEnd: cartCanScrollDown,
     onScroll: updateCartScrollShadows,
-  } = useScrollShadows<HTMLDivElement>(cart.length)
+  } = useScrollShadows<HTMLDivElement>({ extraDep: cart.length })
 
   // Una búsqueda = un producto agregado = listo para la siguiente -- igual
   // sea por clic o por escaneo, el buscador se limpia y recupera el foco
