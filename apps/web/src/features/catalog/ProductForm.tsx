@@ -63,7 +63,8 @@ export function ProductForm({
 }) {
   const registerInitialStock = useRegisterMovement(() => {})
 
-  const [editingCost, setEditingCost] = useState(0)
+  const [editingCost, setEditingCost] = useState('0')
+  const [loadingCost, setLoadingCost] = useState(false)
   const [skuScannerOpen, setSkuScannerOpen] = useState(false)
   const skuInputRef = useRef<HTMLInputElement>(null)
   const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
@@ -92,9 +93,19 @@ export function ProductForm({
     setImageFile(null)
     setImagePreview(product?.image_url ?? null)
     setRemoveImage(false)
-    setEditingCost(0)
+    setEditingCost('0')
     if (product) {
-      fetchCost(product.id).then((cost) => setEditingCost(cost ?? 0))
+      // Campo controlado (no defaultValue): con un `key` fijo por
+      // producto, el diálogo abre antes de que esta promesa resuelva y un
+      // valor inicial "de una sola vez" nunca llegaba al DOM ya montado --
+      // se veía como si editar siempre reseteara el costo a 0. Deshabilitado
+      // mientras carga para que tampoco se pueda escribir encima del "0" de
+      // arranque y perder el valor real cuando la promesa resuelva.
+      setLoadingCost(true)
+      fetchCost(product.id).then((cost) => {
+        setEditingCost(String(cost ?? 0))
+        setLoadingCost(false)
+      })
     }
   }, [product, open, defaultUnitId, fetchCost])
 
@@ -375,13 +386,14 @@ export function ProductForm({
                     Costo{soldByWeight ? ' por kilo' : ''}
                   </Label>
                   <Input
-                    key={product?.id ?? 'new'}
                     id="product-cost"
                     name="cost"
                     type="number"
                     step="0.01"
                     min="0"
-                    defaultValue={editingCost}
+                    value={editingCost}
+                    onChange={(event) => setEditingCost(event.target.value)}
+                    disabled={loadingCost}
                     required
                   />
                 </div>
