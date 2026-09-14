@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -13,5 +14,13 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  test: {
+    // jsdom para todos los tests -- las pruebas de funciones puras que
+    // ya existen (granel, text, match, voice) no lo necesitan pero no
+    // les afecta; sin esto no se puede renderizar un componente de
+    // React en una prueba.
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
   },
 }))
