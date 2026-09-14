@@ -1,10 +1,4 @@
-import {
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from 'react'
+import { useState } from 'react'
 import {
   AlertTriangle,
   Boxes,
@@ -22,7 +16,6 @@ import {
   PowerOff,
   Tag,
   TableIcon,
-  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,11 +23,6 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { SearchInput } from '@/components/ui/search-input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { supabase } from '@/lib/supabase'
-import { reportError } from '@/lib/errors'
-import { compressImage } from '@/lib/image'
-import { withUploadTimeout } from '@/lib/upload'
 import {
   Select,
   SelectContent,
@@ -68,21 +56,18 @@ import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency } from '@/lib/currency'
-import { normalizeSearch, toCode, toTitleCase } from '@/lib/text'
-import { usePagination } from '@/lib/usePagination'
 import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
 import { useProductCosts } from './useProductCosts'
 import { isEnPerdida } from '@/lib/pricing'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
-import { useRegisterMovement } from '@/features/inventory/useRegisterMovement'
+import { useProductFilters } from './useProductFilters'
+import { ProductForm } from './ProductForm'
 import { LabelPrintDialog } from './LabelPrintDialog'
 import { PriceSheetDialog } from './PriceSheetDialog'
 import { StockAdjustDialog } from './StockAdjustDialog'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
-
-const NO_CATEGORY = 'none'
 
 type Role = Database['public']['Enums']['user_role']
 const CAN_MANAGE_PRODUCTS: Role[] = ['owner', 'local_admin']
@@ -119,9 +104,46 @@ export function ProductsTab({ role }: { role: Role | null }) {
   // esconder el botón es comodidad, no la seguridad.
   const canDelete = role === 'owner'
 
-  const [editing, setEditing] = useState<Product | null>(null)
-  const [editingCost, setEditingCost] = useState(0)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  // Búsqueda, los 4 filtros y paginación -- ver useProductFilters.
+  const {
+    search,
+    setSearch,
+    filterCategory,
+    setFilterCategory,
+    filterActive,
+    setFilterActive,
+    filterGranel,
+    setFilterGranel,
+    filterNoPrice,
+    setFilterNoPrice,
+    filtersOpen,
+    setFiltersOpen,
+    categoryFilterItems,
+    statusFilterItems,
+    granelFilterItems,
+    filtersActive,
+    clearFilters,
+    filteredProducts,
+    pageItems,
+    page,
+    setPage,
+    totalPages,
+    totalItems,
+    pageSize,
+  } = useProductFilters(products, categories)
+
+  // Alta/edición -- el formulario completo vive en ProductForm.
+  const [productFormOpen, setProductFormOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const openCreate = () => {
+    setEditingProduct(null)
+    setProductFormOpen(true)
+  }
+  const openEdit = (product: Product) => {
+    setEditingProduct(product)
+    setProductFormOpen(true)
+  }
+
   // Se guarda el id, no el objeto: así, cuando se genera un código dentro
   // del diálogo, el refresh de useProducts trae el producto actualizado y
   // el diálogo lo ve sin quedarse con el snapshot viejo (sin SKU).
@@ -134,33 +156,13 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const labelProduct = products.find((p) => p.id === labelProductId) ?? null
   const stockAdjustProduct =
     products.find((p) => p.id === stockAdjustProductId) ?? null
-  const registerInitialStock = useRegisterMovement(() => {})
-  const [skuScannerOpen, setSkuScannerOpen] = useState(false)
   const [searchScannerOpen, setSearchScannerOpen] = useState(false)
-  const skuInputRef = useRef<HTMLInputElement>(null)
-  const [categoryId, setCategoryId] = useState<string>(NO_CATEGORY)
-  const [unitId, setUnitId] = useState<string>('')
-  const [trackInventory, setTrackInventory] = useState(true)
-  const [soldByWeight, setSoldByWeight] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all')
-  const [filterGranel, setFilterGranel] = useState<'all' | 'yes' | 'no'>('all')
-  const [filterNoPrice, setFilterNoPrice] = useState(false)
-  // Hoja de filtros: solo existe para el toolbar compacto de mobile --
-  // en sm+ los 4 controles ya se ven inline, no hay nada que abrir.
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const [priceSheetOpen, setPriceSheetOpen] = useState(false)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [removeImage, setRemoveImage] = useState(false)
-  const [uploading, setUploading] = useState(false)
   // En pantallas chicas la tabla obliga a hacer scroll lateral para ver
   // precio/estado/acciones; tarjetas en 2 columnas se ve todo sin cortes.
   const [view, setView] = useState<'table' | 'cards'>(() =>
     window.innerWidth < 640 ? 'cards' : 'table',
   )
-  const imageInputRef = useRef<HTMLInputElement>(null)
 
   // Modo "Editar precios": captura rápida de varios precios a la vez
   // (filtrando por categoría, por ejemplo, para solo los productos que
@@ -219,7 +221,6 @@ export function ProductsTab({ role }: { role: Role | null }) {
   }
 
   const activeUnits = units.filter((u) => u.active)
-  const activeCategories = categories.filter((c) => c.active)
   // La lista de unidades se ordena alfabéticamente por nombre -- sin esto,
   // cualquier unidad que quede primera en ese orden (ej. "Costal") se
   // convierte en el default de todo producto nuevo, sin relación alguna
@@ -229,177 +230,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const defaultUnitId =
     activeUnits.find((u) => u.code === 'PZA')?.id ?? activeUnits[0]?.id ?? ''
 
-  const categoryFilterItems = [
-    { value: 'all', label: 'Todas las categorías' },
-    { value: NO_CATEGORY, label: 'Sin categoría' },
-    ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
-  ]
-  const statusFilterItems = [
-    { value: 'all', label: 'Todos los estados' },
-    { value: 'active', label: 'Activos' },
-    { value: 'inactive', label: 'Inactivos' },
-  ]
-  const granelFilterItems = [
-    { value: 'all', label: 'A granel: todos' },
-    { value: 'yes', label: 'Solo a granel' },
-    { value: 'no', label: 'Solo precio fijo' },
-  ]
-  const filtersActive =
-    filterCategory !== 'all' ||
-    filterActive !== 'all' ||
-    filterGranel !== 'all' ||
-    filterNoPrice
-  const clearFilters = () => {
-    setFilterCategory('all')
-    setFilterActive('all')
-    setFilterGranel('all')
-    setFilterNoPrice(false)
-  }
-
-  const filteredProducts = useMemo(() => {
-    const query = normalizeSearch(search)
-    return products.filter((p) => {
-      if (
-        query &&
-        !normalizeSearch(p.name).includes(query) &&
-        !(p.sku && normalizeSearch(p.sku).includes(query))
-      )
-        return false
-      if (filterCategory === NO_CATEGORY && p.category_id) return false
-      if (
-        filterCategory !== 'all' &&
-        filterCategory !== NO_CATEGORY &&
-        p.category_id !== filterCategory
-      )
-        return false
-      if (filterActive === 'active' && !p.active) return false
-      if (filterActive === 'inactive' && p.active) return false
-      if (filterGranel === 'yes' && !p.sold_by_weight) return false
-      if (filterGranel === 'no' && p.sold_by_weight) return false
-      if (filterNoPrice && p.price !== 0) return false
-      return true
-    })
-  }, [products, search, filterCategory, filterActive, filterGranel, filterNoPrice])
-
-  const { pageItems, page, setPage, totalPages, totalItems, pageSize } =
-    usePagination(filteredProducts)
-
-  const openCreate = () => {
-    setEditing(null)
-    setEditingCost(0)
-    setCategoryId(NO_CATEGORY)
-    setUnitId(defaultUnitId)
-    setTrackInventory(true)
-    setSoldByWeight(false)
-    setImageFile(null)
-    setImagePreview(null)
-    setRemoveImage(false)
-    setDialogOpen(true)
-  }
-
-  const openEdit = async (product: Product) => {
-    const cost = await fetchCost(product.id)
-    setEditing(product)
-    setEditingCost(cost ?? 0)
-    setCategoryId(product.category_id ?? NO_CATEGORY)
-    setUnitId(product.unit_id)
-    setTrackInventory(product.track_inventory)
-    setSoldByWeight(product.sold_by_weight)
-    setImageFile(null)
-    setImagePreview(product.image_url)
-    setRemoveImage(false)
-    setDialogOpen(true)
-  }
-
-  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
-    setRemoveImage(false)
-  }
-
-  const handleRemoveImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    setRemoveImage(true)
-  }
-
   const categoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? '—'
   const unitCode = (id: string) => units.find((u) => u.id === id)?.code ?? '—'
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!unitId) return
-
-    // event.currentTarget deja de ser válido en cuanto el handler cruza un
-    // await (el navegador lo limpia al terminar el despacho síncrono del
-    // evento) -- hay que capturarlo antes de subir la imagen.
-    const formEl = event.currentTarget
-
-    let imageUrl = removeImage ? null : (editing?.image_url ?? null)
-
-    if (imageFile) {
-      setUploading(true)
-      const compressed = await compressImage(imageFile)
-      const ext = compressed.name.split('.').pop() ?? 'jpg'
-      const path = `${crypto.randomUUID()}.${ext}`
-      const { error: uploadError } = await withUploadTimeout(
-        supabase.storage.from('product-images').upload(path, compressed),
-      )
-      setUploading(false)
-
-      if (uploadError) {
-        reportError('No se pudo subir la imagen', uploadError)
-        return
-      }
-      imageUrl = supabase.storage.from('product-images').getPublicUrl(path)
-        .data.publicUrl
-    }
-
-    const form = new FormData(formEl)
-    const sku = toCode(String(form.get('sku') ?? ''))
-    const values = {
-      sku: sku || null,
-      name: toTitleCase(String(form.get('name') ?? '')),
-      description: String(form.get('description') ?? '').trim() || null,
-      category_id: categoryId === NO_CATEGORY ? null : categoryId,
-      unit_id: unitId,
-      price: Number(form.get('price') ?? 0),
-      cost: Number(form.get('cost') ?? 0),
-      track_inventory: trackInventory,
-      sold_by_weight: soldByWeight,
-      price_per_100g: soldByWeight
-        ? Number(form.get('price_per_100g') ?? 0)
-        : null,
-      image_url: imageUrl,
-    }
-
-    if (editing) {
-      const ok = await updateProduct(editing.id, values)
-      if (ok) setDialogOpen(false)
-      return
-    }
-
-    const newId = await createProduct(values)
-    if (!newId) return
-
-    // Existencia inicial es opcional y solo aplica al dar de alta: no se
-    // guarda como campo del producto, dispara el mismo movimiento de
-    // entrada que ya registra Inventario, para no crear un segundo
-    // lugar donde "la cantidad" pueda desincronizarse de su bitácora.
-    const initialStock = Number(form.get('initial_stock') ?? 0)
-    if (trackInventory && initialStock > 0) {
-      await registerInitialStock({
-        productId: newId,
-        type: 'in',
-        quantity: initialStock,
-        notes: 'Existencia inicial',
-      })
-    }
-    setDialogOpen(false)
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -970,290 +803,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
         onPageChange={setPage}
       />
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? 'Editar producto' : 'Nuevo producto'}
-            </DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={handleSubmit}
-            className="flex max-h-[70vh] flex-col overflow-hidden"
-          >
-            <div className="-mx-1 flex flex-col gap-4 overflow-x-hidden overflow-y-auto px-1 py-1">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-image">Foto (opcional)</Label>
-                <div className="flex items-center gap-3">
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt=""
-                      className="border-border size-16 shrink-0 rounded-md border object-cover"
-                    />
-                  ) : (
-                    <div className="bg-muted text-muted-foreground/50 border-border flex size-16 shrink-0 items-center justify-center rounded-md border">
-                      <Package className="size-6" />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1.5">
-                    <input
-                      ref={imageInputRef}
-                      id="product-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => imageInputRef.current?.click()}
-                    >
-                      {imagePreview ? 'Cambiar foto' : 'Subir foto'}
-                    </Button>
-                    {imagePreview && (
-                      // "Ghost" sin más era casi invisible junto al botón
-                      // con borde de al lado -- se leía como texto suelto,
-                      // no como algo que se puede tocar. El tono
-                      // destructivo + ícono lo deja claro sin necesitar
-                      // más espacio.
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={handleRemoveImage}
-                      >
-                        <X /> Quitar foto
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-name">Nombre</Label>
-                <Input
-                  id="product-name"
-                  name="name"
-                  defaultValue={editing?.name}
-                  placeholder="Mole rojo"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-sku">
-                  SKU / código de barras (opcional)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    ref={skuInputRef}
-                    id="product-sku"
-                    name="sku"
-                    defaultValue={editing?.sku ?? ''}
-                    placeholder="MOL-001"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label="Escanear código de barras con la cámara"
-                    onClick={() => setSkuScannerOpen(true)}
-                  >
-                    <ScanBarcode />
-                  </Button>
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  Si escaneas este código en Caja, el producto se agrega solo a
-                  la venta.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="product-description">
-                  Descripción (opcional)
-                </Label>
-                <Textarea
-                  id="product-description"
-                  name="description"
-                  defaultValue={editing?.description ?? ''}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Categoría</Label>
-                  <Select
-                    items={[
-                      { value: NO_CATEGORY, label: 'Sin categoría' },
-                      ...activeCategories.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                      })),
-                    ]}
-                    value={categoryId}
-                    onValueChange={(value) =>
-                      setCategoryId(value ?? NO_CATEGORY)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sin categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
-                      {activeCategories.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label>Unidad</Label>
-                  <Select
-                    items={activeUnits.map((u) => ({
-                      value: u.id,
-                      label: `${u.code} — ${u.name}`,
-                    }))}
-                    value={unitId}
-                    onValueChange={(value) => setUnitId(value ?? '')}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Unidad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeUnits.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.code} — {u.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="product-price">
-                    {soldByWeight ? 'Precio por kilo' : 'Precio de venta'}
-                  </Label>
-                  <Input
-                    id="product-price"
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={editing?.price ?? 0}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="product-cost">
-                    Costo{soldByWeight ? ' por kilo' : ''}
-                  </Label>
-                  <Input
-                    key={editing?.id ?? 'new'}
-                    id="product-cost"
-                    name="cost"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={editingCost}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium">
-                    Vende a granel (por peso)
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    En Caja se cobra por gramos pedidos o por monto en pesos, no
-                    por pieza. Requiere unidad kg.
-                  </p>
-                </div>
-                <Switch
-                  checked={soldByWeight}
-                  onCheckedChange={setSoldByWeight}
-                />
-              </div>
-
-              {soldByWeight && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="product-price-per-100g">
-                    Precio de menudeo (100g)
-                  </Label>
-                  <Input
-                    id="product-price-per-100g"
-                    name="price_per_100g"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={editing?.price_per_100g ?? 0}
-                    required
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Tarifa para cuando se pide menos de 1/4 kg. Se aplica el
-                    precio por kilo desde 1/4 kg en adelante (incluye el
-                    cuarto, que siempre sale a precio_kilo ÷ 4).
-                  </p>
-                </div>
-              )}
-
-              <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium">Controlar inventario</p>
-                  <p className="text-muted-foreground text-xs">
-                    Descuenta existencias en cada venta y aparece en Inventario.
-                  </p>
-                </div>
-                <Switch
-                  checked={trackInventory}
-                  onCheckedChange={setTrackInventory}
-                />
-              </div>
-
-              {!editing && trackInventory && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="product-initial-stock">
-                    Existencia inicial (opcional)
-                    {unitId ? ` (${unitCode(unitId)})` : ''}
-                  </Label>
-                  <Input
-                    id="product-initial-stock"
-                    name="initial_stock"
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    placeholder="0"
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Registra de una vez cuánto tienes hoy. Para corregirla más
-                    adelante, usa "Ajustar existencia" en la lista.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="border-border shrink-0 border-t pt-4">
-              <Button type="submit" disabled={!unitId || uploading}>
-                {uploading
-                  ? 'Subiendo imagen…'
-                  : editing
-                    ? 'Guardar cambios'
-                    : 'Crear producto'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ProductForm
+        product={editingProduct}
+        open={productFormOpen}
+        onOpenChange={setProductFormOpen}
+        categories={categories}
+        units={units}
+        defaultUnitId={defaultUnitId}
+        createProduct={createProduct}
+        updateProduct={updateProduct}
+        fetchCost={fetchCost}
+      />
 
       <PriceSheetDialog
         open={priceSheetOpen}
@@ -1378,14 +938,6 @@ export function ProductsTab({ role }: { role: Role | null }) {
           if (!open) setStockAdjustProductId(null)
         }}
         onDone={() => {}}
-      />
-
-      <BarcodeScannerDialog
-        open={skuScannerOpen}
-        onOpenChange={setSkuScannerOpen}
-        onDetected={(code) => {
-          if (skuInputRef.current) skuInputRef.current.value = toCode(code)
-        }}
       />
 
       <BarcodeScannerDialog
