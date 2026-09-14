@@ -6,7 +6,7 @@
 -- por foto viene a llenar. Antes esa actualización no existía, así que
 -- sin prueba nada evitaría que se pierda otra vez en una migración.
 begin;
-select plan(7);
+select plan(9);
 
 -- ── Fixtures ──────────────────────────────────────────────────────────
 insert into units_of_measure (id, code, name)
@@ -39,6 +39,15 @@ values (
 );
 update profiles set role = 'owner' where id = '20000000-0000-0000-0000-000000000004';
 
+-- handle_new_user() ya crea todo perfil nuevo como cashier por default
+-- (endurecimiento del 2026-08-20) -- no hace falta forzar el rol.
+insert into auth.users (id, email, raw_user_meta_data)
+values (
+  '20000000-0000-0000-0000-000000000007',
+  'cajero-compras@example.com',
+  '{"full_name": "Cajero De Prueba"}'::jsonb
+);
+
 insert into suppliers (id, name)
 values ('20000000-0000-0000-0000-000000000005', 'Proveedor de prueba');
 
@@ -63,7 +72,25 @@ values
     10, 0, 0
   );
 
+-- ── Como cajero (hallazgo Alto de la auditoría del 2026-09-13):
+-- receive_purchase_order() era la única función privilegiada sin
+-- security definer + verificación de rol explícita -- dependía por
+-- completo del RLS de purchase_orders/inventory_movements/products
+-- para mantener fuera a un cajero. ──────────────────────────────────
+set local role authenticated;
+set local request.jwt.claim.sub = '20000000-0000-0000-0000-000000000007';
+set local request.jwt.claims = '{"sub": "20000000-0000-0000-0000-000000000007", "role": "authenticated"}';
+
+select throws_like(
+  $$select receive_purchase_order('20000000-0000-0000-0000-000000000006')$$,
+  '%No autorizado%',
+  'Un cajero no puede llamar receive_purchase_order'
+);
+
 -- ── Como owner ────────────────────────────────────────────────────────
+reset role;
+set local request.jwt.claim.sub = '';
+set local request.jwt.claims = '';
 set local role authenticated;
 set local request.jwt.claim.sub = '20000000-0000-0000-0000-000000000004';
 set local request.jwt.claims = '{"sub": "20000000-0000-0000-0000-000000000004", "role": "authenticated"}';
@@ -115,6 +142,16 @@ select throws_like(
   $$select receive_purchase_order('20000000-0000-0000-0000-000000000006')$$,
   '%ordered%',
   'Una orden ya recibida no se puede recibir de nuevo'
+);
+
+-- Ni siquiera un owner puede marcar "received" con un UPDATE directo --
+-- eso saltaría el movimiento de inventario y la actualización de costo
+-- que solo hace la función. La política de purchase_orders_update
+-- rechaza cualquier fila nueva con status='received'.
+select throws_like(
+  $$update purchase_orders set status = 'received' where id = '20000000-0000-0000-0000-000000000006'$$,
+  '%row-level security%',
+  'Un owner no puede poner una orden en "received" con un UPDATE directo -- solo vía receive_purchase_order()'
 );
 
 select * from finish();
