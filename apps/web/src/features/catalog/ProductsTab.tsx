@@ -107,6 +107,13 @@ export function ProductsTab({ role }: { role: Role | null }) {
     const cost = costsById.get(product.id)
     return cost !== undefined && isEnPerdida({ active: product.active, price: product.price, cost })
   }
+  // Un producto sin precio debería quedar inactivo hasta que se le ponga
+  // uno (regla ya usada en todo el sistema -- venta por monto, GranelDialog,
+  // la captura de precios por foto activa solo al confirmar precio real).
+  // Si de todos modos quedó activo con precio en cero -- por ejemplo, se
+  // activó a mano sin querer -- Caja ya lo bloquea con "Sin precio", pero
+  // nada lo señalaba aquí, donde se administra el catálogo.
+  const sinPrecioActivo = (product: Product) => product.active && product.price === 0
   // Borrar del catálogo es decisión de dueño: un administrador de local
   // desactiva, no borra (CLAUDE.md §6). El servidor lo vuelve a exigir --
   // esconder el botón es comodidad, no la seguridad.
@@ -718,6 +725,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     <AlertTriangle className="size-3" /> En pérdida
                   </p>
                 )}
+                {canManage && sinPrecioActivo(product) && (
+                  <p className="text-destructive flex items-center gap-1 text-xs font-medium">
+                    <AlertTriangle className="size-3" /> Activo sin precio
+                  </p>
+                )}
                 {canManage && (
                   // Solo íconos en tarjeta (a diferencia de la tabla, que
                   // sí tiene ancho de sobra): tres textos no cabían en una
@@ -882,6 +894,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
                   {!priceEditMode && canManage && enPerdida(product) && (
                     <p className="text-destructive mt-0.5 flex items-center gap-1 text-xs font-medium">
                       <AlertTriangle className="size-3" /> En pérdida
+                    </p>
+                  )}
+                  {!priceEditMode && canManage && sinPrecioActivo(product) && (
+                    <p className="text-destructive mt-0.5 flex items-center gap-1 text-xs font-medium">
+                      <AlertTriangle className="size-3" /> Activo sin precio
                     </p>
                   )}
                 </TableCell>
