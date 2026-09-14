@@ -1005,6 +1005,55 @@ export type Database = {
           },
         ]
       }
+      sale_items_public: {
+        Row: {
+          id: string | null
+          product_id: string | null
+          quantity: number | null
+          sale_id: string | null
+          subtotal: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          id?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          sale_id?: string | null
+          subtotal?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          id?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          sale_id?: string | null
+          subtotal?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       create_sale: {

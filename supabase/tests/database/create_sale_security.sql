@@ -6,7 +6,7 @@
 -- la migración que sí lo corrige -- sin esta prueba, nada lo hubiera
 -- detectado automáticamente.
 begin;
-select plan(29);
+select plan(30);
 
 -- ── Fixtures (como el rol que corre las migraciones, sin RLS de por
 -- medio) ──────────────────────────────────────────────────────────────
@@ -120,18 +120,23 @@ select is(
   'create_sale acepta una venta correcta (precio real del catálogo, $50) aunque el item traiga un unit_price forjado de $1'
 );
 
+-- Test 6a: un cajero no ve ninguna fila de sale_items directo -- hallazgo
+-- Crítico de la auditoría del 13 de septiembre (unit_cost, el margen de
+-- cada venta, era legible por cualquier cajero vía "using (true)"). No
+-- es un error de RLS (la tabla sí tiene GRANT desde el 20 de agosto),
+-- así que la fila simplemente no aparece -- 0 filas, no una excepción.
 select is(
-  (select unit_price from sale_items where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
-  50.00,
-  'El precio guardado en sale_items es el del catálogo ($50), nunca el unit_price forjado ($1) que traía el item'
+  (select count(*)::int from sale_items where product_id = '00000000-0000-0000-0000-000000000001'),
+  0,
+  'Un cajero no ve ninguna fila de sale_items directo (tabla base admin-only)'
 );
 
--- Test 6b: el costo también se congela en sale_items al momento de la
--- venta -- Reportes ya no debe recalcular el margen con el costo de hoy.
+-- Test 6b: sigue pudiendo leer el precio real (no el costo) vía la
+-- vista pública -- así Caja/"Más vendidos" no se rompen para un cajero.
 select is(
-  (select unit_cost from sale_items where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
-  30.00,
-  'El costo guardado en sale_items es el del catálogo ($30) al momento de la venta, no null'
+  (select unit_price from sale_items_public where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
+  50.00,
+  'El precio guardado es el del catálogo ($50), nunca el unit_price forjado ($1) -- visible vía sale_items_public'
 );
 
 -- Test 7: un cajero no puede insertar directo en sale_items (reusa la
@@ -233,6 +238,17 @@ update profiles set role = 'owner' where id = '00000000-0000-0000-0000-000000000
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000004';
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000004", "role": "authenticated"}';
+
+-- Test 12b: el costo se congela en sale_items al momento de la venta
+-- (venta real de la Prueba 5) -- Reportes ya no debe recalcular el
+-- margen con el costo de hoy. Verificado aquí como owner: un cajero ya
+-- no puede leer unit_cost directo (Prueba 6a), así que esta
+-- verificación necesita el rol que sí tiene acceso.
+select is(
+  (select unit_cost from sale_items where product_id = '00000000-0000-0000-0000-000000000001' limit 1),
+  30.00,
+  'El costo guardado en sale_items es el del catálogo ($30) al momento de la venta, no null'
+);
 
 -- Test 13: void_sale revierte el inventario con un movimiento 'in'
 -- compensatorio, sin borrar el 'out' original.
