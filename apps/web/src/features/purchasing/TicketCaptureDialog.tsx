@@ -750,7 +750,7 @@ export function TicketCaptureDialog({
               <span className="text-muted-foreground">
                 {includedLines.length} de {lines.length} renglones ·{' '}
               </span>
-              <span className="text-brand-gold font-semibold">{formatCurrency(total)}</span>
+              <span className="text-foreground font-semibold">{formatCurrency(total)}</span>
               {lineasIncompletas > 0 && (
                 <span className="text-destructive ml-2 text-xs">
                   {lineasIncompletas} sin completar

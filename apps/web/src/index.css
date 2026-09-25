@@ -152,6 +152,24 @@ html[data-text-size='lg'] {
   }
 }
 
+/* Controles cómodos en móvil y pantallas táctiles, sin aumentar la
+   densidad del escritorio operado con ratón. */
+@media (pointer: coarse), (max-width: 639px) {
+  [data-slot='button'],
+  [data-slot='input'],
+  [data-slot='select-trigger'],
+  [data-slot='dropdown-menu-item'],
+  [data-slot='select-item'],
+  header button {
+    min-height: 2.75rem;
+  }
+
+  [data-slot='button'],
+  header button {
+    min-width: 2.75rem;
+  }
+}
+
 /* Ticket de venta y etiquetas de producto: al imprimir, solo se ve el
    elemento marcado con [data-print-area], nunca el resto del chrome de
    la app. */

@@ -1,23 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { AppNavigation } from './AppNavigation'
 import { useTheme } from 'next-themes'
-import {
-  ALargeSmall,
-  BarChart3,
-  Boxes,
-  Contact,
-  LogOut,
-  Menu,
-  Moon,
-  Package,
-  Receipt,
-  Settings,
-  ShoppingCart,
-  Store,
-  Sun,
-  Users,
-} from 'lucide-react'
+import { ALargeSmall, LogOut, Moon, Sun } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,49 +18,6 @@ import { isAdminRole, isOwnerRole, ROLE_LABELS } from '@/lib/roles'
 import type { ModuleKey } from '@/features/settings/useTenantModules'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
-
-const NAV_ITEMS: {
-  to: string
-  label: string
-  icon: typeof Store
-  adminOnly: boolean
-  ownerOnly?: boolean
-  moduleKey?: ModuleKey
-}[] = [
-  { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
-  { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
-  { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
-  {
-    to: '/clientes',
-    label: 'Clientes',
-    icon: Contact,
-    adminOnly: false,
-    moduleKey: 'crm',
-  },
-  {
-    to: '/compras',
-    label: 'Compras',
-    icon: ShoppingCart,
-    adminOnly: true,
-    moduleKey: 'purchasing',
-  },
-  { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
-  {
-    to: '/facturacion',
-    label: 'Facturación',
-    icon: Receipt,
-    adminOnly: true,
-    moduleKey: 'billing',
-  },
-  { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
-  {
-    to: '/configuracion',
-    label: 'Configuración',
-    icon: Settings,
-    adminOnly: true,
-    ownerOnly: true,
-  },
-]
 
 function initials(name: string) {
   return name
@@ -100,69 +42,30 @@ export function AppShell({
   children: ReactNode
 }) {
   const displayName = profile?.full_name ?? session.user.email ?? 'Usuario'
-  // Con texto grande, la barra horizontal de 9 items ya no cabe ni con el
-  // overflow-x-auto de siempre -- corta "Usuarios" a la mitad sin ninguna
-  // pista de que hay que deslizar. Se usa el mismo menú hamburguesa de
-  // mobile en su lugar: una lista vertical, cómoda de tocar, sin nada oculto.
   const isLargeText = profile?.large_text_mode ?? false
   const isAdmin = isAdminRole(profile?.role)
   const isOwner = isOwnerRole(profile?.role)
-  const location = useLocation()
   const { resolvedTheme, setTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
-  const visibleNavItems = NAV_ITEMS.filter(
-    (item) =>
-      (!item.adminOnly || isAdmin) &&
-      (!item.ownerOnly || isOwner) &&
-      (!item.moduleKey || isModuleEnabled(item.moduleKey)),
-  )
 
   return (
     <div className="bg-background min-h-screen">
       <header className="bg-sidebar text-sidebar-foreground">
-        {/* La columna central es minmax(0,auto), no un auto plano: un
-            grid track "auto" nunca se encoge más chico que su contenido
-            -- necesario para que overflow-x-auto en <nav> (abajo) tenga
-            algo que hacer si la barra no cabe, en vez de simplemente
-            desbordar el header entero. */}
-        <div className="grid h-14 grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-4 px-4 sm:px-6">
+        <div className="flex min-h-14 flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
           <span className="justify-self-start text-sm font-semibold tracking-wide">
             Sunname ERP
           </span>
 
-          {/* Centrada a propósito: así se ve igual de intencional con 3
-              módulos activos que con 8 -- no se amontona a la izquierda
-              dejando un vacío grande de un solo lado. overflow-x-auto es
-              una red de seguridad, no el diseño esperado: con 9 items
-              (Facturación se sumó 2026-09-02) el ancho mínimo de la barra
-              (~1020px, whitespace-nowrap no deja que se achique) ya no
-              tiene tanto colchón en una laptop de 1366px -- si algún día
-              no cabe, se desliza en vez de encimarse con el logo o el
-              usuario. */}
-          <nav
-            className={`max-w-full items-center gap-1 justify-self-center overflow-x-auto ${
-              isLargeText ? 'hidden' : 'hidden md:flex'
-            }`}
-          >
-            {visibleNavItems.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                  }`
-                }
-              >
-                <Icon className="size-4" />
-                {label}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="order-last flex shrink-0 sm:order-none sm:ml-auto">
+            <AppNavigation
+              isAdmin={isAdmin}
+              isOwner={isOwner}
+              isLargeText={isLargeText}
+              isModuleEnabled={isModuleEnabled}
+            />
+          </div>
 
-          <div className="flex items-center gap-1 justify-self-end">
+          <div className="ml-auto flex items-center gap-1 sm:ml-2">
             <button
               onClick={onToggleLargeText}
               className={`hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 ${
@@ -170,14 +73,10 @@ export function AppShell({
               }`}
               aria-pressed={isLargeText}
               aria-label={
-                isLargeText
-                  ? 'Desactivar texto grande'
-                  : 'Activar texto grande'
+                isLargeText ? 'Desactivar texto grande' : 'Activar texto grande'
               }
               title={
-                isLargeText
-                  ? 'Desactivar texto grande'
-                  : 'Activar texto grande'
+                isLargeText ? 'Desactivar texto grande' : 'Activar texto grande'
               }
             >
               <ALargeSmall className="size-4" />
@@ -198,51 +97,15 @@ export function AppShell({
               <DropdownMenuTrigger
                 render={
                   <button
-                    className={`hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 ${
-                      isLargeText ? '' : 'md:hidden'
-                    }`}
+                    aria-label={`Cuenta de ${displayName}`}
+                    className="hover:bg-sidebar-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
                   />
-                }
-              >
-                <Menu className="size-5" />
-                <span className="sr-only">Menú</span>
-              </DropdownMenuTrigger>
-              {/* w-56 explícito: sin esto el ancho del menú sigue al del
-                  botón hamburguesa (solo ícono), y con etiquetas largas
-                  como "Configuración" el texto queda cortado por el
-                  overflow-x-hidden del propio menú. */}
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuGroup>
-                  {visibleNavItems.map(({ to, label, icon: Icon }) => {
-                    const isActive = location.pathname === to
-                    return (
-                      <DropdownMenuItem
-                        key={to}
-                        render={<Link to={to} />}
-                        className={
-                          isActive
-                            ? 'py-2 bg-sidebar-primary text-sidebar-primary-foreground focus:bg-sidebar-primary focus:text-sidebar-primary-foreground'
-                            : 'py-2'
-                        }
-                      >
-                        <Icon /> {label}
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button className="hover:bg-sidebar-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-sm" />
                 }
               >
                 <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-6 items-center justify-center rounded-full text-xs font-semibold">
                   {initials(displayName)}
                 </span>
-                <span className="hidden max-w-48 truncate sm:inline">
+                <span className="hidden max-w-32 truncate sm:inline">
                   {displayName}
                 </span>
               </DropdownMenuTrigger>
@@ -278,8 +141,7 @@ export function AppShell({
           de mayor uso; el contenido angosto (formularios de Configuración,
           buscadores) ya se limita a su propio ancho desde adentro, así
           que no se ve raro flotando en un contenedor más ancho. */}
-      <main className="mx-auto max-w-[100rem] px-4 py-8">{children}
-      </main>
+      <main className="mx-auto max-w-[100rem] px-4 py-8">{children}</main>
     </div>
   )
 }

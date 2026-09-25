@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { Minus, Package, Pencil, Plus, ScanBarcode, Search, Trash2, TrendingUp } from 'lucide-react'
+import {
+  Minus,
+  Package,
+  Pencil,
+  Plus,
+  ScanBarcode,
+  Search,
+  Trash2,
+  TrendingUp,
+} from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { useSaleShortcuts } from '@/hooks/useSaleShortcuts'
+import { MobileCartSummary } from './MobileCartSummary'
 import { Input } from '@/components/ui/input'
 import { SearchInput } from '@/components/ui/search-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,7 +49,8 @@ type Role = Database['public']['Enums']['user_role']
 // Compartida entre la rejilla de "Más vendidos" y los resultados de
 // búsqueda -- mismo tamaño de tarjeta en los dos casos, un solo lugar
 // para ajustar cuántas columnas caben en cada ancho.
-const PRODUCT_GRID_CLASS = 'grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+const PRODUCT_GRID_CLASS =
+  'grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 
 export function SaleScreen({
   cashSessionId,
@@ -76,7 +89,8 @@ export function SaleScreen({
   // quedarse con la diferencia). Solo quien ya ve costos puede corregir
   // un precio desde la venta en curso.
   const canEditPrice = role === 'owner' || role === 'local_admin'
-  const [editingPriceProduct, setEditingPriceProduct] = useState<Product | null>(null)
+  const [editingPriceProduct, setEditingPriceProduct] =
+    useState<Product | null>(null)
 
   const [search, setSearch] = useState('')
   // Filtro secundario, opcional -- para cuando el cliente pide "algo de
@@ -85,7 +99,9 @@ export function SaleScreen({
   // idéntico al de antes de que existiera este filtro.
   const [filterCategory, setFilterCategory] = useState('all')
   const [granelProduct, setGranelProduct] = useState<Product | null>(null)
-  const [granelInitialGrams, setGranelInitialGrams] = useState<number | undefined>(undefined)
+  const [granelInitialGrams, setGranelInitialGrams] = useState<
+    number | undefined
+  >(undefined)
   const [scannerOpen, setScannerOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -110,7 +126,12 @@ export function SaleScreen({
     setReceipt,
     handleCheckout,
     lineTotal,
-  } = useSubmitSale({ cashSessionId, paymentMethods, customers, defaultMethodId })
+  } = useSubmitSale({
+    cashSessionId,
+    paymentMethods,
+    customers,
+    defaultMethodId,
+  })
 
   // Sombra de scroll del carrito -- ver hooks/useScrollShadows. Se le
   // pasa cart.length como dependencia extra porque el contenedor tiene
@@ -170,7 +191,10 @@ export function SaleScreen({
     if (product.sold_by_weight) {
       // El peso siempre se captura exacto (báscula o monto pedido) --
       // no tiene sentido "sumar 1" a un producto que se pesa.
-      setCart((prev) => [...prev, { product, quantity: weightKg ?? 0, amountMxn }])
+      setCart((prev) => [
+        ...prev,
+        { product, quantity: weightKg ?? 0, amountMxn },
+      ])
       return
     }
     setCart((prev) => {
@@ -199,7 +223,9 @@ export function SaleScreen({
       product.price_per_100g ?? 0,
     )
     if (weightKg <= 0) {
-      toast.error('Este producto todavía no tiene precio -- agrégalo en Catálogo.')
+      toast.error(
+        'Este producto todavía no tiene precio -- agrégalo en Catálogo.',
+      )
       return
     }
     addToCart(product, weightKg, amountMxn)
@@ -281,7 +307,11 @@ export function SaleScreen({
           // el que de verdad se va a cobrar ni el que hay que pesar.
           quantity:
             line.amountMxn !== undefined
-              ? granelWeightKgFromAmount(line.amountMxn, price, nextPricePer100g ?? 0)
+              ? granelWeightKgFromAmount(
+                  line.amountMxn,
+                  price,
+                  nextPricePer100g ?? 0,
+                )
               : line.quantity,
         }
       }),
@@ -293,8 +323,9 @@ export function SaleScreen({
     const query = normalizeSearch(code)
     if (!query) return null
     return (
-      products.find((p) => p.active && p.sku && normalizeSearch(p.sku) === query) ??
-      null
+      products.find(
+        (p) => p.active && p.sku && normalizeSearch(p.sku) === query,
+      ) ?? null
     )
   }
 
@@ -319,7 +350,9 @@ export function SaleScreen({
       // Si tampoco hay coincidencias parciales por nombre, lo más probable
       // es que se haya escaneado un código que no está dado de alta.
       if (results.length === 0) {
-        toast.error('Código no reconocido: ningún producto lo tiene registrado.')
+        toast.error(
+          'Código no reconocido: ningún producto lo tiene registrado.',
+        )
       }
       return
     }
@@ -339,44 +372,25 @@ export function SaleScreen({
     addScannedProduct(scanned)
   }
 
-  // handleCheckout se vuelve a crear en cada render (no memoizado, cierra
-  // sobre cart/total/etc.) -- una ref evita que el listener de abajo se
-  // tenga que re-suscribir en cada tecla mientras deja que F9 siempre
-  // llame a la versión más reciente.
-  const handleCheckoutRef = useRef(handleCheckout)
-  useEffect(() => {
-    handleCheckoutRef.current = handleCheckout
+  const cartHeadingRef = useRef<HTMLHeadingElement>(null)
+  useSaleShortcuts({
+    onSearch: () => searchInputRef.current?.focus(),
+    onCheckout: handleCheckout,
+    onClearSearch: () => {
+      if (document.activeElement === searchInputRef.current) setSearch('')
+    },
+    checkoutDisabled,
+    dialogOpen:
+      granelProduct !== null ||
+      receipt !== null ||
+      scannerOpen ||
+      editingPriceProduct !== null,
   })
 
-  // Atajos pensados para el cajero: F2 regresa el foco al buscador sin
-  // soltar el mouse, F9 cobra sin llegar hasta el botón, Esc limpia el
-  // buscador -- solo si el foco ya está ahí, para no interceptar el Esc
-  // que cierra un diálogo abierto (GranelDialog/ReceiptDialog). Ambos
-  // atajos de función se desactivan con un diálogo abierto, para no
-  // disparar una acción de Caja detrás de él.
-  useEffect(() => {
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      const dialogOpen = granelProduct !== null || receipt !== null
-      if (event.key === 'F2' && !dialogOpen) {
-        event.preventDefault()
-        searchInputRef.current?.focus()
-      } else if (event.key === 'F9' && !dialogOpen) {
-        event.preventDefault()
-        if (!checkoutDisabled) handleCheckoutRef.current()
-      } else if (
-        event.key === 'Escape' &&
-        document.activeElement === searchInputRef.current &&
-        search
-      ) {
-        setSearch('')
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [granelProduct, receipt, checkoutDisabled, search])
-
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_370px] xl:grid-cols-[1fr_400px]">
+    <div
+      className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_370px] xl:grid-cols-[minmax(0,1fr)_400px] ${cart.length ? 'pb-24 md:pb-0' : ''}`}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
           <SearchInput
@@ -385,6 +399,7 @@ export function SaleScreen({
             onChange={setSearch}
             onKeyDown={handleSearchKeyDown}
             placeholder="Buscar producto…"
+            aria-label="Buscar producto por nombre o código"
             containerClassName="min-w-[200px] flex-1"
             autoFocus
           />
@@ -415,7 +430,10 @@ export function SaleScreen({
             value={filterCategory}
             onValueChange={(value) => setFilterCategory(value ?? 'all')}
           >
-            <SelectTrigger className="w-full shrink-0 sm:w-48">
+            <SelectTrigger
+              aria-label="Filtrar por categoría"
+              className="w-full shrink-0 sm:w-48"
+            >
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -477,9 +495,17 @@ export function SaleScreen({
         )}
       </div>
 
-      <Card className="h-fit md:sticky md:top-20">
+      <Card id="current-sale" className="h-fit min-w-0 md:sticky md:top-4">
         <CardHeader>
-          <CardTitle>Venta actual</CardTitle>
+          <CardTitle>
+            <h2
+              ref={cartHeadingRef}
+              tabIndex={-1}
+              className="focus-visible:outline-ring scroll-mt-4 focus-visible:outline-2"
+            >
+              Venta actual
+            </h2>
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {cart.length === 0 ? (
@@ -538,31 +564,39 @@ export function SaleScreen({
                       <p className="line-clamp-2 text-sm font-medium">
                         {line.product.name}
                       </p>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-muted-foreground flex items-center gap-1 text-xs">
                           {line.product.sold_by_weight
                             ? `${Math.round(line.quantity * 1000)} g`
                             : `${formatCurrency(line.product.price)} c/u`}
                           {canEditPrice && (
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon-sm"
                               aria-label="Corregir precio"
-                              onClick={() => setEditingPriceProduct(line.product)}
-                              className="hover:text-foreground -m-1.5 shrink-0 p-1.5"
+                              onClick={() =>
+                                setEditingPriceProduct(line.product)
+                              }
+                              className="hover:text-foreground shrink-0"
                             >
                               <Pencil className="size-3" />
-                            </button>
+                            </Button>
                           )}
                         </p>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {!line.product.sold_by_weight && (
                             <div className="flex items-center gap-1">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="icon-sm"
+                                aria-label={`Restar una unidad de ${line.product.name}`}
                                 onClick={() =>
-                                  setQuantity(line.product.id, line.quantity - 1)
+                                  setQuantity(
+                                    line.product.id,
+                                    line.quantity - 1,
+                                  )
                                 }
                               >
                                 <Minus />
@@ -574,8 +608,12 @@ export function SaleScreen({
                                 type="button"
                                 variant="outline"
                                 size="icon-sm"
+                                aria-label={`Sumar una unidad de ${line.product.name}`}
                                 onClick={() =>
-                                  setQuantity(line.product.id, line.quantity + 1)
+                                  setQuantity(
+                                    line.product.id,
+                                    line.quantity + 1,
+                                  )
                                 }
                               >
                                 <Plus />
@@ -589,9 +627,12 @@ export function SaleScreen({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
+                            aria-label={`Eliminar ${line.product.name} de la venta`}
                             onClick={() =>
                               line.product.sold_by_weight
-                                ? setCart((prev) => prev.filter((_, i) => i !== index))
+                                ? setCart((prev) =>
+                                    prev.filter((_, i) => i !== index),
+                                  )
                                 : removeLine(line.product.id)
                             }
                           >
@@ -614,7 +655,9 @@ export function SaleScreen({
 
           <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
             <span>Total</span>
-            <span className="text-brand-gold">{formatCurrency(total)}</span>
+            <span className="text-foreground tabular-nums">
+              {formatCurrency(total)}
+            </span>
           </div>
 
           {/* Método de pago, efectivo, cliente y el botón de cobrar solo
@@ -624,6 +667,7 @@ export function SaleScreen({
           {cart.length > 0 && (
             <>
               <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sale-payment-method">Método de pago</Label>
                 <Select
                   items={paymentMethods.map((m) => ({
                     value: m.id,
@@ -632,7 +676,7 @@ export function SaleScreen({
                   value={paymentMethodId}
                   onValueChange={(value) => setPaymentMethodId(value ?? '')}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="sale-payment-method" className="w-full">
                     <SelectValue placeholder="Método de pago" />
                   </SelectTrigger>
                   <SelectContent>
@@ -647,17 +691,23 @@ export function SaleScreen({
 
               {selectedMethod?.code === 'cash' && (
                 <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="sale-cash-received">Efectivo recibido</Label>
                   <Input
                     type="number"
                     step="0.01"
                     min="0"
                     autoComplete="off"
-                    placeholder="Efectivo recibido"
+                    id="sale-cash-received"
+                    inputMode="decimal"
+                    aria-describedby="sale-change"
+                    placeholder="0.00"
                     value={cashReceived}
                     onChange={(event) => setCashReceived(event.target.value)}
                   />
                   {change !== null && cashReceived !== '' && (
                     <p
+                      id="sale-change"
+                      role="status"
                       className={
                         change < 0
                           ? 'text-destructive text-sm'
@@ -686,6 +736,7 @@ export function SaleScreen({
                   El orden visual debe reflejar qué tan seguido se usa cada
                   campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
               <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sale-customer">Cliente (opcional)</Label>
                 <Select
                   items={[
                     { value: NO_CUSTOMER, label: 'Sin cliente' },
@@ -697,7 +748,7 @@ export function SaleScreen({
                   value={customerId}
                   onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="sale-customer" className="w-full">
                     <SelectValue placeholder="Sin cliente" />
                   </SelectTrigger>
                   <SelectContent>
@@ -730,6 +781,16 @@ export function SaleScreen({
           )}
         </CardContent>
       </Card>
+
+      {cart.length > 0 && (
+        <MobileCartSummary
+          total={total}
+          onOpen={() => {
+            cartHeadingRef.current?.scrollIntoView({ block: 'start' })
+            cartHeadingRef.current?.focus({ preventScroll: true })
+          }}
+        />
+      )}
 
       <GranelDialog
         product={granelProduct}

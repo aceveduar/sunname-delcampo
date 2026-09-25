@@ -101,7 +101,7 @@ export function ReportsPage() {
               Total vendido
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-brand-gold text-2xl font-semibold">
+          <CardContent className="text-foreground text-2xl font-semibold">
             {report.loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
@@ -311,7 +311,7 @@ export function ReportsPage() {
                           ? 'text-success'
                           : session.difference < 0
                             ? 'text-destructive'
-                            : 'text-brand-gold'
+                            : 'text-foreground'
                       }`}
                     >
                       {session.difference === 0
