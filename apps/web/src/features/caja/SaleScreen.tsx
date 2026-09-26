@@ -1,3 +1,6 @@
+import { LoadError } from '@/components/LoadError'
+import { DraftRecovery } from './DraftRecovery'
+import { searchProducts } from './productSearch'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import {
@@ -59,8 +62,19 @@ export function SaleScreen({
   cashSessionId: string
   role: Role | null
 }) {
-  const { products, updateProduct } = useProducts()
-  const { items: paymentMethods } = usePaymentMethods()
+  const {
+    products,
+    updateProduct,
+    loading: productsLoading,
+    error: productsError,
+    refresh: refreshProducts,
+  } = useProducts()
+  const {
+    items: paymentMethods,
+    loading: methodsLoading,
+    error: methodsError,
+    refresh: refreshMethods,
+  } = usePaymentMethods()
   const { customers } = useCustomers()
   const { categories } = useCategories()
   const topSellingIds = useTopSellingProducts()
@@ -69,6 +83,11 @@ export function SaleScreen({
   // Catálogo o Inventario a media venta y volver sin perder el carrito.
   const {
     cart,
+    pendingDraft,
+    storageError,
+    removedLine,
+    removeCartLine,
+    undoRemoval,
     setCart,
     paymentMethodId,
     setPaymentMethodId,
@@ -130,7 +149,8 @@ export function SaleScreen({
     cashSessionId,
     paymentMethods,
     customers,
-    defaultMethodId,
+    catalogReady:
+      !productsLoading && !productsError && !methodsLoading && !methodsError,
   })
 
   // Sombra de scroll del carrito -- ver hooks/useScrollShadows. Se le
@@ -156,20 +176,20 @@ export function SaleScreen({
   const activeCustomers = customers.filter((c) => c.active)
   const activeCategories = categories.filter((c) => c.active)
 
-  const results = useMemo(() => {
-    const query = normalizeSearch(search)
-    if (!query && filterCategory === 'all') return []
-    return products
-      .filter(
-        (p) =>
-          p.active &&
-          (filterCategory === 'all' || p.category_id === filterCategory) &&
-          (!query ||
-            normalizeSearch(p.name).includes(query) ||
-            (p.sku && normalizeSearch(p.sku).includes(query))),
-      )
-      .slice(0, 20)
-  }, [products, search, filterCategory])
+  const [resultLimit, setResultLimit] = useState(20)
+  const allResults = useMemo(
+    () => searchProducts(products, search, filterCategory),
+    [products, search, filterCategory],
+  )
+  const results = allResults.slice(0, resultLimit)
+  const changeSearch = (value: string) => {
+    setSearch(value)
+    setResultLimit(20)
+  }
+  const changeCategory = (value: string | null) => {
+    setFilterCategory(value ?? 'all')
+    setResultLimit(20)
+  }
 
   // Solo se enseña en el estado inactivo (sin búsqueda ni filtro) -- ahí
   // la pantalla quedaba en blanco y es donde de verdad ayuda un atajo,
@@ -266,17 +286,15 @@ export function SaleScreen({
   }
 
   const setQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeCartLine(cart.findIndex((line) => line.product.id === productId))
+      return
+    }
     setCart((prev) =>
-      quantity <= 0
-        ? prev.filter((line) => line.product.id !== productId)
-        : prev.map((line) =>
-            line.product.id === productId ? { ...line, quantity } : line,
-          ),
+      prev.map((line) =>
+        line.product.id === productId ? { ...line, quantity } : line,
+      ),
     )
-  }
-
-  const removeLine = (productId: string) => {
-    setCart((prev) => prev.filter((line) => line.product.id !== productId))
   }
 
   // Corrige Catálogo y, de una vez, la línea ya agregada a esta venta --
@@ -388,333 +406,389 @@ export function SaleScreen({
   })
 
   return (
-    <div
-      className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_370px] xl:grid-cols-[minmax(0,1fr)_400px] ${cart.length ? 'pb-24 md:pb-0' : ''}`}
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
-          <SearchInput
-            ref={searchInputRef}
-            value={search}
-            onChange={setSearch}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Buscar producto…"
-            aria-label="Buscar producto por nombre o código"
-            containerClassName="min-w-[200px] flex-1"
-            autoFocus
-          />
+    <>
+      <DraftRecovery
+        products={products}
+        ready={!productsLoading && !productsError}
+      />
+      {storageError && (
+        <p role="alert" className="text-destructive mb-3 text-sm">
+          No se pudo guardar el borrador en este navegador. Mantén esta pestaña
+          abierta hasta terminar la venta.
+        </p>
+      )}
+      <LoadError
+        message={productsError}
+        onRetry={refreshProducts}
+        loading={productsLoading}
+      />
+      <LoadError
+        message={methodsError}
+        onRetry={refreshMethods}
+        loading={methodsLoading}
+      />
+      <fieldset disabled={!!pendingDraft || submitting} className="contents">
+        <div
+          className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_370px] xl:grid-cols-[minmax(0,1fr)_400px] ${cart.length ? 'pb-24 md:pb-0' : ''}`}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              <SearchInput
+                ref={searchInputRef}
+                value={search}
+                onChange={changeSearch}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Buscar producto…"
+                aria-label="Buscar producto por nombre o código"
+                containerClassName="min-w-[200px] flex-1"
+                autoFocus
+              />
 
-          <VoiceCommandButton
-            products={products}
-            onAddByAmount={handleVoiceAmount}
-            onAddByQuantity={handleVoiceQuantity}
-            onAddByWeight={handleVoiceWeight}
-            onOpenManualWeight={handleOpenManualWeight}
-          />
+              <VoiceCommandButton
+                products={products}
+                onAddByAmount={handleVoiceAmount}
+                onAddByQuantity={handleVoiceQuantity}
+                onAddByWeight={handleVoiceWeight}
+                onOpenManualWeight={handleOpenManualWeight}
+              />
 
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Escanear código de barras con la cámara"
-            onClick={() => setScannerOpen(true)}
-          >
-            <ScanBarcode />
-          </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Escanear código de barras con la cámara"
+                onClick={() => setScannerOpen(true)}
+              >
+                <ScanBarcode />
+              </Button>
 
-          <Select
-            items={[
-              { value: 'all', label: 'Todas las categorías' },
-              ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-            value={filterCategory}
-            onValueChange={(value) => setFilterCategory(value ?? 'all')}
-          >
-            <SelectTrigger
-              aria-label="Filtrar por categoría"
-              className="w-full shrink-0 sm:w-48"
-            >
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {activeCategories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+              <Select
+                items={[
+                  { value: 'all', label: 'Todas las categorías' },
+                  ...activeCategories.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  })),
+                ]}
+                value={filterCategory}
+                onValueChange={changeCategory}
+              >
+                <SelectTrigger
+                  aria-label="Filtrar por categoría"
+                  className="w-full shrink-0 sm:w-48"
+                >
+                  <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {activeCategories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Sin invitación a buscar aquí a propósito: el placeholder del
+            {/* Sin invitación a buscar aquí a propósito: el placeholder del
             buscador ya dice qué hacer, y en la pantalla de mayor uso del
             sistema esa ilustración solo empujaba todo hacia abajo antes
             del primer producto. "Sin resultados" sí se queda completo --
             ahí el cajero necesita saber que algo salió distinto a lo
             esperado, no solo "todavía no escribiste nada". */}
-        {search.trim() === '' && filterCategory === 'all' ? (
-          topProducts.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
-                <TrendingUp className="size-3.5" />
-                Más vendidos
+            {productsLoading && products.length === 0 ? (
+              <p role="status" className="text-muted-foreground text-sm">
+                Cargando productos…
               </p>
-              <div className={PRODUCT_GRID_CLASS}>
-                {topProducts.map((product, index) => (
-                  <ProductResultCard
-                    key={product.id}
-                    product={product}
-                    rank={index + 1}
-                    onClick={() => handleProductClick(product)}
-                  />
-                ))}
-              </div>
-            </div>
-          )
-        ) : results.length === 0 ? (
-          <EmptyState
-            icon={Search}
-            title="Sin resultados"
-            description={
-              search.trim()
-                ? `No se encontraron productos para "${search}".`
-                : 'No hay productos activos en esta categoría.'
-            }
-          />
-        ) : (
-          <div className={PRODUCT_GRID_CLASS}>
-            {results.map((product) => (
-              <ProductResultCard
-                key={product.id}
-                product={product}
-                onClick={() => handleProductClick(product)}
+            ) : productsError &&
+              products.length === 0 ? null : search.trim() === '' &&
+              filterCategory === 'all' ? (
+              topProducts.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
+                    <TrendingUp className="size-3.5" />
+                    Más vendidos
+                  </p>
+                  <div className={PRODUCT_GRID_CLASS}>
+                    {topProducts.map((product, index) => (
+                      <ProductResultCard
+                        key={product.id}
+                        product={product}
+                        rank={index + 1}
+                        onClick={() => handleProductClick(product)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : results.length === 0 ? (
+              <EmptyState
+                icon={Search}
+                title="Sin resultados"
+                description={
+                  search.trim()
+                    ? `No se encontraron productos para "${search}".`
+                    : 'No hay productos activos en esta categoría.'
+                }
               />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Card id="current-sale" className="h-fit min-w-0 md:sticky md:top-4">
-        <CardHeader>
-          <CardTitle>
-            <h2
-              ref={cartHeadingRef}
-              tabIndex={-1}
-              className="focus-visible:outline-ring scroll-mt-4 focus-visible:outline-2"
-            >
-              Venta actual
-            </h2>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {cart.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Aún no hay productos en la venta.
-            </p>
-          ) : (
-            // Scroll propio de la lista, no de toda la página -- con
-            // muchas líneas, el carrito (sticky) podía crecer más alto
-            // que la pantalla y el Total/Cobrar quedaban fuera de vista
-            // hasta desplazar toda la página, mientras la columna de
-            // productos ya había terminado y dejaba hueco vacío al lado.
-            // Total, método de pago y Cobrar siempre visibles.
-            <div className="relative">
-              {cartCanScrollUp && (
-                <div
-                  aria-hidden
-                  className="from-card pointer-events-none absolute top-0 right-0 left-0 z-10 h-6 bg-gradient-to-b to-transparent"
-                />
-              )}
-              <div
-                ref={cartListRef}
-                onScroll={updateCartScrollShadows}
-                className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto pr-1"
-              >
-                {cart.map((line, index) => (
-                  <div
-                    key={`${line.product.id}-${index}`}
-                    className="flex items-start gap-2.5"
+            ) : (
+              <div className="space-y-3">
+                <p role="status" className="text-muted-foreground text-sm">
+                  Mostrando {results.length} de {allResults.length} productos
+                </p>
+                <div className={PRODUCT_GRID_CLASS}>
+                  {results.map((product) => (
+                    <ProductResultCard
+                      key={product.id}
+                      product={product}
+                      onClick={() => handleProductClick(product)}
+                    />
+                  ))}
+                </div>
+                {results.length < allResults.length && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setResultLimit((limit) => limit + 20)}
                   >
-                    {/* Miniatura -- mismo estilo y placeholder que la
+                    Ver más productos
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Card id="current-sale" className="h-fit min-w-0 md:sticky md:top-4">
+            <CardHeader>
+              <CardTitle>
+                <h2
+                  ref={cartHeadingRef}
+                  tabIndex={-1}
+                  className="focus-visible:outline-ring scroll-mt-4 focus-visible:outline-2"
+                >
+                  Venta actual
+                </h2>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {removedLine && (
+                <div
+                  role="status"
+                  className="bg-muted flex flex-wrap items-center justify-between gap-2 rounded-lg p-2 text-sm"
+                >
+                  <span>Se quitó {removedLine.product.name}.</span>
+                  <Button variant="outline" onClick={undoRemoval}>
+                    Deshacer
+                  </Button>
+                </div>
+              )}
+              {cart.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Aún no hay productos en la venta.
+                </p>
+              ) : (
+                // Scroll propio de la lista, no de toda la página -- con
+                // muchas líneas, el carrito (sticky) podía crecer más alto
+                // que la pantalla y el Total/Cobrar quedaban fuera de vista
+                // hasta desplazar toda la página, mientras la columna de
+                // productos ya había terminado y dejaba hueco vacío al lado.
+                // Total, método de pago y Cobrar siempre visibles.
+                <div className="relative">
+                  {cartCanScrollUp && (
+                    <div
+                      aria-hidden
+                      className="from-card pointer-events-none absolute top-0 right-0 left-0 z-10 h-6 bg-gradient-to-b to-transparent"
+                    />
+                  )}
+                  <div
+                    ref={cartListRef}
+                    onScroll={updateCartScrollShadows}
+                    className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto pr-1"
+                  >
+                    {cart.map((line, index) => (
+                      <div
+                        key={`${line.product.id}-${index}`}
+                        className="flex items-start gap-2.5"
+                      >
+                        {/* Miniatura -- mismo estilo y placeholder que la
                         rejilla de productos, no solo decorativa: es una
                         segunda confirmación visual antes de cobrar, además
                         del nombre a todo el ancho, para distinguir de un
                         vistazo presentaciones parecidas (dos "Chipotles
                         Adobados..." con gramaje y precio distinto). */}
-                    {line.product.image_url ? (
-                      <img
-                        src={line.product.image_url}
-                        alt=""
-                        className="border-border size-10 shrink-0 rounded-md border object-cover"
-                      />
-                    ) : (
-                      <div className="border-border bg-muted flex size-10 shrink-0 items-center justify-center rounded-md border">
-                        <Package className="text-muted-foreground size-4" />
-                      </div>
-                    )}
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      {/* Nombre en su propia fila, a todo el ancho
+                        {line.product.image_url ? (
+                          <img
+                            src={line.product.image_url}
+                            alt=""
+                            className="border-border size-10 shrink-0 rounded-md border object-cover"
+                          />
+                        ) : (
+                          <div className="border-border bg-muted flex size-10 shrink-0 items-center justify-center rounded-md border">
+                            <Package className="text-muted-foreground size-4" />
+                          </div>
+                        )}
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          {/* Nombre en su propia fila, a todo el ancho
                           disponible -- con nombres largos que comparten
                           prefijo, compartir la fila con el stepper y el
                           precio dejaba tan poco ancho que se veían
                           idénticos aunque fueran presentaciones distintas.
                           En la pantalla donde se cobra dinero real, poder
                           distinguirlos pesa más que una fila más compacta. */}
-                      <p className="line-clamp-2 text-sm font-medium">
-                        {line.product.name}
-                      </p>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                          {line.product.sold_by_weight
-                            ? `${Math.round(line.quantity * 1000)} g`
-                            : `${formatCurrency(line.product.price)} c/u`}
-                          {canEditPrice && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Corregir precio"
-                              onClick={() =>
-                                setEditingPriceProduct(line.product)
-                              }
-                              className="hover:text-foreground shrink-0"
-                            >
-                              <Pencil className="size-3" />
-                            </Button>
-                          )}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {!line.product.sold_by_weight && (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon-sm"
-                                aria-label={`Restar una unidad de ${line.product.name}`}
-                                onClick={() =>
-                                  setQuantity(
-                                    line.product.id,
-                                    line.quantity - 1,
-                                  )
-                                }
-                              >
-                                <Minus />
-                              </Button>
-                              <span className="w-6 text-center text-sm">
-                                {line.quantity}
+                          <p className="line-clamp-2 text-sm font-medium">
+                            {line.product.name}
+                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                              {line.product.sold_by_weight
+                                ? `${Math.round(line.quantity * 1000)} g`
+                                : `${formatCurrency(line.product.price)} c/u`}
+                              {canEditPrice && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label="Corregir precio"
+                                  onClick={() =>
+                                    setEditingPriceProduct(line.product)
+                                  }
+                                  className="hover:text-foreground shrink-0"
+                                >
+                                  <Pencil className="size-3" />
+                                </Button>
+                              )}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {!line.product.sold_by_weight && (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    aria-label={`Restar una unidad de ${line.product.name}`}
+                                    onClick={() =>
+                                      setQuantity(
+                                        line.product.id,
+                                        line.quantity - 1,
+                                      )
+                                    }
+                                  >
+                                    <Minus />
+                                  </Button>
+                                  <span className="w-6 text-center text-sm">
+                                    {line.quantity}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    aria-label={`Sumar una unidad de ${line.product.name}`}
+                                    onClick={() =>
+                                      setQuantity(
+                                        line.product.id,
+                                        line.quantity + 1,
+                                      )
+                                    }
+                                  >
+                                    <Plus />
+                                  </Button>
+                                </div>
+                              )}
+                              <span className="w-16 text-right text-sm font-medium">
+                                {formatCurrency(lineTotal(line))}
                               </span>
                               <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="icon-sm"
-                                aria-label={`Sumar una unidad de ${line.product.name}`}
-                                onClick={() =>
-                                  setQuantity(
-                                    line.product.id,
-                                    line.quantity + 1,
-                                  )
-                                }
+                                aria-label={`Eliminar ${line.product.name} de la venta`}
+                                onClick={() => removeCartLine(index)}
                               >
-                                <Plus />
+                                <Trash2 />
                               </Button>
                             </div>
-                          )}
-                          <span className="w-16 text-right text-sm font-medium">
-                            {formatCurrency(lineTotal(line))}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Eliminar ${line.product.name} de la venta`}
-                            onClick={() =>
-                              line.product.sold_by_weight
-                                ? setCart((prev) =>
-                                    prev.filter((_, i) => i !== index),
-                                  )
-                                : removeLine(line.product.id)
-                            }
-                          >
-                            <Trash2 />
-                          </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              {cartCanScrollDown && (
-                <div
-                  aria-hidden
-                  className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-6 bg-gradient-to-t to-transparent"
-                />
+                  {cartCanScrollDown && (
+                    <div
+                      aria-hidden
+                      className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-6 bg-gradient-to-t to-transparent"
+                    />
+                  )}
+                </div>
               )}
-            </div>
-          )}
 
-          <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
-            <span>Total</span>
-            <span className="text-foreground tabular-nums">
-              {formatCurrency(total)}
-            </span>
-          </div>
+              <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
+                <span>Total</span>
+                <span className="text-foreground tabular-nums">
+                  {formatCurrency(total)}
+                </span>
+              </div>
 
-          {/* Método de pago, efectivo, cliente y el botón de cobrar solo
+              {/* Método de pago, efectivo, cliente y el botón de cobrar solo
               aparecen con algo en el carrito -- con $0.00 no hay nada que
               cobrar, y mostrarlos igual era ruido antes del primer
               producto en la pantalla que más se usa del sistema. */}
-          {cart.length > 0 && (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="sale-payment-method">Método de pago</Label>
-                <Select
-                  items={paymentMethods.map((m) => ({
-                    value: m.id,
-                    label: m.name,
-                  }))}
-                  value={paymentMethodId}
-                  onValueChange={(value) => setPaymentMethodId(value ?? '')}
-                >
-                  <SelectTrigger id="sale-payment-method" className="w-full">
-                    <SelectValue placeholder="Método de pago" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedMethod?.code === 'cash' && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="sale-cash-received">Efectivo recibido</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    autoComplete="off"
-                    id="sale-cash-received"
-                    inputMode="decimal"
-                    aria-describedby="sale-change"
-                    placeholder="0.00"
-                    value={cashReceived}
-                    onChange={(event) => setCashReceived(event.target.value)}
-                  />
-                  {change !== null && cashReceived !== '' && (
-                    <p
-                      id="sale-change"
-                      role="status"
-                      className={
-                        change < 0
-                          ? 'text-destructive text-sm'
-                          : 'text-success text-sm'
-                      }
+              {cart.length > 0 && (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="sale-payment-method">Método de pago</Label>
+                    <Select
+                      items={paymentMethods.map((m) => ({
+                        value: m.id,
+                        label: m.name,
+                      }))}
+                      value={paymentMethodId}
+                      onValueChange={(value) => setPaymentMethodId(value ?? '')}
                     >
-                      {/* Se probó mostrar aquí una sugerencia de cambio
+                      <SelectTrigger
+                        id="sale-payment-method"
+                        className="w-full"
+                      >
+                        <SelectValue placeholder="Método de pago" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentMethods.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedMethod?.code === 'cash' && (
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="sale-cash-received">
+                        Efectivo recibido
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        autoComplete="off"
+                        id="sale-cash-received"
+                        inputMode="decimal"
+                        aria-describedby="sale-change"
+                        placeholder="0.00"
+                        value={cashReceived}
+                        onChange={(event) =>
+                          setCashReceived(event.target.value)
+                        }
+                      />
+                      {change !== null && cashReceived !== '' && (
+                        <p
+                          id="sale-change"
+                          role="status"
+                          className={
+                            change < 0
+                              ? 'text-destructive text-sm'
+                              : 'text-success text-sm'
+                          }
+                        >
+                          {/* Se probó mostrar aquí una sugerencia de cambio
                           redondeado y se quitó (2026-09-03): redondear al peso
                           más cercano cae hacia abajo cuando el cambio es menor
                           a $0.50, y terminaba sugiriendo "redondeado: $0.00"
@@ -722,111 +796,115 @@ export function SaleScreen({
                           el dinero del cliente. Qué monedas dar es criterio del
                           cajero, que sabe qué tiene en la caja; el sistema solo
                           dice el número exacto. */}
-                      {change < 0
-                        ? `Falta ${formatCurrency(Math.abs(change))}`
-                        : `Cambio: ${formatCurrency(change)}`}
-                    </p>
+                          {change < 0
+                            ? `Falta ${formatCurrency(Math.abs(change))}`
+                            : `Cambio: ${formatCurrency(change)}`}
+                        </p>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {/* Cliente va al final a propósito: en un negocio de mostrador
+                  {/* Cliente va al final a propósito: en un negocio de mostrador
                   como Del Campo casi toda venta es anónima -- método de pago
                   y efectivo recibido se tocan siempre, cliente solo a veces.
                   El orden visual debe reflejar qué tan seguido se usa cada
                   campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="sale-customer">Cliente (opcional)</Label>
-                <Select
-                  items={[
-                    { value: NO_CUSTOMER, label: 'Sin cliente' },
-                    ...activeCustomers.map((c) => ({
-                      value: c.id,
-                      label: c.name,
-                    })),
-                  ]}
-                  value={customerId}
-                  onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
-                >
-                  <SelectTrigger id="sale-customer" className="w-full">
-                    <SelectValue placeholder="Sin cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
-                    {activeCustomers.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="sale-customer">Cliente (opcional)</Label>
+                    <Select
+                      items={[
+                        { value: NO_CUSTOMER, label: 'Sin cliente' },
+                        ...activeCustomers.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        })),
+                      ]}
+                      value={customerId}
+                      onValueChange={(value) =>
+                        setCustomerId(value ?? NO_CUSTOMER)
+                      }
+                    >
+                      <SelectTrigger id="sale-customer" className="w-full">
+                        <SelectValue placeholder="Sin cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
+                        {activeCustomers.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <Button onClick={handleCheckout} disabled={checkoutDisabled}>
-                {submitting ? (
-                  'Cobrando…'
-                ) : (
-                  <>
-                    {`Cobrar ${formatCurrency(total)}`}
-                    {/* El atajo es para quien tiene teclado (PC del negocio) --
+                  <Button onClick={handleCheckout} disabled={checkoutDisabled}>
+                    {submitting ? (
+                      'Cobrando…'
+                    ) : (
+                      <>
+                        {`Cobrar ${formatCurrency(total)}`}
+                        {/* El atajo es para quien tiene teclado (PC del negocio) --
                         en un celular/tablet por touch no aplica y solo le
                         resta espacio al botón en la pantalla más angosta. */}
-                    <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
-                      F9
-                    </kbd>
-                  </>
-                )}
-              </Button>
-            </>
+                        <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
+                          F9
+                        </kbd>
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {cart.length > 0 && (
+            <MobileCartSummary
+              total={total}
+              onOpen={() => {
+                cartHeadingRef.current?.scrollIntoView({ block: 'start' })
+                cartHeadingRef.current?.focus({ preventScroll: true })
+              }}
+            />
           )}
-        </CardContent>
-      </Card>
 
-      {cart.length > 0 && (
-        <MobileCartSummary
-          total={total}
-          onOpen={() => {
-            cartHeadingRef.current?.scrollIntoView({ block: 'start' })
-            cartHeadingRef.current?.focus({ preventScroll: true })
-          }}
-        />
-      )}
+          <GranelDialog
+            product={granelProduct}
+            initialGrams={granelInitialGrams}
+            onOpenChange={(open) => {
+              if (!open) {
+                setGranelProduct(null)
+                setGranelInitialGrams(undefined)
+              }
+            }}
+            onConfirm={(weightKg, amountMxn) => {
+              if (granelProduct) {
+                addToCart(granelProduct, weightKg, amountMxn)
+                toast.success(`Agregado: ${granelProduct.name}`)
+              }
+              setGranelProduct(null)
+              setGranelInitialGrams(undefined)
+              afterAdd()
+            }}
+          />
 
-      <GranelDialog
-        product={granelProduct}
-        initialGrams={granelInitialGrams}
-        onOpenChange={(open) => {
-          if (!open) {
-            setGranelProduct(null)
-            setGranelInitialGrams(undefined)
-          }
-        }}
-        onConfirm={(weightKg, amountMxn) => {
-          if (granelProduct) {
-            addToCart(granelProduct, weightKg, amountMxn)
-            toast.success(`Agregado: ${granelProduct.name}`)
-          }
-          setGranelProduct(null)
-          setGranelInitialGrams(undefined)
-          afterAdd()
-        }}
-      />
+          <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} />
 
-      <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} />
+          <BarcodeScannerDialog
+            open={scannerOpen}
+            onOpenChange={setScannerOpen}
+            onDetected={handleCameraScan}
+          />
 
-      <BarcodeScannerDialog
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onDetected={handleCameraScan}
-      />
-
-      <EditCartPriceDialog
-        product={editingPriceProduct}
-        onOpenChange={(open) => {
-          if (!open) setEditingPriceProduct(null)
-        }}
-        onSave={handleSavePrice}
-      />
-    </div>
+          <EditCartPriceDialog
+            product={editingPriceProduct}
+            onOpenChange={(open) => {
+              if (!open) setEditingPriceProduct(null)
+            }}
+            onSave={handleSavePrice}
+          />
+        </div>
+      </fieldset>
+    </>
   )
 }

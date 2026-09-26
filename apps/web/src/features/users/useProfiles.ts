@@ -16,12 +16,16 @@ export function useProfiles() {
   const {
     items: profiles,
     loading,
+    error,
     refresh,
   } = useSupabaseList<Profile>(fetchProfiles, 'No se pudo cargar el equipo')
 
   const updateRole = useCallback(
     async (id: string, role: Role) => {
-      const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', id)
       if (error) {
         reportError('No se pudo cambiar el rol', error)
         return false
@@ -35,7 +39,10 @@ export function useProfiles() {
 
   const updateFullName = useCallback(
     async (id: string, fullName: string) => {
-      const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', id)
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName })
+        .eq('id', id)
       if (error) {
         reportError('No se pudo actualizar el nombre', error)
         return false
@@ -64,5 +71,13 @@ export function useProfiles() {
     [refresh],
   )
 
-  return { profiles, loading, refresh, updateRole, updateFullName, toggleActive }
+  return {
+    profiles,
+    loading,
+    error,
+    refresh,
+    updateRole,
+    updateFullName,
+    toggleActive,
+  }
 }

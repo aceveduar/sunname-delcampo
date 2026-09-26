@@ -9,23 +9,31 @@ export type CashSession = Database['public']['Tables']['cash_sessions']['Row']
 export function useCashSession() {
   const [session, setSession] = useState<CashSession | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('cash_sessions')
-      .select('*')
-      .eq('status', 'open')
-      .order('opened_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    try {
+      const { data, error } = await supabase
+        .from('cash_sessions')
+        .select('*')
+        .eq('status', 'open')
+        .order('opened_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-    if (error) {
-      reportError('No se pudo cargar el estado de caja', error)
-    } else {
-      setSession(data)
+      if (error) {
+        throw error
+      } else {
+        setSession(data)
+        setError(null)
+      }
+    } catch (cause) {
+      setError('No se pudo cargar el estado de caja')
+      reportError('No se pudo cargar el estado de caja', cause)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -55,24 +63,25 @@ export function useCashSession() {
   )
 
   const closeSession = useCallback(
-    async (closingAmount: number) => {
+    async (
+      closingAmount: number,
+      notes: string | null,
+      expectedAmount: number,
+    ) => {
       if (!session) return false
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      const { error } = await supabase
-        .from('cash_sessions')
-        .update({
-          status: 'closed',
-          closed_by: user?.id,
-          closed_at: new Date().toISOString(),
-          closing_amount: closingAmount,
-        })
-        .eq('id', session.id)
-
+      const { error } = await supabase.rpc('close_cash_session', {
+        p_session_id: session.id,
+        p_closing_amount: closingAmount,
+        p_expected_amount: expectedAmount,
+        p_notes: notes ?? undefined,
+      })
       if (error) {
-        reportError('No se pudo cerrar la caja', error)
+        reportError(
+          error.code === 'P0001'
+            ? error.message
+            : 'No se pudo confirmar el cierre. Actualiza el estado de caja antes de reintentar.',
+          error,
+        )
         return false
       }
       toast.success('Caja cerrada')
@@ -82,5 +91,5 @@ export function useCashSession() {
     [session, refresh],
   )
 
-  return { session, loading, openSession, closeSession }
+  return { session, loading, error, refresh, openSession, closeSession }
 }

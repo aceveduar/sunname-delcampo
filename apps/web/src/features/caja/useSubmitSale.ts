@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/currency'
 import { reportError } from '@/lib/errors'
@@ -16,23 +17,25 @@ export function useSubmitSale({
   cashSessionId,
   paymentMethods,
   customers,
-  defaultMethodId,
+  catalogReady,
 }: {
   cashSessionId: string
   paymentMethods: PaymentMethod[]
   customers: Customer[]
-  defaultMethodId: string
+  catalogReady: boolean
 }) {
   const {
     cart,
-    setCart,
+    pendingDraft,
+    beginCheckout,
+    holdForVerification,
+    resetSale,
     paymentMethodId,
-    setPaymentMethodId,
     cashReceived,
-    setCashReceived,
     customerId,
-    setCustomerId,
   } = useCart()
+  const online = useOnlineStatus()
+  const submittingRef = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
 
@@ -53,64 +56,69 @@ export function useSubmitSale({
   const received = Number(cashReceived || 0)
   const change = selectedMethod?.code === 'cash' ? received - total : null
   const checkoutDisabled =
+    !online ||
     cart.length === 0 ||
-    !paymentMethodId ||
+    !selectedMethod ||
+    !catalogReady ||
+    !!pendingDraft ||
+    !Number.isFinite(received) ||
     submitting ||
     (selectedMethod?.code === 'cash' && received < total)
 
-  const resetSale = () => {
-    setCart([])
-    setCashReceived('')
-    setPaymentMethodId(defaultMethodId)
-    setCustomerId(NO_CUSTOMER)
-  }
-
   const handleCheckout = async () => {
-    if (cart.length === 0 || !paymentMethodId) return
+    if (checkoutDisabled || submittingRef.current) return
+    submittingRef.current = true
     setSubmitting(true)
 
-    const { data: saleId, error } = await supabase.rpc('create_sale', {
-      p_client_uuid: crypto.randomUUID(),
-      p_cash_session_id: cashSessionId,
-      p_items: cart.map((line) => ({
-        product_id: line.product.id,
-        quantity: line.quantity,
-        // Si la línea se pidió por monto, manda el monto: create_sale
-        // deriva el peso y cobra ese monto exacto.
-        ...(line.amountMxn !== undefined ? { amount: line.amountMxn } : {}),
-      })),
-      p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
-      p_customer_id: customerId === NO_CUSTOMER ? undefined : customerId,
-    })
+    try {
+      const { data: saleId, error } = await supabase.rpc('create_sale', {
+        p_client_uuid: beginCheckout(),
+        p_cash_session_id: cashSessionId,
+        p_items: cart.map((line) => ({
+          product_id: line.product.id,
+          quantity: line.quantity,
+          // Si la línea se pidió por monto, manda el monto: create_sale
+          // deriva el peso y cobra ese monto exacto.
+          ...(line.amountMxn !== undefined ? { amount: line.amountMxn } : {}),
+        })),
+        p_payments: [{ payment_method_id: paymentMethodId, amount: total }],
+        p_customer_id: customerId === NO_CUSTOMER ? undefined : customerId,
+      })
 
-    setSubmitting(false)
+      if (error) throw error
+      if (!saleId) throw new Error('La venta no devolvió una confirmación')
 
-    if (error) {
-      reportError('No se pudo registrar la venta', error)
-      return
+      toast.success('Venta registrada')
+      setReceipt({
+        saleId: saleId as string,
+        createdAt: new Date().toISOString(),
+        lines: cart.map((line) => ({
+          name: line.product.name,
+          detail: line.product.sold_by_weight
+            ? `${Math.round(line.quantity * 1000)} g`
+            : `${line.quantity} x ${formatCurrency(line.product.price)}`,
+          total: lineTotal(line),
+        })),
+        total,
+        paymentMethodName: selectedMethod?.name ?? '—',
+        cashReceived: selectedMethod?.code === 'cash' ? received : null,
+        change: selectedMethod?.code === 'cash' ? change : null,
+        customerName:
+          customerId === NO_CUSTOMER
+            ? null
+            : (customers.find((c) => c.id === customerId)?.name ?? null),
+      })
+      resetSale()
+    } catch (error) {
+      holdForVerification()
+      reportError(
+        'No se pudo confirmar la venta. Verifica el cobro antes de continuar.',
+        error,
+      )
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
     }
-
-    toast.success('Venta registrada')
-    setReceipt({
-      saleId: saleId as string,
-      createdAt: new Date().toISOString(),
-      lines: cart.map((line) => ({
-        name: line.product.name,
-        detail: line.product.sold_by_weight
-          ? `${Math.round(line.quantity * 1000)} g`
-          : `${line.quantity} x ${formatCurrency(line.product.price)}`,
-        total: lineTotal(line),
-      })),
-      total,
-      paymentMethodName: selectedMethod?.name ?? '—',
-      cashReceived: selectedMethod?.code === 'cash' ? received : null,
-      change: selectedMethod?.code === 'cash' ? change : null,
-      customerName:
-        customerId === NO_CUSTOMER
-          ? null
-          : (customers.find((c) => c.id === customerId)?.name ?? null),
-    })
-    resetSale()
   }
 
   return {

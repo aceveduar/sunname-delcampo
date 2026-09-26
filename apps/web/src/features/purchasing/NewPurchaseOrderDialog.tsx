@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,246 +14,309 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { formatCurrency } from '@/lib/currency'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import type { Product } from '@/features/catalog/useProducts'
 import type { Supplier } from './useSuppliers'
-
-type Line = { productId: string; quantity: number; unitCost: number }
+import type { PurchaseOrderInput } from './useCreatePurchaseOrder'
+import {
+  seedPurchaseLines,
+  validPurchaseLine,
+  type PurchaseSeedLine,
+  type PurchaseDraftLine,
+} from './purchaseDraft'
 
 export function NewPurchaseOrderDialog({
   suppliers,
   products,
   onCreate,
+  initialLines = [],
+  triggerLabel = 'Nueva orden',
+  disabled = false,
 }: {
   suppliers: Supplier[]
   products: Product[]
-  onCreate: (values: {
-    supplierId: string
-    notes: string | null
-    items: { productId: string; quantity: number; unitCost: number }[]
-  }) => Promise<boolean>
+  onCreate: (values: PurchaseOrderInput) => Promise<boolean>
+  initialLines?: PurchaseSeedLine[]
+  triggerLabel?: string
+  disabled?: boolean
 }) {
+  const id = useId()
+  const online = useOnlineStatus()
   const [open, setOpen] = useState(false)
   const [supplierId, setSupplierId] = useState('')
-  const [lines, setLines] = useState<Line[]>([])
+  const [lines, setLines] = useState<PurchaseDraftLine[]>([])
   const [draftProductId, setDraftProductId] = useState('')
-  const [draftQuantity, setDraftQuantity] = useState('1')
-  const [draftUnitCost, setDraftUnitCost] = useState('')
+  const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
+  const busy = useRef(false)
+  const [unconfirmed, setUnconfirmed] = useState(false)
   const activeSuppliers = suppliers.filter((s) => s.active)
-  const total = lines.reduce(
-    (sum, line) => sum + line.quantity * line.unitCost,
+  const activeProducts = products.filter((p) => p.active)
+  const selected = lines.filter((line) => line.selected)
+  const valid =
+    selected.length > 0 &&
+    selected.every(validPurchaseLine) &&
+    activeSuppliers.some((s) => s.id === supplierId)
+  const total = selected.reduce(
+    (sum, line) =>
+      sum +
+      (validPurchaseLine(line)
+        ? Math.round(Number(line.quantity) * Number(line.unitCost) * 100) / 100
+        : 0),
     0,
   )
-
   const handleOpenChange = (next: boolean) => {
+    if (busy.current) return
     setOpen(next)
-    if (next) {
+    if (next && !unconfirmed) {
       setSupplierId('')
-      setLines([])
+      setLines(seedPurchaseLines(initialLines))
       setDraftProductId('')
-      setDraftQuantity('1')
-      setDraftUnitCost('')
+      setNotes('')
     }
   }
-
+  const editLine = (productId: string, values: Partial<PurchaseDraftLine>) =>
+    setLines((previous) =>
+      previous.map((line) =>
+        line.productId === productId ? { ...line, ...values } : line,
+      ),
+    )
   const addLine = () => {
-    const quantity = Number(draftQuantity)
-    const unitCost = Number(draftUnitCost)
-    if (!draftProductId || !(quantity > 0) || !(unitCost >= 0)) return
-
-    setLines((prev) => {
-      const existing = prev.find((line) => line.productId === draftProductId)
-      if (existing) {
-        return prev.map((line) =>
-          line.productId === draftProductId
-            ? { ...line, quantity: line.quantity + quantity, unitCost }
-            : line,
-        )
-      }
-      return [...prev, { productId: draftProductId, quantity, unitCost }]
-    })
+    if (
+      !draftProductId ||
+      lines.some((line) => line.productId === draftProductId)
+    )
+      return
+    setLines((previous) => [
+      ...previous,
+      ...seedPurchaseLines([{ productId: draftProductId, quantity: 1 }]),
+    ])
     setDraftProductId('')
-    setDraftQuantity('1')
-    setDraftUnitCost('')
   }
-
-  const removeLine = (productId: string) => {
-    setLines((prev) => prev.filter((line) => line.productId !== productId))
-  }
-
-  const productName = (id: string) =>
-    products.find((p) => p.id === id)?.name ?? '—'
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!supplierId || lines.length === 0) return
+    if (!valid || !online || busy.current) return
+    busy.current = true
     setSubmitting(true)
-
-    const form = new FormData(event.currentTarget)
-    const notes = String(form.get('notes') ?? '').trim() || null
-
-    const ok = await onCreate({
-      supplierId,
-      notes,
-      items: lines.map((line) => ({
-        productId: line.productId,
-        quantity: line.quantity,
-        unitCost: line.unitCost,
-      })),
-    })
-
-    setSubmitting(false)
-    if (ok) setOpen(false)
+    try {
+      const ok = await onCreate({
+        supplierId,
+        notes: notes.trim() || null,
+        items: selected.map((line) => ({
+          productId: line.productId,
+          quantity: Number(line.quantity),
+          unitCost: Number(line.unitCost),
+        })),
+      })
+      setUnconfirmed(!ok)
+      if (ok) setOpen(false)
+    } finally {
+      busy.current = false
+      setSubmitting(false)
+    }
   }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button size="sm" />}>
-        <Plus /> Nueva orden
+      <DialogTrigger disabled={disabled} render={<Button size="sm" />}>
+        <Plus />
+        {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl" showCloseButton={!submitting}>
         <DialogHeader>
           <DialogTitle>Nueva orden de compra</DialogTitle>
+          <DialogDescription>
+            Selecciona los productos, revisa cantidades e indica el costo
+            acordado. El inventario cambia al recibir la orden.
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={handleSubmit}
-          className="flex max-h-[75vh] flex-col overflow-hidden"
+          className="flex max-h-[70dvh] flex-col gap-4"
         >
-          <div className="-mx-1 flex flex-col gap-4 overflow-x-hidden overflow-y-auto px-1 py-1">
-            <div className="flex flex-col gap-1.5">
-              <Label>Proveedor</Label>
-              <Select
-                items={activeSuppliers.map((s) => ({
-                  value: s.id,
-                  label: s.name,
-                }))}
-                value={supplierId}
-                onValueChange={(value) => setSupplierId(value ?? '')}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona un proveedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeSuppliers.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="border-border flex flex-col gap-2 rounded-lg border p-3">
-              <Label>Agregar producto</Label>
-              <Select
-                items={products.map((p) => ({ value: p.id, label: p.name }))}
-                value={draftProductId}
-                onValueChange={(value) => setDraftProductId(value ?? '')}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Producto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                <Input
-                  type="number"
-                  step="0.001"
-                  min="0.001"
-                  placeholder="Cantidad"
-                  value={draftQuantity}
-                  onChange={(event) => setDraftQuantity(event.target.value)}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Costo unitario"
-                  value={draftUnitCost}
-                  onChange={(event) => setDraftUnitCost(event.target.value)}
-                />
-                <Button type="button" variant="outline" onClick={addLine}>
+          <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
+            <fieldset disabled={submitting} className="space-y-4">
+              {unconfirmed && (
+                <p role="status" className="text-sm">
+                  Si el resultado fue incierto, reintenta sin cambiar los datos
+                  para verificar la misma orden.
+                </p>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor={id + 'supplier'}>Proveedor</Label>
+                <Select
+                  items={activeSuppliers.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                  }))}
+                  value={supplierId}
+                  onValueChange={(value) => setSupplierId(value ?? '')}
+                >
+                  <SelectTrigger id={id + 'supplier'} className="w-full">
+                    <SelectValue placeholder="Selecciona un proveedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeSuppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {activeSuppliers.length === 0 && (
+                  <p className="text-sm">
+                    Primero registra un proveedor activo en Compras.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor={id + 'product'}>Agregar producto</Label>
+                  <Select
+                    items={activeProducts.map((p) => ({
+                      value: p.id,
+                      label: p.name,
+                    }))}
+                    value={draftProductId}
+                    onValueChange={(value) => setDraftProductId(value ?? '')}
+                  >
+                    <SelectTrigger id={id + 'product'} className="w-full">
+                      <SelectValue placeholder="Producto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeProducts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addLine}
+                  disabled={
+                    !draftProductId ||
+                    lines.some((line) => line.productId === draftProductId)
+                  }
+                >
                   Agregar
                 </Button>
               </div>
-            </div>
-
-            {lines.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Cant.</TableHead>
-                    <TableHead>Costo</TableHead>
-                    <TableHead className="text-right">Subtotal</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((line) => (
-                    <TableRow key={line.productId}>
-                      <TableCell>{productName(line.productId)}</TableCell>
-                      <TableCell>{line.quantity}</TableCell>
-                      <TableCell>{formatCurrency(line.unitCost)}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(line.quantity * line.unitCost)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => removeLine(line.productId)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-
-            {lines.length > 0 && (
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span>Total</span>
-                <span>{formatCurrency(total)}</span>
+              {lines.map((line) => {
+                const name =
+                  products.find((p) => p.id === line.productId)?.name ??
+                  'Producto no disponible'
+                return (
+                  <div
+                    key={line.productId}
+                    className="space-y-2 rounded-lg border p-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex min-h-10 items-center gap-2 font-medium">
+                        <input
+                          type="checkbox"
+                          checked={line.selected}
+                          onChange={(event) =>
+                            editLine(line.productId, {
+                              selected: event.target.checked,
+                            })
+                          }
+                          aria-label={'Incluir ' + name}
+                        />
+                        {name}
+                      </label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={'Quitar ' + name}
+                        onClick={() =>
+                          setLines((previous) =>
+                            previous.filter(
+                              (item) => item.productId !== line.productId,
+                            ),
+                          )
+                        }
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor={id + line.productId + 'qty'}>
+                          Cantidad
+                        </Label>
+                        <Input
+                          id={id + line.productId + 'qty'}
+                          aria-label={'Cantidad de ' + name}
+                          type="number"
+                          step="0.001"
+                          min="0.001"
+                          max="999999999.999"
+                          required={line.selected}
+                          disabled={!line.selected}
+                          value={line.quantity}
+                          onChange={(event) =>
+                            editLine(line.productId, {
+                              quantity: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={id + line.productId + 'cost'}>
+                          Costo unitario
+                        </Label>
+                        <Input
+                          id={id + line.productId + 'cost'}
+                          aria-label={'Costo de ' + name}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="9999999999.99"
+                          required={line.selected}
+                          disabled={!line.selected}
+                          value={line.unitCost}
+                          onChange={(event) =>
+                            editLine(line.productId, {
+                              unitCost: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              <div className="space-y-1.5">
+                <Label htmlFor={id + 'notes'}>Nota (opcional)</Label>
+                <Textarea
+                  id={id + 'notes'}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
               </div>
-            )}
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="po-notes">Nota (opcional)</Label>
-              <Textarea id="po-notes" name="notes" />
-            </div>
+            </fieldset>
           </div>
-
-          <DialogFooter className="border-border shrink-0 border-t pt-4">
-            <Button
-              type="submit"
-              disabled={!supplierId || lines.length === 0 || submitting}
-            >
-              {submitting ? 'Creando…' : 'Crear orden'}
+          <p className="flex shrink-0 justify-between font-semibold">
+            <span>
+              {selected.length}{' '}
+              {selected.length === 1 ? 'producto' : 'productos'} · Total
+              {!selected.every(validPurchaseLine) ? ' parcial' : ''}
+            </span>
+            <span>{formatCurrency(total)}</span>
+          </p>
+          <DialogFooter className="shrink-0">
+            <Button type="submit" disabled={!valid || !online || submitting}>
+              {submitting ? 'Confirmando…' : 'Crear orden'}
             </Button>
           </DialogFooter>
         </form>

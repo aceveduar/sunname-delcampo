@@ -12,6 +12,7 @@ import { useTenantSettings } from '@/features/settings/useTenantSettings'
 export type ReceiptLine = { name: string; detail: string; total: number }
 
 export type ReceiptData = {
+  status?: 'completed' | 'voided'
   saleId: string
   createdAt: string
   lines: ReceiptLine[]
@@ -35,8 +36,10 @@ function formatDateTime(value: string) {
 export function ReceiptDialog({
   receipt,
   onClose,
+  copy = false,
 }: {
   receipt: ReceiptData | null
+  copy?: boolean
   onClose: () => void
 }) {
   const { businessName } = useTenantSettings()
@@ -45,13 +48,19 @@ export function ReceiptDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Venta registrada</DialogTitle>
+          <DialogTitle>
+            {copy ? 'Copia de ticket' : 'Venta registrada'}
+          </DialogTitle>
         </DialogHeader>
 
         <div data-print-area className="flex flex-col gap-3 text-sm">
           <div className="text-center">
+            {copy && <p className="font-semibold">COPIA DE TICKET</p>}
+            {receipt.status === 'voided' && (
+              <p className="font-bold">VENTA ANULADA</p>
+            )}
             <p className="text-base font-semibold">{businessName}</p>
             <p className="text-muted-foreground text-xs">
               {formatDateTime(receipt.createdAt)} · Folio{' '}
@@ -71,7 +80,7 @@ export function ReceiptDialog({
                 className="flex items-baseline justify-between gap-2"
               >
                 <div className="min-w-0">
-                  <p className="truncate">{line.name}</p>
+                  <p className="wrap-break-word">{line.name}</p>
                   <p className="text-muted-foreground text-xs">{line.detail}</p>
                 </div>
                 <span className="shrink-0 font-medium">
@@ -83,7 +92,9 @@ export function ReceiptDialog({
 
           <div className="flex items-center justify-between text-base font-semibold">
             <span>Total</span>
-            <span className="text-foreground">{formatCurrency(receipt.total)}</span>
+            <span className="text-foreground">
+              {formatCurrency(receipt.total)}
+            </span>
           </div>
 
           <div className="text-muted-foreground flex flex-col gap-0.5 text-xs">
@@ -112,7 +123,7 @@ export function ReceiptDialog({
 
         <DialogFooter className="gap-2 sm:justify-between">
           <Button variant="outline" onClick={onClose}>
-            Nueva venta
+            {copy ? 'Volver' : 'Nueva venta'}
           </Button>
           <Button onClick={() => window.print()}>Imprimir</Button>
         </DialogFooter>

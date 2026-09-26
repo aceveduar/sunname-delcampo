@@ -1,4 +1,8 @@
-import { useMemo, useState } from 'react'
+import { LoadError } from '@/components/LoadError'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { reportRange, localDateValue, type ReportPreset } from '@/lib/dateRange'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,34 +21,16 @@ import { formatCurrency } from '@/lib/currency'
 import { useSalesReport } from './useSalesReport'
 import { useSales } from './useSales'
 
-type PresetKey = 'today' | 'week' | 'month'
-
-const PRESETS: { key: PresetKey; label: string }[] = [
+const PRESETS: { key: ReportPreset; label: string }[] = [
   { key: 'today', label: 'Hoy' },
   { key: 'week', label: 'Últimos 7 días' },
   { key: 'month', label: 'Este mes' },
+  { key: 'custom', label: 'Personalizado' },
 ]
-
-function rangeFor(preset: PresetKey) {
-  const now = new Date()
-  const to = now.toISOString()
-  const from = new Date(now)
-
-  if (preset === 'today') {
-    from.setHours(0, 0, 0, 0)
-  } else if (preset === 'week') {
-    from.setDate(from.getDate() - 6)
-    from.setHours(0, 0, 0, 0)
-  } else {
-    from.setDate(1)
-    from.setHours(0, 0, 0, 0)
-  }
-
-  return { from: from.toISOString(), to }
-}
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('es-MX', {
+    year: 'numeric',
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
@@ -52,12 +38,58 @@ function formatDateTime(value: string) {
   })
 }
 
-export function ReportsPage() {
-  const [preset, setPreset] = useState<PresetKey>('today')
-  const { from, to } = useMemo(() => rangeFor(preset), [preset])
+export function ReportsPage({
+  renderReceipt,
+}: {
+  renderReceipt: (saleId: string, onClose: () => void) => ReactNode
+}) {
+  const [receiptId, setReceiptId] = useState<string | null>(null)
+  const [preset, setPreset] = useState<ReportPreset>('today')
+  const [startDate, setStartDate] = useState(() => localDateValue(new Date()))
+  const [endDate, setEndDate] = useState(() => localDateValue(new Date()))
+  const [rangeError, setRangeError] = useState<string | null>(null)
+  const [range, setRange] = useState(() => reportRange('today', new Date())!)
+  const { from, to } = range
   const report = useSalesReport(from, to)
-  const { sales, loading: salesLoading, voidSale } = useSales(from, to)
-  const [voidTarget, setVoidTarget] = useState<{ id: string; total: number } | null>(null)
+  const {
+    sales,
+    loading: salesLoading,
+    error: salesError,
+    refresh: refreshSales,
+    updatedAt: salesUpdatedAt,
+    loadedFrom: salesFrom,
+    loadedTo: salesTo,
+    voidSale,
+  } = useSales(from, to)
+  const busy = report.loading || salesLoading
+  const applyRange = (next: ReportPreset) => {
+    setPreset(next)
+    if (next === 'custom') return
+    setRangeError(null)
+    setRange(reportRange(next, new Date())!)
+  }
+  const updateRange = () => {
+    const next = reportRange(preset, new Date(), startDate, endDate)
+    if (!next) {
+      setRangeError(
+        'Indica fechas válidas; la fecha inicial no puede ser posterior a la final.',
+      )
+      return
+    }
+    setRangeError(null)
+    if (next.from === from && next.to === to) {
+      void report.refresh()
+      void refreshSales()
+    } else setRange(next)
+  }
+  const lastUpdated =
+    report.updatedAt && salesUpdatedAt
+      ? new Date(Math.min(report.updatedAt.getTime(), salesUpdatedAt.getTime()))
+      : null
+  const [voidTarget, setVoidTarget] = useState<{
+    id: string
+    total: number
+  } | null>(null)
   const [voiding, setVoiding] = useState(false)
 
   const handleVoid = async () => {
@@ -86,13 +118,92 @@ export function ReportsPage() {
               key={p.key}
               variant={preset === p.key ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setPreset(p.key)}
+              aria-pressed={preset === p.key}
+              disabled={busy}
+              onClick={() => applyRange(p.key)}
             >
               {p.label}
             </Button>
           ))}
         </div>
       </div>
+
+      {preset === 'custom' && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            updateRange()
+          }}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <div className="space-y-1">
+            <Label htmlFor="report-start">Desde</Label>
+            <Input
+              id="report-start"
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="report-end">Hasta</Label>
+            <Input
+              id="report-end"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              required
+            />
+          </div>
+          <Button disabled={busy} type="submit">
+            Aplicar fechas
+          </Button>
+        </form>
+      )}
+      {rangeError && (
+        <p role="alert" className="text-destructive text-sm">
+          {rangeError}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-muted-foreground text-sm" aria-live="polite">
+          <p>
+            Periodo consultado: {formatDateTime(from)} —{' '}
+            {formatDateTime(new Date(new Date(to).getTime() - 1).toISOString())}
+          </p>
+          <p>
+            {busy
+              ? 'Actualizando…'
+              : lastUpdated
+                ? 'Última actualización: ' +
+                  lastUpdated.toLocaleTimeString('es-MX')
+                : 'Sin una carga completa todavía'}
+          </p>
+          {(report.error || salesError) && report.from && (
+            <p>
+              Resumen conservado: {formatDateTime(report.from)} —{' '}
+              {formatDateTime(
+                new Date(new Date(report.to).getTime() - 1).toISOString(),
+              )}
+              .
+            </p>
+          )}
+        </div>
+        <Button variant="outline" disabled={busy} onClick={updateRange}>
+          Actualizar
+        </Button>
+      </div>
+      <LoadError
+        message={report.error}
+        onRetry={report.refresh}
+        loading={report.loading}
+      />
+      <LoadError
+        message={salesError}
+        onRetry={refreshSales}
+        loading={salesLoading}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -104,8 +215,10 @@ export function ReportsPage() {
           <CardContent className="text-foreground text-2xl font-semibold">
             {report.loading ? (
               <Skeleton className="h-8 w-24" />
-            ) : (
+            ) : report.updatedAt ? (
               formatCurrency(report.totalAmount)
+            ) : (
+              '—'
             )}
           </CardContent>
         </Card>
@@ -120,9 +233,9 @@ export function ReportsPage() {
               <Skeleton className="h-8 w-24" />
             ) : (
               <>
-                {formatCurrency(report.margin)}
+                {report.updatedAt ? formatCurrency(report.margin) : '—'}
                 <span className="text-muted-foreground text-sm font-normal">
-                  {report.marginPercent.toFixed(0)}%
+                  {report.updatedAt ? report.marginPercent.toFixed(0) : '—'}%
                 </span>
               </>
             )}
@@ -137,8 +250,10 @@ export function ReportsPage() {
           <CardContent className="text-2xl font-semibold">
             {report.loading ? (
               <Skeleton className="h-8 w-12" />
-            ) : (
+            ) : report.updatedAt ? (
               report.saleCount
+            ) : (
+              '—'
             )}
           </CardContent>
         </Card>
@@ -151,8 +266,10 @@ export function ReportsPage() {
           <CardContent className="text-2xl font-semibold">
             {report.loading ? (
               <Skeleton className="h-8 w-24" />
-            ) : (
+            ) : report.updatedAt ? (
               formatCurrency(report.avgTicket)
+            ) : (
+              '—'
             )}
           </CardContent>
         </Card>
@@ -166,7 +283,11 @@ export function ReportsPage() {
           <CardContent>
             {report.byPaymentMethod.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Sin ventas en este periodo.
+                {report.loading
+                  ? 'Cargando…'
+                  : report.error
+                    ? 'Datos no disponibles.'
+                    : 'Sin ventas en este periodo.'}
               </p>
             ) : (
               <Table>
@@ -216,9 +337,18 @@ export function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Ventas recientes</CardTitle>
+          {salesFrom && (
+            <p className="text-muted-foreground text-xs">
+              Datos de {formatDateTime(salesFrom)} a{' '}
+              {formatDateTime(
+                new Date(new Date(salesTo).getTime() - 1).toISOString(),
+              )}
+              .
+            </p>
+          )}
         </CardHeader>
         <CardContent>
-          {!salesLoading && sales.length === 0 ? (
+          {!salesLoading && !salesError && sales.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               Sin ventas en este periodo.
             </p>
@@ -250,11 +380,20 @@ export function ReportsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReceiptId(sale.id)}
+                      >
+                        Ver ticket
+                      </Button>
                       {sale.status === 'completed' && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setVoidTarget({ id: sale.id, total: sale.total })}
+                          onClick={() =>
+                            setVoidTarget({ id: sale.id, total: sale.total })
+                          }
                         >
                           Anular
                         </Button>
@@ -275,7 +414,11 @@ export function ReportsPage() {
         <CardContent>
           {report.cashSessions.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              No hay cortes de caja cerrados en este periodo.
+              {report.loading
+                ? 'Cargando…'
+                : report.error
+                  ? 'Datos no disponibles.'
+                  : 'No hay cortes de caja cerrados en este periodo.'}
             </p>
           ) : (
             <Table>
@@ -317,6 +460,11 @@ export function ReportsPage() {
                       {session.difference === 0
                         ? 'Cuadra'
                         : formatCurrency(session.difference)}
+                      {session.notes && (
+                        <p className="text-muted-foreground mt-1 max-w-64 text-left text-xs font-normal wrap-break-word whitespace-pre-wrap">
+                          {session.notes}
+                        </p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -326,6 +474,7 @@ export function ReportsPage() {
         </CardContent>
       </Card>
 
+      {receiptId && renderReceipt(receiptId, () => setReceiptId(null))}
       <ConfirmDialog
         open={voidTarget !== null}
         onOpenChange={(open) => {

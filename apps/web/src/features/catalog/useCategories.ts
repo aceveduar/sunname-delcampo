@@ -5,8 +5,10 @@ import { reportError } from '../../lib/errors'
 import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
-export type ProductCategory = Database['public']['Tables']['product_categories']['Row']
-type CategoryInsert = Database['public']['Tables']['product_categories']['Insert']
+export type ProductCategory =
+  Database['public']['Tables']['product_categories']['Row']
+type CategoryInsert =
+  Database['public']['Tables']['product_categories']['Insert']
 
 /** Valor de filtro/select para "sin categoría" -- category_id es nulo en
  * la base, pero un <select> nativo no puede tener un value null. Vive
@@ -23,8 +25,12 @@ export function useCategories() {
   const {
     items: categories,
     loading,
+    error,
     refresh,
-  } = useSupabaseList<ProductCategory>(fetchCategories, 'No se pudieron cargar las categorías')
+  } = useSupabaseList<ProductCategory>(
+    fetchCategories,
+    'No se pudieron cargar las categorías',
+  )
 
   const createCategory = useCallback(
     async (values: CategoryInsert) => {
@@ -42,7 +48,10 @@ export function useCategories() {
 
   const updateCategory = useCallback(
     async (id: string, values: Partial<CategoryInsert>) => {
-      const { error } = await supabase.from('product_categories').update(values).eq('id', id)
+      const { error } = await supabase
+        .from('product_categories')
+        .update(values)
+        .eq('id', id)
       if (error) {
         reportError('No se pudo actualizar la categoría', error)
         return false
@@ -55,9 +64,18 @@ export function useCategories() {
   )
 
   const toggleActive = useCallback(
-    (category: ProductCategory) => updateCategory(category.id, { active: !category.active }),
+    (category: ProductCategory) =>
+      updateCategory(category.id, { active: !category.active }),
     [updateCategory],
   )
 
-  return { categories, loading, createCategory, updateCategory, toggleActive }
+  return {
+    categories,
+    loading,
+    error,
+    refresh,
+    createCategory,
+    updateCategory,
+    toggleActive,
+  }
 }

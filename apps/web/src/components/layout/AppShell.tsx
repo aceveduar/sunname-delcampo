@@ -1,3 +1,4 @@
+import { ConnectionStatus } from '@/components/ConnectionStatus'
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AppNavigation } from './AppNavigation'
@@ -50,6 +51,12 @@ export function AppShell({
 
   return (
     <div className="bg-background min-h-screen">
+      <a
+        href="#main-content"
+        className="focus:bg-background focus:text-foreground sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:p-3"
+      >
+        Saltar al contenido
+      </a>
       <header className="bg-sidebar text-sidebar-foreground">
         <div className="flex min-h-14 flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
           <span className="justify-self-start text-sm font-semibold tracking-wide">
@@ -141,7 +148,14 @@ export function AppShell({
           de mayor uso; el contenido angosto (formularios de Configuración,
           buscadores) ya se limita a su propio ancho desde adentro, así
           que no se ve raro flotando en un contenedor más ancho. */}
-      <main className="mx-auto max-w-[100rem] px-4 py-8">{children}</main>
+      <ConnectionStatus />
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-[100rem] px-4 py-8"
+      >
+        {children}
+      </main>
     </div>
   )
 }

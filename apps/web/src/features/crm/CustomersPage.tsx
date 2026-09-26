@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Contact, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,14 +13,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
 import { toTitleCase } from '@/lib/text'
 import { useCustomers, type Customer } from './useCustomers'
 
 export function CustomersPage() {
-  const { customers, loading, createCustomer, updateCustomer, toggleActive } = useCustomers()
+  const {
+    customers,
+    loading,
+    error,
+    refresh,
+    createCustomer,
+    updateCustomer,
+    toggleActive,
+  } = useCustomers()
   const [editing, setEditing] = useState<Customer | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -43,15 +59,18 @@ export function CustomersPage() {
       notes: String(form.get('notes') ?? '').trim() || null,
     }
 
-    const ok = editing ? await updateCustomer(editing.id, values) : await createCustomer(values)
+    const ok = editing
+      ? await updateCustomer(editing.id, values)
+      : await createCustomer(values)
     if (ok) setDialogOpen(false)
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Clientes</h1>
+          <h1 className="text-foreground text-2xl font-semibold">Clientes</h1>
           <p className="text-muted-foreground text-sm">Tus clientes.</p>
         </div>
         <Button onClick={openCreate} size="sm" className="self-start">
@@ -71,7 +90,7 @@ export function CustomersPage() {
         </TableHeader>
         <TableBody>
           {loading && <TableSkeletonRows rows={5} columns={5} />}
-          {!loading && customers.length === 0 && (
+          {!loading && !error && customers.length === 0 && (
             <TableRow>
               <TableCell colSpan={5}>
                 <EmptyState
@@ -93,10 +112,18 @@ export function CustomersPage() {
                 </Badge>
               </TableCell>
               <TableCell className="flex justify-end gap-2 text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(customer)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEdit(customer)}
+                >
                   Editar
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => toggleActive(customer)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleActive(customer)}
+                >
                   {customer.active ? 'Desactivar' : 'Activar'}
                 </Button>
               </TableCell>
@@ -108,17 +135,28 @@ export function CustomersPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
+            <DialogTitle>
+              {editing ? 'Editar cliente' : 'Nuevo cliente'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="customer-name">Nombre</Label>
-              <Input id="customer-name" name="name" defaultValue={editing?.name} required />
+              <Input
+                id="customer-name"
+                name="name"
+                defaultValue={editing?.name}
+                required
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="customer-phone">Teléfono (opcional)</Label>
-                <Input id="customer-phone" name="phone" defaultValue={editing?.phone ?? ''} />
+                <Input
+                  id="customer-phone"
+                  name="phone"
+                  defaultValue={editing?.phone ?? ''}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="customer-email">Correo (opcional)</Label>
@@ -132,10 +170,16 @@ export function CustomersPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="customer-notes">Notas (opcional)</Label>
-              <Textarea id="customer-notes" name="notes" defaultValue={editing?.notes ?? ''} />
+              <Textarea
+                id="customer-notes"
+                name="notes"
+                defaultValue={editing?.notes ?? ''}
+              />
             </div>
             <DialogFooter>
-              <Button type="submit">{editing ? 'Guardar cambios' : 'Crear cliente'}</Button>
+              <Button type="submit">
+                {editing ? 'Guardar cambios' : 'Crear cliente'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

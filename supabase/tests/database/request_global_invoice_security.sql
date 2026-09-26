@@ -39,7 +39,7 @@ insert into cash_sessions (id, opened_by, opening_amount, status, closed_by, clo
 values (
   '10000000-0000-0000-0000-000000000005',
   '10000000-0000-0000-0000-000000000003',
-  0, 'closed',
+  0, 'open',
   '10000000-0000-0000-0000-000000000003', now(), 100
 );
 insert into sales (id, client_uuid, cash_session_id, sold_by, status, subtotal, total)
@@ -48,6 +48,8 @@ values (
   '10000000-0000-0000-0000-000000000005',
   '10000000-0000-0000-0000-000000000003', 'completed', 100, 100
 );
+
+update cash_sessions set status='closed' where id='10000000-0000-0000-0000-000000000005';
 
 -- Corte todavía abierto.
 insert into cash_sessions (id, opened_by, opening_amount, status)

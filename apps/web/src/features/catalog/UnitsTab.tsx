@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,12 +12,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { toCode, toTitleCase } from '@/lib/text'
 import { useUnits, type UnitOfMeasure } from './useUnits'
 
 export function UnitsTab() {
-  const { units, loading, createUnit, updateUnit, toggleActive } = useUnits()
+  const {
+    units,
+    loading,
+    error,
+    refresh,
+    createUnit,
+    updateUnit,
+    toggleActive,
+  } = useUnits()
   const [editing, setEditing] = useState<UnitOfMeasure | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -45,9 +61,11 @@ export function UnitsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
-          Unidades en las que se venden y miden los productos (pieza, kilogramo, litro...).
+          Unidades en las que se venden y miden los productos (pieza, kilogramo,
+          litro...).
         </p>
         <Button onClick={openCreate} size="sm" className="self-start">
           <Plus /> Nueva unidad
@@ -64,9 +82,12 @@ export function UnitsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {!loading && units.length === 0 && (
+          {!loading && !error && units.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-muted-foreground text-center">
+              <TableCell
+                colSpan={4}
+                className="text-muted-foreground text-center"
+              >
                 Aún no hay unidades de medida.
               </TableCell>
             </TableRow>
@@ -81,10 +102,18 @@ export function UnitsTab() {
                 </Badge>
               </TableCell>
               <TableCell className="flex justify-end gap-2 text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(unit)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEdit(unit)}
+                >
                   Editar
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => toggleActive(unit)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleActive(unit)}
+                >
                   {unit.active ? 'Desactivar' : 'Activar'}
                 </Button>
               </TableCell>
@@ -96,12 +125,20 @@ export function UnitsTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar unidad' : 'Nueva unidad'}</DialogTitle>
+            <DialogTitle>
+              {editing ? 'Editar unidad' : 'Nueva unidad'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="unit-code">Código</Label>
-              <Input id="unit-code" name="code" defaultValue={editing?.code} placeholder="KG" required />
+              <Input
+                id="unit-code"
+                name="code"
+                defaultValue={editing?.code}
+                placeholder="KG"
+                required
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="unit-name">Nombre</Label>
@@ -114,7 +151,9 @@ export function UnitsTab() {
               />
             </div>
             <DialogFooter>
-              <Button type="submit">{editing ? 'Guardar cambios' : 'Crear unidad'}</Button>
+              <Button type="submit">
+                {editing ? 'Guardar cambios' : 'Crear unidad'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

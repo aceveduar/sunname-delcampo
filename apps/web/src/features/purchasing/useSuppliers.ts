@@ -16,8 +16,12 @@ export function useSuppliers() {
   const {
     items: suppliers,
     loading,
+    error,
     refresh,
-  } = useSupabaseList<Supplier>(fetchSuppliers, 'No se pudieron cargar los proveedores')
+  } = useSupabaseList<Supplier>(
+    fetchSuppliers,
+    'No se pudieron cargar los proveedores',
+  )
 
   /** Regresa el id del proveedor creado, o null si falló. Se necesita el
    * id (no un booleano) para poder dejarlo ya seleccionado en la captura
@@ -42,7 +46,10 @@ export function useSuppliers() {
 
   const updateSupplier = useCallback(
     async (id: string, values: Partial<SupplierInsert>) => {
-      const { error } = await supabase.from('suppliers').update(values).eq('id', id)
+      const { error } = await supabase
+        .from('suppliers')
+        .update(values)
+        .eq('id', id)
       if (error) {
         reportError('No se pudo actualizar el proveedor', error)
         return false
@@ -55,9 +62,18 @@ export function useSuppliers() {
   )
 
   const toggleActive = useCallback(
-    (supplier: Supplier) => updateSupplier(supplier.id, { active: !supplier.active }),
+    (supplier: Supplier) =>
+      updateSupplier(supplier.id, { active: !supplier.active }),
     [updateSupplier],
   )
 
-  return { suppliers, loading, createSupplier, updateSupplier, toggleActive }
+  return {
+    suppliers,
+    loading,
+    error,
+    refresh,
+    createSupplier,
+    updateSupplier,
+    toggleActive,
+  }
 }

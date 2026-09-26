@@ -1,3 +1,4 @@
+import { useCreatePurchaseOrder } from './useCreatePurchaseOrder'
 import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
@@ -34,63 +35,14 @@ export function usePurchaseOrders() {
   const {
     items: orders,
     loading,
+    error,
     refresh,
-  } = useSupabaseList<PurchaseOrder>(fetchOrders, 'No se pudieron cargar las órdenes de compra')
-
-  const createOrder = useCallback(
-    async (values: {
-      supplierId: string
-      notes: string | null
-      items: { productId: string; quantity: number; unitCost: number }[]
-      // La fecha real de compra (la impresa en el ticket), no la fecha en
-      // que se confirma la captura -- pueden ser días distintos. Ausente
-      // en una orden manual, que no viene de un ticket fechado.
-      ticketDate?: string | null
-    }) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return false
-
-      const { data: order, error: orderError } = await supabase
-        .from('purchase_orders')
-        .insert({
-          supplier_id: values.supplierId,
-          notes: values.notes,
-          created_by: user.id,
-          status: 'ordered',
-          ticket_date: values.ticketDate ?? null,
-        })
-        .select('id')
-        .single()
-
-      if (orderError || !order) {
-        reportError('No se pudo crear la orden de compra', orderError)
-        return false
-      }
-
-      const { error: itemsError } = await supabase.from('purchase_order_items').insert(
-        values.items.map((item) => ({
-          purchase_order_id: order.id,
-          product_id: item.productId,
-          quantity: item.quantity,
-          unit_cost: item.unitCost,
-          subtotal: item.quantity * item.unitCost,
-        })),
-      )
-
-      if (itemsError) {
-        reportError('La orden se creó pero no se pudieron guardar sus líneas', itemsError)
-        await refresh()
-        return false
-      }
-
-      toast.success('Orden de compra creada')
-      await refresh()
-      return true
-    },
-    [refresh],
+  } = useSupabaseList<PurchaseOrder>(
+    fetchOrders,
+    'No se pudieron cargar las órdenes de compra',
   )
+
+  const createOrder = useCreatePurchaseOrder(refresh)
 
   const receiveOrder = useCallback(
     async (orderId: string) => {
@@ -134,5 +86,5 @@ export function usePurchaseOrders() {
     [refresh, orders],
   )
 
-  return { orders, loading, createOrder, receiveOrder }
+  return { orders, loading, error, refresh, createOrder, receiveOrder }
 }

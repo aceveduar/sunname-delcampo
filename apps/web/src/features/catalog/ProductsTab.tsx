@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/LoadError'
 import { useState } from 'react'
 import {
   AlertTriangle,
@@ -77,6 +78,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
   const {
     products,
     loading,
+    error,
+    refresh,
     createProduct,
     updateProduct,
     updatePrices,
@@ -84,14 +87,27 @@ export function ProductsTab({ role }: { role: Role | null }) {
     deleteProduct,
     fetchCost,
   } = useProducts()
-  const { categories } = useCategories()
-  const { units } = useUnits()
+  const {
+    categories,
+    error: categoriesError,
+    loading: categoriesLoading,
+    refresh: refreshCategories,
+  } = useCategories()
+  const {
+    units,
+    error: unitsError,
+    loading: unitsLoading,
+    refresh: refreshUnits,
+  } = useUnits()
   const { costsById } = useProductCosts()
 
   const canManage = role !== null && CAN_MANAGE_PRODUCTS.includes(role)
   const enPerdida = (product: Product) => {
     const cost = costsById.get(product.id)
-    return cost !== undefined && isEnPerdida({ active: product.active, price: product.price, cost })
+    return (
+      cost !== undefined &&
+      isEnPerdida({ active: product.active, price: product.price, cost })
+    )
   }
   // Un producto sin precio debería quedar inactivo hasta que se le ponga
   // uno (regla ya usada en todo el sistema -- venta por monto, GranelDialog,
@@ -99,7 +115,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
   // Si de todos modos quedó activo con precio en cero -- por ejemplo, se
   // activó a mano sin querer -- Caja ya lo bloquea con "Sin precio", pero
   // nada lo señalaba aquí, donde se administra el catálogo.
-  const sinPrecioActivo = (product: Product) => product.active && product.price === 0
+  const sinPrecioActivo = (product: Product) =>
+    product.active && product.price === 0
   // Borrar del catálogo es decisión de dueño: un administrador de local
   // desactiva, no borra (CLAUDE.md §6). El servidor lo vuelve a exigir --
   // esconder el botón es comodidad, no la seguridad.
@@ -212,11 +229,19 @@ export function ProductsTab({ role }: { role: Role | null }) {
             : Number(edit.price_per_100g)
           : null
         if (!Number.isFinite(price) || price < 0) return null
-        if (pricePer100g !== null && (!Number.isFinite(pricePer100g) || pricePer100g < 0))
+        if (
+          pricePer100g !== null &&
+          (!Number.isFinite(pricePer100g) || pricePer100g < 0)
+        )
           return null
         return { id, price, price_per_100g: pricePer100g }
       })
-      .filter((c): c is { id: string; price: number; price_per_100g: number | null } => c !== null)
+      .filter(
+        (
+          c,
+        ): c is { id: string; price: number; price_per_100g: number | null } =>
+          c !== null,
+      )
 
     if (changes.length === 0) return
     setSavingPrices(true)
@@ -244,6 +269,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
+      <LoadError
+        message={categoriesError}
+        onRetry={refreshCategories}
+        loading={categoriesLoading}
+      />
+      <LoadError
+        message={unitsError}
+        onRetry={refreshUnits}
+        loading={unitsLoading}
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
           Productos que vendes, con su precio, categoría y unidad.
@@ -301,7 +337,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
         )}
       </div>
 
-      {activeUnits.length === 0 && (
+      {!unitsLoading && !unitsError && activeUnits.length === 0 && (
         <p className="text-muted-foreground text-sm">
           Antes de dar de alta productos, crea al menos una unidad de medida en
           la pestaña "Unidades".
@@ -499,7 +535,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 </div>
               </div>
             ))}
-          {!loading && filteredProducts.length === 0 && (
+          {!loading && !error && filteredProducts.length === 0 && (
             <div className="col-span-full">
               <EmptyState
                 icon={PackageSearch}
@@ -590,7 +626,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={product.active ? 'Desactivar producto' : 'Activar producto'}
+                      aria-label={
+                        product.active
+                          ? 'Desactivar producto'
+                          : 'Activar producto'
+                      }
                       onClick={() => toggleActive(product)}
                     >
                       {/* El ícono muestra la acción del clic, no el estado
@@ -652,7 +692,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
             {loading && (
               <TableSkeletonRows rows={6} columns={canManage ? 8 : 7} />
             )}
-            {!loading && filteredProducts.length === 0 && (
+            {!loading && !error && filteredProducts.length === 0 && (
               <TableRow>
                 <TableCell colSpan={canManage ? 8 : 7}>
                   <EmptyState
@@ -699,14 +739,18 @@ export function ProductsTab({ role }: { role: Role | null }) {
                         min="0"
                         autoComplete="off"
                         className="h-7 w-20"
-                        value={priceEdits[product.id]?.price ?? String(product.price)}
+                        value={
+                          priceEdits[product.id]?.price ?? String(product.price)
+                        }
                         onChange={(event) =>
                           setPriceEdit(product.id, 'price', event.target.value)
                         }
                       />
                       {product.sold_by_weight && (
                         <>
-                          <span className="text-muted-foreground text-xs">/100g</span>
+                          <span className="text-muted-foreground text-xs">
+                            /100g
+                          </span>
                           <Input
                             type="number"
                             step="0.01"
@@ -718,7 +762,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
                               String(product.price_per_100g ?? 0)
                             }
                             onChange={(event) =>
-                              setPriceEdit(product.id, 'price_per_100g', event.target.value)
+                              setPriceEdit(
+                                product.id,
+                                'price_per_100g',
+                                event.target.value,
+                              )
                             }
                           />
                         </>
@@ -777,9 +825,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              setStockAdjustProductId(product.id)
-                            }
+                            onClick={() => setStockAdjustProductId(product.id)}
                           >
                             Existencia
                           </Button>
@@ -967,13 +1013,14 @@ export function ProductsTab({ role }: { role: Role | null }) {
         description={
           <div className="flex flex-col gap-3">
             <p className="text-foreground">
-              Se va a borrar <span className="font-semibold">{deleteTarget?.name}</span>{' '}
-              del catálogo. No se puede deshacer.
+              Se va a borrar{' '}
+              <span className="font-semibold">{deleteTarget?.name}</span> del
+              catálogo. No se puede deshacer.
             </p>
             <p>
               Solo se puede borrar un producto que nunca se vendió, ni entró a
-              inventario, ni se compró. Si ya tiene historia, el sistema no lo va a
-              permitir y lo correcto es desactivarlo.
+              inventario, ni se compró. Si ya tiene historia, el sistema no lo
+              va a permitir y lo correcto es desactivarlo.
             </p>
           </div>
         }

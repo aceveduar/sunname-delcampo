@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,14 +19,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { toTitleCase } from '@/lib/text'
 import { useCategories, type ProductCategory } from './useCategories'
 
 const NO_PARENT = 'none'
 
 export function CategoriesTab() {
-  const { categories, loading, createCategory, updateCategory, toggleActive } = useCategories()
+  const {
+    categories,
+    loading,
+    error,
+    refresh,
+    createCategory,
+    updateCategory,
+    toggleActive,
+  } = useCategories()
   const [editing, setEditing] = useState<ProductCategory | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [parentId, setParentId] = useState<string>(NO_PARENT)
@@ -42,7 +58,8 @@ export function CategoriesTab() {
     setDialogOpen(true)
   }
 
-  const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? '—'
+  const categoryName = (id: string | null) =>
+    categories.find((c) => c.id === id)?.name ?? '—'
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -59,9 +76,11 @@ export function CategoriesTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
-          Agrupa los productos del catálogo. Pueden anidarse (categoría dentro de categoría).
+          Agrupa los productos del catálogo. Pueden anidarse (categoría dentro
+          de categoría).
         </p>
         <Button onClick={openCreate} size="sm" className="self-start">
           <Plus /> Nueva categoría
@@ -78,9 +97,12 @@ export function CategoriesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {!loading && categories.length === 0 && (
+          {!loading && !error && categories.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-muted-foreground text-center">
+              <TableCell
+                colSpan={4}
+                className="text-muted-foreground text-center"
+              >
                 Aún no hay categorías.
               </TableCell>
             </TableRow>
@@ -95,10 +117,18 @@ export function CategoriesTab() {
                 </Badge>
               </TableCell>
               <TableCell className="flex justify-end gap-2 text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(category)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEdit(category)}
+                >
                   Editar
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => toggleActive(category)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleActive(category)}
+                >
                   {category.active ? 'Desactivar' : 'Activar'}
                 </Button>
               </TableCell>
@@ -110,7 +140,9 @@ export function CategoriesTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar categoría' : 'Nueva categoría'}</DialogTitle>
+            <DialogTitle>
+              {editing ? 'Editar categoría' : 'Nueva categoría'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
@@ -151,7 +183,9 @@ export function CategoriesTab() {
               </Select>
             </div>
             <DialogFooter>
-              <Button type="submit">{editing ? 'Guardar cambios' : 'Crear categoría'}</Button>
+              <Button type="submit">
+                {editing ? 'Guardar cambios' : 'Crear categoría'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

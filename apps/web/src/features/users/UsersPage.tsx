@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import type { Database } from '@/lib/database.types'
 import { ROLE_LABELS } from '@/lib/roles'
 import { toTitleCase } from '@/lib/text'
@@ -33,7 +41,15 @@ const ROLE_ITEMS = (Object.keys(ROLE_LABELS) as Role[]).map((role) => ({
 }))
 
 export function UsersPage({ currentUserId }: { currentUserId: string }) {
-  const { profiles, loading, refresh, updateRole, updateFullName, toggleActive } = useProfiles()
+  const {
+    profiles,
+    loading,
+    error,
+    refresh,
+    updateRole,
+    updateFullName,
+    toggleActive,
+  } = useProfiles()
   const [editingName, setEditingName] = useState<Profile | null>(null)
   const currentUserRole =
     profiles.find((p) => p.id === currentUserId)?.role ?? null
@@ -59,7 +75,10 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   const handleConfirmRoleChange = async () => {
     if (!roleChangeTarget) return
     setChangingRole(true)
-    const ok = await updateRole(roleChangeTarget.profile.id, roleChangeTarget.role)
+    const ok = await updateRole(
+      roleChangeTarget.profile.id,
+      roleChangeTarget.role,
+    )
     setChangingRole(false)
     if (ok) setRoleChangeTarget(null)
   }
@@ -84,13 +103,19 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Usuarios</h1>
-          <p className="text-muted-foreground text-sm">Roles y acceso de tu equipo.</p>
+          <h1 className="text-foreground text-2xl font-semibold">Usuarios</h1>
+          <p className="text-muted-foreground text-sm">
+            Roles y acceso de tu equipo.
+          </p>
         </div>
         <div className="self-start">
-          <InviteUserDialog onInvited={refresh} currentUserRole={currentUserRole} />
+          <InviteUserDialog
+            onInvited={refresh}
+            currentUserRole={currentUserRole}
+          />
         </div>
       </div>
 
@@ -104,9 +129,12 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {!loading && profiles.length === 0 && (
+          {!loading && !error && profiles.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-muted-foreground text-center">
+              <TableCell
+                colSpan={4}
+                className="text-muted-foreground text-center"
+              >
                 No hay usuarios todavía.
               </TableCell>
             </TableRow>
@@ -117,7 +145,9 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
               <TableRow key={profile.id}>
                 <TableCell className="font-medium">
                   {profile.full_name}
-                  {isSelf && <span className="text-muted-foreground"> (tú)</span>}
+                  {isSelf && (
+                    <span className="text-muted-foreground"> (tú)</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {canEditRoles ? (
@@ -125,7 +155,8 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                       items={ROLE_ITEMS}
                       value={profile.role}
                       onValueChange={(value) =>
-                        value && setRoleChangeTarget({ profile, role: value as Role })
+                        value &&
+                        setRoleChangeTarget({ profile, role: value as Role })
                       }
                       disabled={isSelf}
                     >
@@ -141,7 +172,9 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Badge variant="secondary">{ROLE_LABELS[profile.role]}</Badge>
+                    <Badge variant="secondary">
+                      {ROLE_LABELS[profile.role]}
+                    </Badge>
                   )}
                 </TableCell>
                 <TableCell>
@@ -150,13 +183,19 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="flex justify-end gap-2 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setEditingName(profile)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingName(profile)}
+                  >
                     Editar nombre
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={isSelf || (!canEditRoles && profile.role !== 'cashier')}
+                    disabled={
+                      isSelf || (!canEditRoles && profile.role !== 'cashier')
+                    }
                     onClick={() => setToggleTarget(profile)}
                   >
                     {profile.active ? 'Desactivar' : 'Activar'}
@@ -168,7 +207,10 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
         </TableBody>
       </Table>
 
-      <Dialog open={editingName !== null} onOpenChange={(open) => !open && setEditingName(null)}>
+      <Dialog
+        open={editingName !== null}
+        onOpenChange={(open) => !open && setEditingName(null)}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar nombre</DialogTitle>

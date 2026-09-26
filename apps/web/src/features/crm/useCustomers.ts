@@ -16,12 +16,20 @@ export function useCustomers() {
   const {
     items: customers,
     loading,
+    error,
     refresh,
-  } = useSupabaseList<Customer>(fetchCustomers, 'No se pudieron cargar los clientes')
+  } = useSupabaseList<Customer>(
+    fetchCustomers,
+    'No se pudieron cargar los clientes',
+  )
 
   const createCustomer = useCallback(
     async (values: CustomerInsert) => {
-      const { data, error } = await supabase.from('customers').insert(values).select('*').single()
+      const { data, error } = await supabase
+        .from('customers')
+        .insert(values)
+        .select('*')
+        .single()
       if (error) {
         reportError('No se pudo crear el cliente', error)
         return null
@@ -35,7 +43,10 @@ export function useCustomers() {
 
   const updateCustomer = useCallback(
     async (id: string, values: Partial<CustomerInsert>) => {
-      const { error } = await supabase.from('customers').update(values).eq('id', id)
+      const { error } = await supabase
+        .from('customers')
+        .update(values)
+        .eq('id', id)
       if (error) {
         reportError('No se pudo actualizar el cliente', error)
         return false
@@ -48,9 +59,18 @@ export function useCustomers() {
   )
 
   const toggleActive = useCallback(
-    (customer: Customer) => updateCustomer(customer.id, { active: !customer.active }),
+    (customer: Customer) =>
+      updateCustomer(customer.id, { active: !customer.active }),
     [updateCustomer],
   )
 
-  return { customers, loading, createCustomer, updateCustomer, toggleActive }
+  return {
+    customers,
+    loading,
+    error,
+    refresh,
+    createCustomer,
+    updateCustomer,
+    toggleActive,
+  }
 }

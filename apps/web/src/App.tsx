@@ -1,21 +1,70 @@
-import { useEffect } from 'react'
+import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { AppShell } from '@/components/layout/AppShell'
-import { CatalogPage } from '@/features/catalog/CatalogPage'
-import { CajaPage } from '@/features/caja/CajaPage'
-import { BillingPage } from '@/features/billing/BillingPage'
-import { CustomersPage } from '@/features/crm/CustomersPage'
-import { InventoryPage } from '@/features/inventory/InventoryPage'
-import { ReportsPage } from '@/features/reports/ReportsPage'
-import { PurchasingPage } from '@/features/purchasing/PurchasingPage'
-import { UsersPage } from '@/features/users/UsersPage'
-import { SettingsPage } from '@/features/settings/SettingsPage'
 import { useTenantModules } from '@/features/settings/useTenantModules'
 import { CartProvider } from '@/features/caja/CartContext'
 import { isAdminRole, isOwnerRole } from '@/lib/roles'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
+
+const ReplenishmentOrder = lazy(() =>
+  import('@/components/integrations/ReplenishmentOrder').then((module) => ({
+    default: module.ReplenishmentOrder,
+  })),
+)
+const SaleReceiptViewer = lazy(() =>
+  import('@/features/caja/SaleReceiptViewer').then((module) => ({
+    default: module.SaleReceiptViewer,
+  })),
+)
+
+const CatalogPage = lazy(() =>
+  import('@/features/catalog/CatalogPage').then((module) => ({
+    default: module.CatalogPage,
+  })),
+)
+const CajaPage = lazy(() =>
+  import('@/features/caja/CajaPage').then((module) => ({
+    default: module.CajaPage,
+  })),
+)
+const BillingPage = lazy(() =>
+  import('@/features/billing/BillingPage').then((module) => ({
+    default: module.BillingPage,
+  })),
+)
+const CustomersPage = lazy(() =>
+  import('@/features/crm/CustomersPage').then((module) => ({
+    default: module.CustomersPage,
+  })),
+)
+const InventoryPage = lazy(() =>
+  import('@/features/inventory/InventoryPage').then((module) => ({
+    default: module.InventoryPage,
+  })),
+)
+const ReportsPage = lazy(() =>
+  import('@/features/reports/ReportsPage').then((module) => ({
+    default: module.ReportsPage,
+  })),
+)
+const PurchasingPage = lazy(() =>
+  import('@/features/purchasing/PurchasingPage').then((module) => ({
+    default: module.PurchasingPage,
+  })),
+)
+const UsersPage = lazy(() =>
+  import('@/features/users/UsersPage').then((module) => ({
+    default: module.UsersPage,
+  })),
+)
+const SettingsPage = lazy(() =>
+  import('@/features/settings/SettingsPage').then((module) => ({
+    default: module.SettingsPage,
+  })),
+)
 
 function App() {
   const { session, profile, loading, toggleLargeText } = useAuth()
@@ -75,68 +124,116 @@ function App() {
       isModuleEnabled={isModuleEnabled}
       onToggleLargeText={toggleLargeText}
     >
-      <CartProvider>
-        <Routes>
-          <Route path="/" element={<Navigate to="/caja" replace />} />
-          <Route path="/caja" element={<CajaPage role={profile?.role ?? null} />} />
-          <Route
-            path="/catalogo"
-            element={<CatalogPage role={profile?.role ?? null} />}
-          />
-          <Route
-            path="/inventario"
-            element={<InventoryPage role={profile?.role ?? null} />}
-          />
-          <Route
-            path="/clientes"
-            element={
-              isModuleEnabled('crm') ? (
-                <CustomersPage />
-              ) : (
-                <Navigate to="/caja" replace />
-              )
+      <CartProvider key={session.user.id} userId={session.user.id}>
+        <ModuleErrorBoundary>
+          <Suspense
+            fallback={
+              <p role="status" className="text-muted-foreground py-8">
+                Cargando módulo…
+              </p>
             }
-          />
-          <Route
-            path="/compras"
-            element={
-              isAdmin && isModuleEnabled('purchasing') ? (
-                <PurchasingPage />
-              ) : (
-                <Navigate to="/caja" replace />
-              )
-            }
-          />
-          <Route
-            path="/reportes"
-            element={isAdmin ? <ReportsPage /> : <Navigate to="/caja" replace />}
-          />
-          <Route
-            path="/facturacion"
-            element={
-              isAdmin && isModuleEnabled('billing') ? (
-                <BillingPage />
-              ) : (
-                <Navigate to="/caja" replace />
-              )
-            }
-          />
-          <Route
-            path="/usuarios"
-            element={
-              isAdmin ? (
-                <UsersPage currentUserId={session.user.id} />
-              ) : (
-                <Navigate to="/caja" replace />
-              )
-            }
-          />
-          <Route
-            path="/configuracion"
-            element={isOwner ? <SettingsPage /> : <Navigate to="/caja" replace />}
-          />
-          <Route path="*" element={<Navigate to="/caja" replace />} />
-        </Routes>
+          >
+            <Routes>
+              <Route path="/" element={<Navigate to="/caja" replace />} />
+              <Route
+                path="/caja"
+                element={<CajaPage role={profile?.role ?? null} />}
+              />
+              <Route
+                path="/catalogo"
+                element={<CatalogPage role={profile?.role ?? null} />}
+              />
+              <Route
+                path="/inventario"
+                element={
+                  <InventoryPage
+                    role={profile?.role ?? null}
+                    renderReplenishment={
+                      isModuleEnabled('purchasing')
+                        ? (rows, minimums, disabled) => (
+                            <Suspense
+                              fallback={<p role="status">Cargando compras…</p>}
+                            >
+                              <ReplenishmentOrder
+                                rows={rows}
+                                minimums={minimums}
+                                disabled={disabled}
+                              />
+                            </Suspense>
+                          )
+                        : undefined
+                    }
+                  />
+                }
+              />
+              <Route
+                path="/clientes"
+                element={
+                  isModuleEnabled('crm') ? (
+                    <CustomersPage />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
+                }
+              />
+              <Route
+                path="/compras"
+                element={
+                  isAdmin && isModuleEnabled('purchasing') ? (
+                    <PurchasingPage />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
+                }
+              />
+              <Route
+                path="/reportes"
+                element={
+                  isAdmin ? (
+                    <ReportsPage
+                      renderReceipt={(saleId, onClose) => (
+                        <SaleReceiptViewer
+                          key={saleId}
+                          saleId={saleId}
+                          onClose={onClose}
+                        />
+                      )}
+                    />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
+                }
+              />
+              <Route
+                path="/facturacion"
+                element={
+                  isAdmin && isModuleEnabled('billing') ? (
+                    <BillingPage />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
+                }
+              />
+              <Route
+                path="/usuarios"
+                element={
+                  isAdmin ? (
+                    <UsersPage currentUserId={session.user.id} />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
+                }
+              />
+              <Route
+                path="/configuracion"
+                element={
+                  isOwner ? <SettingsPage /> : <Navigate to="/caja" replace />
+                }
+              />
+              <Route path="*" element={<Navigate to="/caja" replace />} />
+            </Routes>
+          </Suspense>
+        </ModuleErrorBoundary>
       </CartProvider>
     </AppShell>
   )

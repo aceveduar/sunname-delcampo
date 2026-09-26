@@ -168,6 +168,13 @@ export type Database = {
             foreignKeyName: "fiscal_invoices_cash_session_id_fkey"
             columns: ["cash_session_id"]
             isOneToOne: true
+            referencedRelation: "cash_session_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_invoices_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: true
             referencedRelation: "cash_sessions"
             referencedColumns: ["id"]
           },
@@ -176,6 +183,36 @@ export type Database = {
             columns: ["requested_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_minimums: {
+        Row: {
+          minimum_quantity: number
+          product_id: string
+        }
+        Insert: {
+          minimum_quantity: number
+          product_id: string
+        }
+        Update: {
+          minimum_quantity?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_minimums_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "product_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_minimums_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -489,6 +526,7 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          client_uuid: string | null
           created_at: string
           created_by: string
           id: string
@@ -500,6 +538,7 @@ export type Database = {
           ticket_date: string | null
         }
         Insert: {
+          client_uuid?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -511,6 +550,7 @@ export type Database = {
           ticket_date?: string | null
         }
         Update: {
+          client_uuid?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -547,6 +587,8 @@ export type Database = {
       }
       sale_items: {
         Row: {
+          sold_by_weight: boolean | null
+          product_name: string | null
           id: string
           product_id: string
           quantity: number
@@ -556,6 +598,8 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          sold_by_weight?: boolean | null
+          product_name?: string | null
           id?: string
           product_id: string
           quantity: number
@@ -565,6 +609,8 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          sold_by_weight?: boolean | null
+          product_name?: string | null
           id?: string
           product_id?: string
           quantity?: number
@@ -668,6 +714,13 @@ export type Database = {
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_session_balances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_cash_session_id_fkey"
             columns: ["cash_session_id"]
@@ -917,6 +970,15 @@ export type Database = {
       }
     }
     Views: {
+      cash_session_balances: {
+        Row: {
+          cash_sales: number | null
+          expected_amount: number | null
+          id: string | null
+          opening_amount: number | null
+        }
+        Relationships: []
+      }
       inventory_stock: {
         Row: {
           product_id: string | null
@@ -1056,6 +1118,14 @@ export type Database = {
       }
     }
     Functions: {
+      close_cash_session: {
+        Args: { p_session_id: string; p_closing_amount: number; p_expected_amount: number; p_notes?: string }
+        Returns: string
+      }
+      create_purchase_order: {
+        Args: { p_client_uuid: string; p_supplier_id: string; p_items: Json; p_notes?: string; p_ticket_date?: string }
+        Returns: string
+      }
       create_sale: {
         Args: {
           p_cash_session_id: string

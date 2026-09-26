@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useAsyncResource } from '@/lib/useAsyncResource'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { reportError } from '@/lib/errors'
@@ -15,38 +16,36 @@ export type SaleRow = {
 }
 
 export function useSales(from: string, to: string) {
-  const [sales, setSales] = useState<SaleRow[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
+  const fetchSales = useCallback(async () => {
     const { data, error } = await supabase
       .from('sales')
       .select('id, created_at, total, status, sold_by:profiles(full_name)')
       .gte('created_at', from)
-      .lte('created_at', to)
+      .lt('created_at', to)
       .order('created_at', { ascending: false })
       .limit(50)
 
-    if (error) {
-      reportError('No se pudieron cargar las ventas', error)
-    } else {
-      setSales(
-        (data ?? []).map((s) => ({
+    return {
+      data: {
+        from,
+        to,
+        sales: (data ?? []).map((s) => ({
           id: s.id,
           createdAt: s.created_at,
           total: s.total,
           status: s.status,
           soldBy: s.sold_by?.full_name ?? '—',
         })),
-      )
+      },
+      error,
     }
-    setLoading(false)
   }, [from, to])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const { data, ...state } = useAsyncResource(
+    fetchSales,
+    'No se pudieron cargar las ventas',
+    { sales: [] as SaleRow[], from: '', to: '' },
+  )
+  const { refresh } = state
 
   const voidSale = useCallback(
     async (id: string) => {
@@ -66,5 +65,11 @@ export function useSales(from: string, to: string) {
     [refresh],
   )
 
-  return { sales, loading, voidSale }
+  return {
+    sales: data.sales,
+    loadedFrom: data.from,
+    loadedTo: data.to,
+    ...state,
+    voidSale,
+  }
 }

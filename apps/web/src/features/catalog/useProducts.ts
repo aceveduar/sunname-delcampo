@@ -16,7 +16,10 @@ import type { Database } from '../../lib/database.types'
 // generador de tipos marca todo como nullable ahí -- pero sabemos que
 // product_catalog es un select plano sin joins, con las mismas
 // garantías de la tabla real.
-export type Product = Omit<Database['public']['Tables']['products']['Row'], 'cost'>
+export type Product = Omit<
+  Database['public']['Tables']['products']['Row'],
+  'cost'
+>
 type ProductInsert = Database['public']['Tables']['products']['Insert']
 
 export function useProducts() {
@@ -25,14 +28,21 @@ export function useProducts() {
   // todas nullable -- se castea aquí, en el único lugar que lee la
   // vista completa, en vez de repetirlo en cada consumidor.
   const fetchProducts = useCallback(async () => {
-    const { data, error } = await supabase.from('product_catalog').select('*').order('name')
+    const { data, error } = await supabase
+      .from('product_catalog')
+      .select('*')
+      .order('name')
     return { data: data as Product[] | null, error }
   }, [])
   const {
     items: products,
     loading,
+    error,
     refresh,
-  } = useSupabaseList<Product>(fetchProducts, 'No se pudieron cargar los productos')
+  } = useSupabaseList<Product>(
+    fetchProducts,
+    'No se pudieron cargar los productos',
+  )
 
   /** Regresa el id del producto creado, o null si falló. Se necesita el id
    * (no un booleano) para poder dejarlo ya seleccionado en la captura de
@@ -57,7 +67,10 @@ export function useProducts() {
 
   const updateProduct = useCallback(
     async (id: string, values: Partial<ProductInsert>) => {
-      const { error } = await supabase.from('products').update(values).eq('id', id)
+      const { error } = await supabase
+        .from('products')
+        .update(values)
+        .eq('id', id)
       if (error) {
         reportError('No se pudo actualizar el producto', error)
         return false
@@ -70,14 +83,19 @@ export function useProducts() {
   )
 
   const toggleActive = useCallback(
-    (product: Product) => updateProduct(product.id, { active: !product.active }),
+    (product: Product) =>
+      updateProduct(product.id, { active: !product.active }),
     [updateProduct],
   )
 
   // Solo para el formulario de edición (admin-only en la UI): el costo
   // no viaja en la lista general, se pide puntual para un producto.
   const fetchCost = useCallback(async (id: string) => {
-    const { data, error } = await supabase.from('products').select('cost').eq('id', id).single()
+    const { data, error } = await supabase
+      .from('products')
+      .select('cost')
+      .eq('id', id)
+      .single()
     if (error) {
       reportError('No se pudo cargar el costo', error)
       return null
@@ -128,7 +146,9 @@ export function useProducts() {
    * producto se queda -- ahí lo correcto es desactivarlo, no borrarlo. */
   const deleteProduct = useCallback(
     async (id: string) => {
-      const { error } = await supabase.rpc('delete_product', { p_product_id: id })
+      const { error } = await supabase.rpc('delete_product', {
+        p_product_id: id,
+      })
       if (error) {
         reportError('No se pudo borrar el producto', error)
         return false
@@ -143,6 +163,8 @@ export function useProducts() {
   return {
     products,
     loading,
+    error,
+    refresh,
     createProduct,
     updateProduct,
     updatePrices,

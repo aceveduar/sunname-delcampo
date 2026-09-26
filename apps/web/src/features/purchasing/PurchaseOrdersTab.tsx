@@ -1,8 +1,16 @@
+import { LoadError } from '@/components/LoadError'
 import { useState } from 'react'
 import { ClipboardList, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
 import { formatCurrency } from '@/lib/currency'
@@ -22,11 +30,15 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function orderTotal(order: { purchase_order_items: { subtotal: number }[] }) {
-  return order.purchase_order_items.reduce((sum, item) => sum + item.subtotal, 0)
+  return order.purchase_order_items.reduce(
+    (sum, item) => sum + item.subtotal,
+    0,
+  )
 }
 
 export function PurchaseOrdersTab() {
-  const { orders, loading, createOrder, receiveOrder } = usePurchaseOrders()
+  const { orders, loading, error, refresh, createOrder, receiveOrder } =
+    usePurchaseOrders()
   const { suppliers, createSupplier } = useSuppliers()
   const { products, createProduct } = useProducts()
   const { units } = useUnits()
@@ -34,9 +46,11 @@ export function PurchaseOrdersTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
-          Órdenes de compra a proveedores. Al recibir una, se registra la entrada en Inventario.
+          Órdenes de compra a proveedores. Al recibir una, se registra la
+          entrada en Inventario.
         </p>
         <div className="flex shrink-0 gap-2">
           <TicketCaptureDialog
@@ -67,7 +81,7 @@ export function PurchaseOrdersTab() {
         </TableHeader>
         <TableBody>
           {loading && <TableSkeletonRows rows={5} columns={5} />}
-          {!loading && orders.length === 0 && (
+          {!loading && !error && orders.length === 0 && (
             <TableRow>
               <TableCell colSpan={5}>
                 <EmptyState
@@ -80,9 +94,13 @@ export function PurchaseOrdersTab() {
           )}
           {orders.map((order) => (
             <TableRow key={order.id}>
-              <TableCell className="font-medium">{order.supplier?.name ?? '—'}</TableCell>
+              <TableCell className="font-medium">
+                {order.supplier?.name ?? '—'}
+              </TableCell>
               <TableCell>
-                {new Date(order.ticket_date ?? order.created_at).toLocaleDateString('es-MX', {
+                {new Date(
+                  order.ticket_date ?? order.created_at,
+                ).toLocaleDateString('es-MX', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
@@ -91,7 +109,11 @@ export function PurchaseOrdersTab() {
               </TableCell>
               <TableCell>{formatCurrency(orderTotal(order))}</TableCell>
               <TableCell>
-                <Badge variant={order.status === 'received' ? 'default' : 'secondary'}>
+                <Badge
+                  variant={
+                    order.status === 'received' ? 'default' : 'secondary'
+                  }
+                >
                   {STATUS_LABELS[order.status] ?? order.status}
                 </Badge>
               </TableCell>
@@ -105,7 +127,11 @@ export function PurchaseOrdersTab() {
                   <Eye />
                 </Button>
                 {order.status === 'ordered' && (
-                  <Button variant="ghost" size="sm" onClick={() => receiveOrder(order.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => receiveOrder(order.id)}
+                  >
                     Recibir
                   </Button>
                 )}

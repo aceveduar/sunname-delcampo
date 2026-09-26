@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Plus, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,14 +12,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
 import { toTitleCase } from '@/lib/text'
 import { useSuppliers, type Supplier } from './useSuppliers'
 
 export function SuppliersTab() {
-  const { suppliers, loading, createSupplier, updateSupplier, toggleActive } = useSuppliers()
+  const {
+    suppliers,
+    loading,
+    error,
+    refresh,
+    createSupplier,
+    updateSupplier,
+    toggleActive,
+  } = useSuppliers()
   const [editing, setEditing] = useState<Supplier | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -51,6 +67,7 @@ export function SuppliersTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LoadError message={error} onRetry={refresh} loading={loading} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">Tus proveedores.</p>
         <Button onClick={openCreate} size="sm" className="self-start">
@@ -70,7 +87,7 @@ export function SuppliersTab() {
         </TableHeader>
         <TableBody>
           {loading && <TableSkeletonRows rows={5} columns={5} />}
-          {!loading && suppliers.length === 0 && (
+          {!loading && !error && suppliers.length === 0 && (
             <TableRow>
               <TableCell colSpan={5}>
                 <EmptyState
@@ -92,10 +109,18 @@ export function SuppliersTab() {
                 </Badge>
               </TableCell>
               <TableCell className="flex justify-end gap-2 text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(supplier)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEdit(supplier)}
+                >
                   Editar
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => toggleActive(supplier)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleActive(supplier)}
+                >
                   {supplier.active ? 'Desactivar' : 'Activar'}
                 </Button>
               </TableCell>
@@ -107,7 +132,9 @@ export function SuppliersTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar proveedor' : 'Nuevo proveedor'}</DialogTitle>
+            <DialogTitle>
+              {editing ? 'Editar proveedor' : 'Nuevo proveedor'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
@@ -131,7 +158,11 @@ export function SuppliersTab() {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="supplier-phone">Teléfono (opcional)</Label>
-                <Input id="supplier-phone" name="phone" defaultValue={editing?.phone ?? ''} />
+                <Input
+                  id="supplier-phone"
+                  name="phone"
+                  defaultValue={editing?.phone ?? ''}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="supplier-email">Correo (opcional)</Label>
@@ -144,7 +175,9 @@ export function SuppliersTab() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">{editing ? 'Guardar cambios' : 'Crear proveedor'}</Button>
+              <Button type="submit">
+                {editing ? 'Guardar cambios' : 'Crear proveedor'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

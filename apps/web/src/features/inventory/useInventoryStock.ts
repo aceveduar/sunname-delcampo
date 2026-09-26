@@ -1,9 +1,7 @@
 import { useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useSupabaseList } from '../../lib/useSupabaseList'
-import type { Database } from '../../lib/database.types'
-
-type Product = Database['public']['Tables']['products']['Row']
+import type { Product } from '@/features/catalog/useProducts'
 
 export type StockRow = {
   product: Product
@@ -12,16 +10,18 @@ export type StockRow = {
 
 export function useInventoryStock() {
   const fetchStock = useCallback(async () => {
-    const [{ data: products, error: productsError }, { data: stock, error: stockError }] =
-      await Promise.all([
-        supabase
-          .from('products')
-          .select('*')
-          .eq('track_inventory', true)
-          .eq('active', true)
-          .order('name'),
-        supabase.from('inventory_stock').select('product_id, quantity_on_hand'),
-      ])
+    const [
+      { data: products, error: productsError },
+      { data: stock, error: stockError },
+    ] = await Promise.all([
+      supabase
+        .from('product_catalog')
+        .select('*')
+        .eq('track_inventory', true)
+        .eq('active', true)
+        .order('name'),
+      supabase.from('inventory_stock').select('product_id, quantity_on_hand'),
+    ])
 
     const error = productsError ?? stockError
     if (error) return { data: null, error }
@@ -29,7 +29,7 @@ export function useInventoryStock() {
     const stockMap = new Map(
       (stock ?? []).map((row) => [row.product_id, row.quantity_on_hand ?? 0]),
     )
-    const data: StockRow[] = (products ?? []).map((product) => ({
+    const data: StockRow[] = ((products ?? []) as Product[]).map((product) => ({
       product,
       quantityOnHand: stockMap.get(product.id) ?? 0,
     }))
@@ -39,8 +39,9 @@ export function useInventoryStock() {
   const {
     items: rows,
     loading,
+    error,
     refresh,
   } = useSupabaseList<StockRow>(fetchStock, 'No se pudo cargar el inventario')
 
-  return { rows, loading, refresh }
+  return { rows, loading, error, refresh }
 }

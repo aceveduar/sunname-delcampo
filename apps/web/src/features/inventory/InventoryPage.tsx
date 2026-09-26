@@ -1,4 +1,15 @@
-import { useMemo, useState } from 'react'
+import { MovementHistoryDialog } from './MovementHistoryDialog'
+import { useInventoryMinimums } from './useInventoryMinimums'
+import { StockMinimumDialog } from './StockMinimumDialog'
+import {
+  downloadReplenishment,
+  needsReplenishment,
+  replenishmentCsv,
+} from './replenishment'
+import { LoadError } from '@/components/LoadError'
+import { Skeleton } from '@/components/ui/skeleton'
+import { StockStatus } from './StockStatus'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Boxes, ImageOff, ScanBarcode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
@@ -34,13 +45,44 @@ type Role = Database['public']['Enums']['user_role']
 
 const CAN_REGISTER_MOVEMENTS: Role[] = ['owner', 'local_admin']
 
-export function InventoryPage({ role }: { role: Role | null }) {
-  const { rows, loading, refresh } = useInventoryStock()
-  const { units } = useUnits()
-  const { categories } = useCategories()
+export function InventoryPage({
+  role,
+  renderReplenishment,
+}: {
+  role: Role | null
+  renderReplenishment?: (
+    rows: ReturnType<typeof useInventoryStock>['rows'],
+    minimums: Map<string, number>,
+    disabled: boolean,
+  ) => ReactNode
+}) {
+  const { rows, loading, error, refresh } = useInventoryStock()
+  const {
+    units,
+    error: unitsError,
+    loading: unitsLoading,
+    refresh: refreshUnits,
+  } = useUnits()
+  const {
+    categories,
+    error: categoriesError,
+    loading: categoriesLoading,
+    refresh: refreshCategories,
+  } = useCategories()
   const registerMovement = useRegisterMovement(refresh)
+  const {
+    minimums,
+    error: minimumsError,
+    loading: minimumsLoading,
+    refresh: refreshMinimums,
+    saveMinimum,
+  } = useInventoryMinimums()
+  const [stockFilter, setStockFilter] = useState<'all' | 'out' | 'low'>('all')
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
+  const [historyProduct, setHistoryProduct] = useState<
+    (typeof rows)[number]['product'] | null
+  >(null)
   const [scannerOpen, setScannerOpen] = useState(false)
 
   const canRegister = role !== null && CAN_REGISTER_MOVEMENTS.includes(role)
@@ -52,6 +94,15 @@ export function InventoryPage({ role }: { role: Role | null }) {
   const filteredRows = useMemo(() => {
     const query = normalizeSearch(search)
     return rows.filter((row) => {
+      if (stockFilter === 'out' && row.quantityOnHand > 0) return false
+      if (
+        stockFilter === 'low' &&
+        !needsReplenishment(
+          row.quantityOnHand,
+          minimums.get(row.product.id) ?? 0,
+        )
+      )
+        return false
       if (
         query &&
         !normalizeSearch(row.product.name).includes(query) &&
@@ -68,13 +119,29 @@ export function InventoryPage({ role }: { role: Role | null }) {
         return false
       return true
     })
-  }, [rows, search, filterCategory])
+  }, [rows, search, filterCategory, stockFilter, minimums])
 
   const { pageItems, page, setPage, totalPages, totalItems, pageSize } =
     usePagination(filteredRows)
 
   return (
     <div className="flex flex-col gap-6">
+      <LoadError
+        message={minimumsError}
+        onRetry={refreshMinimums}
+        loading={minimumsLoading}
+      />
+      <LoadError message={error} onRetry={refresh} loading={loading} />
+      <LoadError
+        message={categoriesError}
+        onRetry={refreshCategories}
+        loading={categoriesLoading}
+      />
+      <LoadError
+        message={unitsError}
+        onRetry={refreshUnits}
+        loading={unitsLoading}
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-foreground text-2xl font-semibold">Inventario</h1>
@@ -97,7 +164,10 @@ export function InventoryPage({ role }: { role: Role | null }) {
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) => {
+            setSearch(value)
+            setPage(1)
+          }}
           placeholder="Buscar producto por nombre o SKU…"
           containerClassName="max-w-sm min-w-[200px] flex-1"
         />
@@ -119,9 +189,15 @@ export function InventoryPage({ role }: { role: Role | null }) {
             ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
           ]}
           value={filterCategory}
-          onValueChange={(value) => setFilterCategory(value ?? 'all')}
+          onValueChange={(value) => {
+            setFilterCategory(value ?? 'all')
+            setPage(1)
+          }}
         >
-          <SelectTrigger className="w-full shrink-0 sm:w-48">
+          <SelectTrigger
+            aria-label="Filtrar inventario por categoría"
+            className="w-full shrink-0 sm:w-48"
+          >
             <SelectValue placeholder="Todas las categorías" />
           </SelectTrigger>
           <SelectContent>
@@ -136,74 +212,239 @@ export function InventoryPage({ role }: { role: Role | null }) {
         </Select>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12"></TableHead>
-            <TableHead>Producto</TableHead>
-            <TableHead>SKU</TableHead>
-            <TableHead>Existencia</TableHead>
-            {canRegister && (
-              <TableHead className="text-right">Acciones</TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading && (
-            <TableSkeletonRows rows={6} columns={canRegister ? 5 : 4} />
-          )}
-          {!loading && filteredRows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={canRegister ? 5 : 4}>
-                <EmptyState
-                  icon={Boxes}
-                  title="Sin resultados"
-                  description="No hay productos con control de inventario que coincidan con la búsqueda o el filtro."
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant={stockFilter === 'out' ? 'default' : 'outline'}
+          aria-pressed={stockFilter === 'out'}
+          onClick={() => {
+            setStockFilter((value) => (value === 'out' ? 'all' : 'out'))
+            setPage(1)
+          }}
+        >
+          Agotados ({rows.filter((row) => row.quantityOnHand <= 0).length})
+        </Button>
+        <Button
+          variant={stockFilter === 'low' ? 'default' : 'outline'}
+          aria-pressed={stockFilter === 'low'}
+          disabled={minimumsLoading || !!minimumsError}
+          onClick={() => {
+            setStockFilter((value) => (value === 'low' ? 'all' : 'low'))
+            setPage(1)
+          }}
+        >
+          Por reponer (
+          {
+            rows.filter((row) =>
+              needsReplenishment(
+                row.quantityOnHand,
+                minimums.get(row.product.id) ?? 0,
+              ),
+            ).length
+          }
+          )
+        </Button>
+        {canRegister && (
+          <Button
+            variant="outline"
+            disabled={
+              loading ||
+              !!error ||
+              minimumsLoading ||
+              !!minimumsError ||
+              !filteredRows.some((row) =>
+                needsReplenishment(
+                  row.quantityOnHand,
+                  minimums.get(row.product.id) ?? 0,
+                ),
+              )
+            }
+            onClick={() =>
+              downloadReplenishment(
+                replenishmentCsv(filteredRows, minimums, unitCode),
+              )
+            }
+          >
+            Descargar reposición
+          </Button>
+        )}
+        <span className="text-muted-foreground text-sm">
+          {filteredRows.length} productos
+        </span>
+      </div>
+      {canRegister &&
+        renderReplenishment?.(
+          filteredRows,
+          minimums,
+          loading || !!error || minimumsLoading || !!minimumsError,
+        )}
+      <div className="grid gap-3 sm:hidden">
+        {loading &&
+          rows.length === 0 &&
+          Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        {!loading && !error && filteredRows.length === 0 && (
+          <EmptyState
+            icon={Boxes}
+            title="Sin resultados"
+            description="No hay productos que coincidan con estos filtros."
+          />
+        )}
+        {pageItems.map((row) => (
+          <article
+            key={row.product.id}
+            className="bg-card border-border space-y-3 rounded-xl border p-4"
+          >
+            <div className="flex items-start gap-3">
+              {row.product.image_url && (
+                <img
+                  src={row.product.image_url}
+                  alt=""
+                  className="size-12 rounded-md object-cover"
                 />
-              </TableCell>
-            </TableRow>
-          )}
-          {pageItems.map((row) => (
-            <TableRow key={row.product.id}>
-              <TableCell>
-                {row.product.image_url ? (
-                  <img
-                    src={row.product.image_url}
-                    alt=""
-                    className="border-border size-9 min-w-9 rounded-md border object-cover"
-                  />
-                ) : (
-                  <div className="bg-muted text-muted-foreground border-border flex size-9 items-center justify-center rounded-md border">
-                    <ImageOff className="size-4" />
-                  </div>
-                )}
-              </TableCell>
-              <TableCell className="font-medium">{row.product.name}</TableCell>
-              <TableCell>{row.product.sku ?? '—'}</TableCell>
-              <TableCell
-                className={
-                  row.quantityOnHand <= 0 ? 'text-destructive' : undefined
-                }
-              >
+              )}
+              <div className="min-w-0">
+                <h2 className="font-medium wrap-break-word">
+                  {row.product.name}
+                </h2>
+                <p className="text-muted-foreground text-xs wrap-break-word">
+                  {row.product.sku ?? 'Sin código'}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-lg font-semibold tabular-nums">
                 {row.quantityOnHand} {unitCode(row.product.unit_id)}
-              </TableCell>
-              {canRegister && (
-                <TableCell className="text-right">
-                  <NewMovementDialog
-                    triggerLabel="Ajustar"
-                    triggerVariant="ghost"
-                    triggerSize="sm"
-                    rows={rows}
-                    unitCode={unitCode}
-                    initialProductId={row.product.id}
-                    onRegister={registerMovement}
+              </p>
+              <StockStatus
+                quantity={row.quantityOnHand}
+                minimum={minimums.get(row.product.id)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setHistoryProduct(row.product)}
+            >
+              Ver movimientos
+            </Button>
+            {canRegister && !minimumsLoading && !minimumsError && (
+              <StockMinimumDialog
+                productId={row.product.id}
+                name={row.product.name}
+                minimum={minimums.get(row.product.id) ?? 0}
+                unit={unitCode(row.product.unit_id)}
+                onSave={saveMinimum}
+              />
+            )}
+            {canRegister && (
+              <NewMovementDialog
+                triggerLabel="Ajustar existencia"
+                triggerVariant="outline"
+                triggerSize="sm"
+                rows={rows}
+                unitCode={unitCode}
+                initialProductId={row.product.id}
+                onRegister={registerMovement}
+              />
+            )}
+          </article>
+        ))}
+      </div>
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12"></TableHead>
+              <TableHead>Producto</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Existencia</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading && <TableSkeletonRows rows={6} columns={5} />}
+            {!loading && !error && filteredRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5}>
+                  <EmptyState
+                    icon={Boxes}
+                    title="Sin resultados"
+                    description="No hay productos con control de inventario que coincidan con la búsqueda o el filtro."
                   />
                 </TableCell>
-              )}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              </TableRow>
+            )}
+            {pageItems.map((row) => (
+              <TableRow key={row.product.id}>
+                <TableCell>
+                  {row.product.image_url ? (
+                    <img
+                      src={row.product.image_url}
+                      alt=""
+                      className="border-border size-9 min-w-9 rounded-md border object-cover"
+                    />
+                  ) : (
+                    <div className="bg-muted text-muted-foreground border-border flex size-9 items-center justify-center rounded-md border">
+                      <ImageOff className="size-4" />
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {row.product.name}
+                </TableCell>
+                <TableCell>{row.product.sku ?? '—'}</TableCell>
+                <TableCell
+                  className={
+                    row.quantityOnHand <= 0 ? 'text-destructive' : undefined
+                  }
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="tabular-nums">
+                      {row.quantityOnHand} {unitCode(row.product.unit_id)}
+                    </span>
+                    <StockStatus
+                      quantity={row.quantityOnHand}
+                      minimum={minimums.get(row.product.id)}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setHistoryProduct(row.product)}
+                  >
+                    Movimientos
+                  </Button>
+                  {canRegister && (
+                    <>
+                      {!minimumsLoading && !minimumsError && (
+                        <StockMinimumDialog
+                          productId={row.product.id}
+                          name={row.product.name}
+                          minimum={minimums.get(row.product.id) ?? 0}
+                          unit={unitCode(row.product.unit_id)}
+                          onSave={saveMinimum}
+                        />
+                      )}
+                      <NewMovementDialog
+                        triggerLabel="Ajustar"
+                        triggerVariant="ghost"
+                        triggerSize="sm"
+                        rows={rows}
+                        unitCode={unitCode}
+                        initialProductId={row.product.id}
+                        onRegister={registerMovement}
+                      />
+                    </>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       <PaginationControls
         page={page}
@@ -213,6 +454,15 @@ export function InventoryPage({ role }: { role: Role | null }) {
         onPageChange={setPage}
       />
 
+      {historyProduct && (
+        <MovementHistoryDialog
+          key={historyProduct.id}
+          productId={historyProduct.id}
+          productName={historyProduct.name}
+          unit={unitCode(historyProduct.unit_id)}
+          onClose={() => setHistoryProduct(null)}
+        />
+      )}
       <BarcodeScannerDialog
         open={scannerOpen}
         onOpenChange={setScannerOpen}

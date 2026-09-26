@@ -5,7 +5,8 @@ import { reportError } from '../../lib/errors'
 import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
 
-export type UnitOfMeasure = Database['public']['Tables']['units_of_measure']['Row']
+export type UnitOfMeasure =
+  Database['public']['Tables']['units_of_measure']['Row']
 type UnitInsert = Database['public']['Tables']['units_of_measure']['Insert']
 
 export function useUnits() {
@@ -16,8 +17,12 @@ export function useUnits() {
   const {
     items: units,
     loading,
+    error,
     refresh,
-  } = useSupabaseList<UnitOfMeasure>(fetchUnits, 'No se pudieron cargar las unidades de medida')
+  } = useSupabaseList<UnitOfMeasure>(
+    fetchUnits,
+    'No se pudieron cargar las unidades de medida',
+  )
 
   const createUnit = useCallback(
     async (values: UnitInsert) => {
@@ -35,7 +40,10 @@ export function useUnits() {
 
   const updateUnit = useCallback(
     async (id: string, values: Partial<UnitInsert>) => {
-      const { error } = await supabase.from('units_of_measure').update(values).eq('id', id)
+      const { error } = await supabase
+        .from('units_of_measure')
+        .update(values)
+        .eq('id', id)
       if (error) {
         reportError('No se pudo actualizar la unidad', error)
         return false
@@ -52,5 +60,13 @@ export function useUnits() {
     [updateUnit],
   )
 
-  return { units, loading, createUnit, updateUnit, toggleActive }
+  return {
+    units,
+    loading,
+    error,
+    refresh,
+    createUnit,
+    updateUnit,
+    toggleActive,
+  }
 }
