@@ -1212,7 +1212,6 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
-
       receive_purchase_order: {
         Args: { p_purchase_order_id: string }
         Returns: undefined
