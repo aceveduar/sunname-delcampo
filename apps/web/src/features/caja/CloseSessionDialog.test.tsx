@@ -19,6 +19,8 @@ beforeEach(() => {
   fetchCashBalance.mockResolvedValue({
     openingAmount: 100,
     cashSales: 50,
+    cashIn: 0,
+    cashOut: 0,
     expectedAmount: 150,
   })
 })
@@ -42,6 +44,8 @@ it('exige observación para un descuadre y conserva el contado si cambia el bala
   fetchCashBalance.mockResolvedValue({
     openingAmount: 100,
     cashSales: 60,
+    cashIn: 0,
+    cashOut: 0,
     expectedAmount: 160,
   })
   await user.click(screen.getByRole('button', { name: 'Confirmar cierre' }))

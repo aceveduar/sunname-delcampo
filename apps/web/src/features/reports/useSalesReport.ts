@@ -12,6 +12,8 @@ type CashSessionRow = {
   openingAmount: number
   closingAmount: number
   cashSales: number
+  cashIn: number
+  cashOut: number
   expectedClosing: number
   notes: string | null
   difference: number
@@ -99,47 +101,27 @@ export function useSalesReport(from: string, to: string) {
     if (sessions && sessions.length > 0) {
       const sessionIds = sessions.map((s) => s.id)
 
-      const { data: cashMethod, error: methodError } = await supabase
-        .from('payment_methods')
-        .select('id')
-        .eq('code', 'cash')
-        .maybeSingle()
-
-      const { data: sessionSales, error: sessionSalesError } = await supabase
-        .from('sales')
-        .select('id, cash_session_id')
-        .eq('status', 'completed')
-        .in('cash_session_id', sessionIds)
-
-      if (methodError || sessionSalesError)
-        return { data: null, error: methodError ?? sessionSalesError }
-      const cashBySession = new Map<string, number>()
-      if (cashMethod && sessionSales && sessionSales.length > 0) {
-        const saleIdToSession = new Map(
-          sessionSales.map((s) => [s.id, s.cash_session_id]),
-        )
-        const { data: cashPayments, error: cashPaymentsError } = await supabase
-          .from('sale_payments')
-          .select('amount, sale_id')
-          .eq('payment_method_id', cashMethod.id)
-          .in(
-            'sale_id',
-            sessionSales.map((s) => s.id),
-          )
-        if (cashPaymentsError) return { data: null, error: cashPaymentsError }
-        for (const payment of cashPayments ?? []) {
-          const sessionId = saleIdToSession.get(payment.sale_id)
-          if (!sessionId) continue
-          cashBySession.set(
-            sessionId,
-            (cashBySession.get(sessionId) ?? 0) + payment.amount,
-          )
-        }
-      }
+      const { data: balances, error: balanceError } = await supabase
+        .from('cash_session_balances')
+        .select('id, cash_sales, cash_in, cash_out, expected_amount')
+        .in('id', sessionIds)
+      if (balanceError) return { data: null, error: balanceError }
+      const bySession = new Map(
+        (balances ?? []).map((balance) => [balance.id, balance]),
+      )
 
       sessionRows = sessions.map((session) => {
-        const cashSales = cashBySession.get(session.id) ?? 0
-        const expectedClosing = session.opening_amount + cashSales
+        const balance = bySession.get(session.id)
+        if (
+          !balance ||
+          balance.expected_amount === null ||
+          balance.cash_sales === null ||
+          balance.cash_in === null ||
+          balance.cash_out === null
+        )
+          throw new Error('No se pudo calcular el corte completo')
+        const cashSales = balance.cash_sales
+        const expectedClosing = balance.expected_amount
         const closingAmount = session.closing_amount ?? 0
         return {
           id: session.id,
@@ -149,6 +131,8 @@ export function useSalesReport(from: string, to: string) {
           openingAmount: session.opening_amount,
           closingAmount,
           cashSales,
+          cashIn: balance.cash_in,
+          cashOut: balance.cash_out,
           expectedClosing,
           notes: session.notes,
           difference: Math.round((closingAmount - expectedClosing) * 100) / 100,

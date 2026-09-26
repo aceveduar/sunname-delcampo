@@ -133,6 +133,10 @@ export function CloseSessionDialog({
             </dd>
             <dt>Ventas en efectivo</dt>
             <dd className="text-right">{formatCurrency(balance.cashSales)}</dd>
+            <dt>Entradas de efectivo</dt>
+            <dd className="text-right">{formatCurrency(balance.cashIn)}</dd>
+            <dt>Salidas de efectivo</dt>
+            <dd className="text-right">{formatCurrency(balance.cashOut)}</dd>
             <dt className="font-semibold">Efectivo esperado</dt>
             <dd className="text-right font-semibold">
               {formatCurrency(balance.expectedAmount)}

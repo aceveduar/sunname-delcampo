@@ -1,6 +1,7 @@
 import { TicketSearchDialog } from './TicketSearchDialog'
 import { formatCurrency } from '@/lib/currency'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { CashSessionSummary } from './CashSessionSummary'
 import { LoadError } from '@/components/LoadError'
 import { useCart } from './CartContext'
 import type { Database } from '@/lib/database.types'
@@ -11,7 +12,19 @@ import { SaleScreen } from './SaleScreen'
 
 type Role = Database['public']['Enums']['user_role']
 
-export function CajaPage({ role }: { role: Role | null }) {
+export function CajaPage({
+  role,
+  userId,
+}: {
+  role: Role | null
+  userId: string
+}) {
+  const [cashRevision, setCashRevision] = useState(0)
+  const [movementPending, setMovementPending] = useState(true)
+  const onSaleRecorded = useCallback(
+    () => setCashRevision((value) => value + 1),
+    [],
+  )
   const { session, loading, error, refresh, openSession, closeSession } =
     useCashSession()
   const { resetSale, cart, pendingDraft } = useCart()
@@ -63,7 +76,7 @@ export function CajaPage({ role }: { role: Role | null }) {
             key={session.id}
             sessionId={session.id}
             onClose={closeSession}
-            disabled={cart.length > 0 || !!pendingDraft}
+            disabled={cart.length > 0 || !!pendingDraft || movementPending}
           />
           {(cart.length > 0 || pendingDraft) && (
             <p className="text-muted-foreground mt-1 max-w-xs text-xs">
@@ -73,7 +86,18 @@ export function CajaPage({ role }: { role: Role | null }) {
         </div>
       </div>
 
-      <SaleScreen cashSessionId={session.id} role={role} />
+      <CashSessionSummary
+        key={`${session.id}:${userId}`}
+        sessionId={session.id}
+        userId={userId}
+        revision={cashRevision}
+        onPendingChange={setMovementPending}
+      />
+      <SaleScreen
+        cashSessionId={session.id}
+        role={role}
+        onSaleRecorded={onSaleRecorded}
+      />
     </div>
   )
 }

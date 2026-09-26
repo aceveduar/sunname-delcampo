@@ -137,7 +137,12 @@ function App() {
               <Route path="/" element={<Navigate to="/caja" replace />} />
               <Route
                 path="/caja"
-                element={<CajaPage role={profile?.role ?? null} />}
+                element={
+                  <CajaPage
+                    role={profile?.role ?? null}
+                    userId={session.user.id}
+                  />
+                }
               />
               <Route
                 path="/catalogo"

@@ -18,11 +18,13 @@ export function useSubmitSale({
   paymentMethods,
   customers,
   catalogReady,
+  onSaleRecorded,
 }: {
   cashSessionId: string
   paymentMethods: PaymentMethod[]
   customers: Customer[]
   catalogReady: boolean
+  onSaleRecorded?: () => void
 }) {
   const {
     cart,
@@ -109,6 +111,7 @@ export function useSubmitSale({
             : (customers.find((c) => c.id === customerId)?.name ?? null),
       })
       resetSale()
+      onSaleRecorded?.()
     } catch (error) {
       holdForVerification()
       reportError(

@@ -428,6 +428,8 @@ export function ReportsPage({
                   <TableHead>Cajero</TableHead>
                   <TableHead>Monto inicial</TableHead>
                   <TableHead>Ventas en efectivo</TableHead>
+                  <TableHead>Entradas</TableHead>
+                  <TableHead>Salidas</TableHead>
                   <TableHead>Esperado</TableHead>
                   <TableHead>Contado</TableHead>
                   <TableHead className="text-right">Diferencia</TableHead>
@@ -442,6 +444,8 @@ export function ReportsPage({
                       {formatCurrency(session.openingAmount)}
                     </TableCell>
                     <TableCell>{formatCurrency(session.cashSales)}</TableCell>
+                    <TableCell>{formatCurrency(session.cashIn)}</TableCell>
+                    <TableCell>{formatCurrency(session.cashOut)}</TableCell>
                     <TableCell>
                       {formatCurrency(session.expectedClosing)}
                     </TableCell>

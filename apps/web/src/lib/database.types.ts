@@ -39,6 +39,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_movements: {
+        Row: {
+          actor_name: string
+          amount: number
+          cash_session_id: string
+          client_uuid: string
+          created_at: string
+          created_by: string
+          direction: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          actor_name: string
+          amount: number
+          cash_session_id: string
+          client_uuid: string
+          created_at?: string
+          created_by: string
+          direction: string
+          id?: string
+          reason: string
+        }
+        Update: {
+          actor_name?: string
+          amount?: number
+          cash_session_id?: string
+          client_uuid?: string
+          created_at?: string
+          created_by?: string
+          direction?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_session_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_sessions: {
         Row: {
           closed_at: string | null
@@ -972,6 +1030,8 @@ export type Database = {
     Views: {
       cash_session_balances: {
         Row: {
+          cash_in: number | null
+          cash_out: number | null
           cash_sales: number | null
           expected_amount: number | null
           id: string | null
@@ -1152,9 +1212,20 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
+
       receive_purchase_order: {
         Args: { p_purchase_order_id: string }
         Returns: undefined
+      }
+      record_cash_movement: {
+        Args: {
+          p_amount: number
+          p_client_uuid: string
+          p_direction: string
+          p_reason: string
+          p_session_id: string
+        }
+        Returns: string
       }
       request_global_invoice: {
         Args: { p_cash_session_id: string }

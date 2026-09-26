@@ -58,9 +58,11 @@ const PRODUCT_GRID_CLASS =
 export function SaleScreen({
   cashSessionId,
   role,
+  onSaleRecorded,
 }: {
   cashSessionId: string
   role: Role | null
+  onSaleRecorded?: () => void
 }) {
   const {
     products,
@@ -146,6 +148,7 @@ export function SaleScreen({
     handleCheckout,
     lineTotal,
   } = useSubmitSale({
+    onSaleRecorded,
     cashSessionId,
     paymentMethods,
     customers,
