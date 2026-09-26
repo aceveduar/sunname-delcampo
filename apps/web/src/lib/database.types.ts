@@ -587,34 +587,34 @@ export type Database = {
       }
       sale_items: {
         Row: {
-          sold_by_weight: boolean | null
-          product_name: string | null
           id: string
           product_id: string
+          product_name: string | null
           quantity: number
           sale_id: string
+          sold_by_weight: boolean | null
           subtotal: number
           unit_cost: number | null
           unit_price: number
         }
         Insert: {
-          sold_by_weight?: boolean | null
-          product_name?: string | null
           id?: string
           product_id: string
+          product_name?: string | null
           quantity: number
           sale_id: string
+          sold_by_weight?: boolean | null
           subtotal: number
           unit_cost?: number | null
           unit_price: number
         }
         Update: {
-          sold_by_weight?: boolean | null
-          product_name?: string | null
           id?: string
           product_id?: string
+          product_name?: string | null
           quantity?: number
           sale_id?: string
+          sold_by_weight?: boolean | null
           subtotal?: number
           unit_cost?: number | null
           unit_price?: number
@@ -1119,11 +1119,22 @@ export type Database = {
     }
     Functions: {
       close_cash_session: {
-        Args: { p_session_id: string; p_closing_amount: number; p_expected_amount: number; p_notes?: string }
+        Args: {
+          p_closing_amount: number
+          p_expected_amount: number
+          p_notes?: string
+          p_session_id: string
+        }
         Returns: string
       }
       create_purchase_order: {
-        Args: { p_client_uuid: string; p_supplier_id: string; p_items: Json; p_notes?: string; p_ticket_date?: string }
+        Args: {
+          p_client_uuid: string
+          p_items: Json
+          p_notes?: string
+          p_supplier_id: string
+          p_ticket_date?: string
+        }
         Returns: string
       }
       create_sale: {

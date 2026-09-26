@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { CloseSessionDialog } from './CloseSessionDialog'
 const { fetchCashBalance } = vi.hoisted(() => ({ fetchCashBalance: vi.fn() }))
+vi.mock('@/lib/supabase', () => ({ supabase: {} }))
 vi.mock('./cashBalance', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./cashBalance')>()),
   fetchCashBalance,
