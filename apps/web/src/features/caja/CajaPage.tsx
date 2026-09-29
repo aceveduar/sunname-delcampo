@@ -41,7 +41,7 @@ export function CajaPage({
 
   if (!session) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold">Caja</h1>
           <p className="text-muted-foreground text-sm">
@@ -86,13 +86,20 @@ export function CajaPage({
         </div>
       </div>
 
-      <CashSessionSummary
-        key={`${session.id}:${userId}`}
-        sessionId={session.id}
-        userId={userId}
-        revision={cashRevision}
-        onPendingChange={setMovementPending}
-      />
+      <details className="bg-muted/20 rounded-lg border p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          Administrar efectivo y movimientos de caja
+        </summary>
+        <div className="mt-3">
+          <CashSessionSummary
+            key={`${session.id}:${userId}`}
+            sessionId={session.id}
+            userId={userId}
+            revision={cashRevision}
+            onPendingChange={setMovementPending}
+          />
+        </div>
+      </details>
       <SaleScreen
         cashSessionId={session.id}
         role={role}

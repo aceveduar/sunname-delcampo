@@ -53,7 +53,7 @@ type Role = Database['public']['Enums']['user_role']
 // búsqueda -- mismo tamaño de tarjeta en los dos casos, un solo lugar
 // para ajustar cuántas columnas caben en cada ancho.
 const PRODUCT_GRID_CLASS =
-  'grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+  'grid gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
 
 export function SaleScreen({
   cashSessionId,
@@ -432,18 +432,18 @@ export function SaleScreen({
       />
       <fieldset disabled={!!pendingDraft || submitting} className="contents">
         <div
-          className={`grid gap-6 md:grid-cols-[minmax(0,1fr)_370px] xl:grid-cols-[minmax(0,1fr)_400px] ${cart.length ? 'pb-24 md:pb-0' : ''}`}
+          className={`grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_410px] ${cart.length ? 'pb-32 lg:pb-0' : ''}`}
         >
           <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-2">
+            <div className="bg-background/95 sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border p-3 shadow-sm backdrop-blur-sm">
               <SearchInput
                 ref={searchInputRef}
                 value={search}
                 onChange={changeSearch}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Buscar producto…"
+                placeholder="Nombre o código de barras"
                 aria-label="Buscar producto por nombre o código"
-                containerClassName="min-w-[200px] flex-1"
+                containerClassName="min-w-0 basis-full sm:basis-auto sm:flex-1"
                 autoFocus
               />
 
@@ -560,7 +560,10 @@ export function SaleScreen({
             )}
           </div>
 
-          <Card id="current-sale" className="h-fit min-w-0 md:sticky md:top-4">
+          <Card
+            id="current-sale"
+            className="h-fit min-w-0 scroll-mt-4 lg:sticky lg:top-3 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto"
+          >
             <CardHeader>
               <CardTitle>
                 <h2
@@ -568,7 +571,11 @@ export function SaleScreen({
                   tabIndex={-1}
                   className="focus-visible:outline-ring scroll-mt-4 focus-visible:outline-2"
                 >
-                  Venta actual
+                  Venta actual{' '}
+                  <span className="text-muted-foreground text-sm font-normal">
+                    ({cart.length} {cart.length === 1 ? 'renglón' : 'renglones'}
+                    )
+                  </span>
                 </h2>
               </CardTitle>
             </CardHeader>
@@ -605,7 +612,7 @@ export function SaleScreen({
                   <div
                     ref={cartListRef}
                     onScroll={updateCartScrollShadows}
-                    className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto pr-1"
+                    className="flex max-h-[40dvh] flex-col gap-3 overflow-y-auto overscroll-contain pr-1 lg:max-h-[clamp(8rem,calc(100dvh-28rem),24rem)]"
                   >
                     {cart.map((line, index) => (
                       <div
@@ -723,9 +730,9 @@ export function SaleScreen({
                 </div>
               )}
 
-              <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
+              <div className="bg-muted/60 flex items-center justify-between gap-3 rounded-lg p-3 text-lg font-semibold">
                 <span>Total</span>
-                <span className="text-foreground tabular-nums">
+                <span className="text-foreground text-2xl tabular-nums">
                   {formatCurrency(total)}
                 </span>
               </div>
@@ -812,36 +819,52 @@ export function SaleScreen({
                   y efectivo recibido se tocan siempre, cliente solo a veces.
                   El orden visual debe reflejar qué tan seguido se usa cada
                   campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="sale-customer">Cliente (opcional)</Label>
-                    <Select
-                      items={[
-                        { value: NO_CUSTOMER, label: 'Sin cliente' },
-                        ...activeCustomers.map((c) => ({
-                          value: c.id,
-                          label: c.name,
-                        })),
-                      ]}
-                      value={customerId}
-                      onValueChange={(value) =>
-                        setCustomerId(value ?? NO_CUSTOMER)
-                      }
-                    >
-                      <SelectTrigger id="sale-customer" className="w-full">
-                        <SelectValue placeholder="Sin cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_CUSTOMER}>Sin cliente</SelectItem>
-                        {activeCustomers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
+                  <details className="rounded-lg border p-3">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      {customerId === NO_CUSTOMER
+                        ? 'Asignar cliente (opcional)'
+                        : 'Cliente: ' +
+                          (activeCustomers.find(
+                            (customer) => customer.id === customerId,
+                          )?.name ?? 'Seleccionado')}
+                    </summary>
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      <Label htmlFor="sale-customer">Cliente (opcional)</Label>
+                      <Select
+                        items={[
+                          { value: NO_CUSTOMER, label: 'Sin cliente' },
+                          ...activeCustomers.map((c) => ({
+                            value: c.id,
+                            label: c.name,
+                          })),
+                        ]}
+                        value={customerId}
+                        onValueChange={(value) =>
+                          setCustomerId(value ?? NO_CUSTOMER)
+                        }
+                      >
+                        <SelectTrigger id="sale-customer" className="w-full">
+                          <SelectValue placeholder="Sin cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_CUSTOMER}>
+                            Sin cliente
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                          {activeCustomers.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </details>
 
-                  <Button onClick={handleCheckout} disabled={checkoutDisabled}>
+                  <Button
+                    className="min-h-12 w-full text-base"
+                    onClick={handleCheckout}
+                    disabled={checkoutDisabled}
+                  >
                     {submitting ? (
                       'Cobrando…'
                     ) : (
@@ -864,6 +887,9 @@ export function SaleScreen({
           {cart.length > 0 && (
             <MobileCartSummary
               total={total}
+              canCheckout={!checkoutDisabled}
+              submitting={submitting}
+              onCheckout={handleCheckout}
               onOpen={() => {
                 cartHeadingRef.current?.scrollIntoView({ block: 'start' })
                 cartHeadingRef.current?.focus({ preventScroll: true })
