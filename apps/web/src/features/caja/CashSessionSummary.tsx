@@ -71,11 +71,18 @@ export function CashSessionSummary({
   return (
     <section
       aria-label="Resumen de efectivo"
-      className="space-y-3 rounded-lg border p-4"
+      className="space-y-2 rounded-lg border p-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">Efectivo en caja</h2>
+          <h2 className="text-muted-foreground text-xs font-medium">
+            Efectivo esperado en caja
+          </h2>
+          {data && (
+            <p className="text-lg font-semibold tabular-nums">
+              {formatCurrency(data.balance.expectedAmount)}
+            </p>
+          )}
           <p className="text-muted-foreground text-xs">
             {updatedAt
               ? `Actualizado a las ${updatedAt.toLocaleTimeString('es-MX')}`
@@ -96,14 +103,16 @@ export function CashSessionSummary({
       </div>
       <LoadError message={error} loading={loading} onRetry={refresh} />
       {data && (
-        <>
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+        <details className="border-t pt-2">
+          <summary className="cursor-pointer text-sm font-medium">
+            Ver desglose e historial ({data.count})
+          </summary>
+          <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             {[
               ['Fondo inicial', data.balance.openingAmount],
               ['Ventas en efectivo', data.balance.cashSales],
               ['Entradas', data.balance.cashIn],
               ['Salidas', data.balance.cashOut],
-              ['Saldo esperado', data.balance.expectedAmount],
             ].map(([label, amount]) => (
               <div key={label} className="min-w-0">
                 <dt className="text-muted-foreground">{label}</dt>
@@ -113,10 +122,8 @@ export function CashSessionSummary({
               </div>
             ))}
           </dl>
-          <details className="border-t pt-3">
-            <summary className="cursor-pointer text-sm font-medium">
-              Historial de entradas y salidas ({data.count})
-            </summary>
+          <div className="mt-3 border-t pt-3">
+            <h3 className="text-sm font-medium">Entradas y salidas</h3>
             {data.count === 0 ? (
               <p className="text-muted-foreground py-3 text-sm">
                 Todavía no hay movimientos de efectivo.
@@ -169,8 +176,8 @@ export function CashSessionSummary({
                 </div>
               </>
             )}
-          </details>
-        </>
+          </div>
+        </details>
       )}
     </section>
   )

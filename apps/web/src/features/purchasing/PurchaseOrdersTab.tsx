@@ -1,19 +1,13 @@
 import { LoadError } from '@/components/LoadError'
 import { useState } from 'react'
-import { ClipboardList, Eye } from 'lucide-react'
+import { ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { EmptyState } from '@/components/EmptyState'
-import { formatCurrency } from '@/lib/currency'
+import { useSearchParams } from 'react-router-dom'
+import { SearchInput } from '@/components/ui/search-input'
+import { normalizeSearch } from '@/lib/text'
+import { PurchaseOrderCard } from './PurchaseOrderCard'
+import { orderStatus } from './orderPresentation'
 import { useProducts } from '@/features/catalog/useProducts'
 import { useUnits } from '@/features/catalog/useUnits'
 import { usePurchaseOrders, type PurchaseOrder } from './usePurchaseOrders'
@@ -21,21 +15,15 @@ import { useSuppliers } from './useSuppliers'
 import { NewPurchaseOrderDialog } from './NewPurchaseOrderDialog'
 import { TicketCaptureDialog } from './TicketCaptureDialog'
 import { PurchaseOrderDetailDialog } from './PurchaseOrderDetailDialog'
-import { ReceivePurchaseDialog } from './ReceivePurchaseDialog'
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Borrador',
-  ordered: 'Pendiente',
-  received: 'Recibida',
-  cancelled: 'Cancelada',
-}
-
-function orderTotal(order: { purchase_order_items: { subtotal: number }[] }) {
-  return order.purchase_order_items.reduce(
-    (sum, item) => sum + item.subtotal,
-    0,
-  )
-}
+const FILTERS = [
+  { key: 'all', label: 'Todas' },
+  { key: 'ordered', label: 'Pendientes' },
+  { key: 'partial', label: 'Parciales' },
+  { key: 'received', label: 'Recibidas' },
+  { key: 'draft', label: 'Borradores' },
+  { key: 'cancelled', label: 'Canceladas' },
+]
 
 export function PurchaseOrdersTab({ userId }: { userId: string }) {
   const { orders, loading, error, refresh, createOrder } = usePurchaseOrders()
@@ -44,6 +32,42 @@ export function PurchaseOrdersTab({ userId }: { userId: string }) {
   const { units } = useUnits()
   const [viewingOrder, setViewingOrder] = useState<PurchaseOrder | null>(null)
 
+  const [params, setParams] = useSearchParams()
+  const selectedFilter = params.get('purchaseStatus') ?? 'all'
+  const filter = FILTERS.some((item) => item.key === selectedFilter)
+    ? selectedFilter
+    : 'all'
+  const query = params.get('supplierQuery') ?? ''
+  const setFilter = (key: string, value: string) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (value) next.set(key, value)
+        else next.delete(key)
+        return next
+      },
+      { replace: true },
+    )
+  const visible = orders.filter(
+    (order) =>
+      (filter === 'all' || orderStatus(order) === filter) &&
+      normalizeSearch((order.supplier?.name ?? '') + ' ' + order.id).includes(
+        normalizeSearch(query),
+      ),
+  )
+  const clearFilters = () =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('purchaseStatus')
+        next.delete('supplierQuery')
+        return next
+      },
+      { replace: true },
+    )
+  const currentDetail = viewingOrder
+    ? (orders.find((order) => order.id === viewingOrder.id) ?? viewingOrder)
+    : null
   return (
     <div className="flex flex-col gap-4">
       <LoadError message={error} onRetry={refresh} loading={loading} />
@@ -52,7 +76,7 @@ export function PurchaseOrdersTab({ userId }: { userId: string }) {
           Órdenes de compra a proveedores. Al recibir una, se registra la
           entrada en Inventario.
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap gap-2">
           <TicketCaptureDialog
             suppliers={suppliers}
             products={products}
@@ -69,81 +93,79 @@ export function PurchaseOrdersTab({ userId }: { userId: string }) {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Proveedor</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading && <TableSkeletonRows rows={5} columns={5} />}
-          {!loading && !error && orders.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5}>
-                <EmptyState
-                  icon={ClipboardList}
-                  title="Aún no hay órdenes de compra"
-                  description="Crea una orden para registrar la mercancía que esperas de un proveedor."
-                />
-              </TableCell>
-            </TableRow>
-          )}
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-medium">
-                {order.supplier?.name ?? '—'}
-              </TableCell>
-              <TableCell>
-                {new Date(
-                  order.ticket_date ?? order.created_at,
-                ).toLocaleDateString('es-MX', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  timeZone: order.ticket_date ? 'UTC' : undefined,
-                })}
-              </TableCell>
-              <TableCell>{formatCurrency(orderTotal(order))}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    order.status === 'received' ? 'default' : 'secondary'
-                  }
-                >
-                  {order.status === 'ordered' &&
-                  order.purchase_order_items.some(
-                    (item) => item.received_quantity > 0,
-                  )
-                    ? 'Parcialmente recibida'
-                    : (STATUS_LABELS[order.status] ?? order.status)}
-                </Badge>
-              </TableCell>
-              <TableCell className="flex justify-end gap-1 text-right">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setViewingOrder(order)}
-                  aria-label="Ver detalle"
-                >
-                  <Eye />
-                </Button>
-                <ReceivePurchaseDialog
-                  order={order}
-                  userId={userId}
-                  onSaved={refresh}
-                />
-              </TableCell>
-            </TableRow>
+      <div className="space-y-3">
+        <SearchInput
+          value={query}
+          onChange={(value) => setFilter('supplierQuery', value)}
+          placeholder="Buscar proveedor o folio"
+        />
+        <div
+          aria-label="Filtrar órdenes por estado"
+          className="flex flex-wrap gap-2"
+        >
+          {FILTERS.map((item) => (
+            <Button
+              key={item.key}
+              size="sm"
+              variant={filter === item.key ? 'default' : 'outline'}
+              aria-pressed={filter === item.key}
+              onClick={() =>
+                setFilter('purchaseStatus', item.key === 'all' ? '' : item.key)
+              }
+            >
+              {item.label} (
+              {
+                orders.filter(
+                  (order) =>
+                    item.key === 'all' || orderStatus(order) === item.key,
+                ).length
+              }
+              )
+            </Button>
           ))}
-        </TableBody>
-      </Table>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p role="status" className="text-muted-foreground">
+            {loading
+              ? 'Actualizando órdenes…'
+              : visible.length + ' órdenes visibles'}
+          </p>
+          {(query || filter !== 'all') && (
+            <Button size="sm" variant="ghost" onClick={clearFilters}>
+              Limpiar filtros
+            </Button>
+          )}
+        </div>
+      </div>
+      {!loading && !error && visible.length === 0 && (
+        <EmptyState
+          icon={ClipboardList}
+          title={
+            orders.length
+              ? 'No hay órdenes con estos filtros'
+              : 'Aún no hay órdenes de compra'
+          }
+          description={
+            orders.length
+              ? 'Prueba otro proveedor o limpia los filtros para ver todas.'
+              : 'Crea una orden para registrar lo que esperas de un proveedor.'
+          }
+        />
+      )}
+      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        {visible.map((order) => (
+          <PurchaseOrderCard
+            key={order.id}
+            order={order}
+            userId={userId}
+            onView={() => setViewingOrder(order)}
+            onSaved={refresh}
+          />
+        ))}
+      </div>
 
       <PurchaseOrderDetailDialog
-        order={viewingOrder}
+        order={currentDetail}
         onOpenChange={(open) => {
           if (!open) setViewingOrder(null)
         }}

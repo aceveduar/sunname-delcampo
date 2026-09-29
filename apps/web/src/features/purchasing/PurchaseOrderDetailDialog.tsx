@@ -17,12 +17,7 @@ import { formatCurrency } from '@/lib/currency'
 import type { PurchaseOrder } from './usePurchaseOrders'
 import { PurchaseReceiptHistory } from './PurchaseReceiptHistory'
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Borrador',
-  ordered: 'Pendiente',
-  received: 'Recibida',
-  cancelled: 'Cancelada',
-}
+import { ORDER_STATUS_LABELS, orderStatus } from './orderPresentation'
 
 export function PurchaseOrderDetailDialog({
   order,
@@ -57,12 +52,7 @@ export function PurchaseOrderDetailDialog({
               <Badge
                 variant={order.status === 'received' ? 'default' : 'secondary'}
               >
-                {order.status === 'ordered' &&
-                order.purchase_order_items.some(
-                  (item) => item.received_quantity > 0,
-                )
-                  ? 'Parcialmente recibida'
-                  : (STATUS_LABELS[order.status] ?? order.status)}
+                {ORDER_STATUS_LABELS[orderStatus(order)]}
               </Badge>
             </div>
 
