@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
+import { trackedFetch } from './pendingWrites'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -10,4 +11,6 @@ if (!url || !anonKey) {
   )
 }
 
-export const supabase = createClient<Database>(url, anonKey)
+export const supabase = createClient<Database>(url, anonKey, {
+  global: { fetch: trackedFetch },
+})

@@ -539,6 +539,7 @@ export type Database = {
           product_id: string
           purchase_order_id: string
           quantity: number
+          received_quantity: number
           subtotal: number
           unit_cost: number
         }
@@ -547,6 +548,7 @@ export type Database = {
           product_id: string
           purchase_order_id: string
           quantity: number
+          received_quantity?: number
           subtotal: number
           unit_cost: number
         }
@@ -555,6 +557,7 @@ export type Database = {
           product_id?: string
           purchase_order_id?: string
           quantity?: number
+          received_quantity?: number
           subtotal?: number
           unit_cost?: number
         }
@@ -639,6 +642,57 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_receipts: {
+        Row: {
+          actor_name: string
+          client_uuid: string
+          created_at: string
+          id: string
+          items: Json
+          notes: string | null
+          purchase_order_id: string
+          received_by: string
+          request_items: Json
+        }
+        Insert: {
+          actor_name: string
+          client_uuid: string
+          created_at?: string
+          id?: string
+          items: Json
+          notes?: string | null
+          purchase_order_id: string
+          received_by: string
+          request_items: Json
+        }
+        Update: {
+          actor_name?: string
+          client_uuid?: string
+          created_at?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          purchase_order_id?: string
+          received_by?: string
+          request_items?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_receipts_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_receipts_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1212,6 +1266,15 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       delete_product: { Args: { p_product_id: string }; Returns: undefined }
+      receive_purchase_delivery: {
+        Args: {
+          p_client_uuid: string
+          p_items: Json
+          p_notes?: string
+          p_purchase_order_id: string
+        }
+        Returns: string
+      }
       receive_purchase_order: {
         Args: { p_purchase_order_id: string }
         Returns: undefined

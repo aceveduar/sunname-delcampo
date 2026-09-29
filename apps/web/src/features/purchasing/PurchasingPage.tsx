@@ -2,12 +2,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PurchaseOrdersTab } from './PurchaseOrdersTab'
 import { SuppliersTab } from './SuppliersTab'
 
-export function PurchasingPage() {
+export function PurchasingPage({ userId }: { userId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Compras</h1>
-        <p className="text-muted-foreground text-sm">Proveedores y órdenes de compra.</p>
+        <h1 className="text-foreground text-2xl font-semibold">Compras</h1>
+        <p className="text-muted-foreground text-sm">
+          Proveedores y órdenes de compra.
+        </p>
       </div>
 
       <Tabs defaultValue="orders">
@@ -16,7 +18,7 @@ export function PurchasingPage() {
           <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
-          <PurchaseOrdersTab />
+          <PurchaseOrdersTab userId={userId} />
         </TabsContent>
         <TabsContent value="suppliers">
           <SuppliersTab />

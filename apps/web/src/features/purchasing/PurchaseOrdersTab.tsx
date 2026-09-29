@@ -21,6 +21,7 @@ import { useSuppliers } from './useSuppliers'
 import { NewPurchaseOrderDialog } from './NewPurchaseOrderDialog'
 import { TicketCaptureDialog } from './TicketCaptureDialog'
 import { PurchaseOrderDetailDialog } from './PurchaseOrderDetailDialog'
+import { ReceivePurchaseDialog } from './ReceivePurchaseDialog'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
@@ -36,9 +37,8 @@ function orderTotal(order: { purchase_order_items: { subtotal: number }[] }) {
   )
 }
 
-export function PurchaseOrdersTab() {
-  const { orders, loading, error, refresh, createOrder, receiveOrder } =
-    usePurchaseOrders()
+export function PurchaseOrdersTab({ userId }: { userId: string }) {
+  const { orders, loading, error, refresh, createOrder } = usePurchaseOrders()
   const { suppliers, createSupplier } = useSuppliers()
   const { products, createProduct } = useProducts()
   const { units } = useUnits()
@@ -114,7 +114,12 @@ export function PurchaseOrdersTab() {
                     order.status === 'received' ? 'default' : 'secondary'
                   }
                 >
-                  {STATUS_LABELS[order.status] ?? order.status}
+                  {order.status === 'ordered' &&
+                  order.purchase_order_items.some(
+                    (item) => item.received_quantity > 0,
+                  )
+                    ? 'Parcialmente recibida'
+                    : (STATUS_LABELS[order.status] ?? order.status)}
                 </Badge>
               </TableCell>
               <TableCell className="flex justify-end gap-1 text-right">
@@ -126,15 +131,11 @@ export function PurchaseOrdersTab() {
                 >
                   <Eye />
                 </Button>
-                {order.status === 'ordered' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => receiveOrder(order.id)}
-                  >
-                    Recibir
-                  </Button>
-                )}
+                <ReceivePurchaseDialog
+                  order={order}
+                  userId={userId}
+                  onSaved={refresh}
+                />
               </TableCell>
             </TableRow>
           ))}

@@ -1,4 +1,5 @@
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { SafeAppUpdate } from '@/components/integrations/SafeAppUpdate'
 import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -125,6 +126,7 @@ function App() {
       onToggleLargeText={toggleLargeText}
     >
       <CartProvider key={session.user.id} userId={session.user.id}>
+        <SafeAppUpdate />
         <ModuleErrorBoundary>
           <Suspense
             fallback={
@@ -185,7 +187,7 @@ function App() {
                 path="/compras"
                 element={
                   isAdmin && isModuleEnabled('purchasing') ? (
-                    <PurchasingPage />
+                    <PurchasingPage userId={session.user.id} />
                   ) : (
                     <Navigate to="/caja" replace />
                   )

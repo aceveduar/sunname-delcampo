@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table'
 import { formatCurrency } from '@/lib/currency'
 import type { PurchaseOrder } from './usePurchaseOrders'
+import { PurchaseReceiptHistory } from './PurchaseReceiptHistory'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
@@ -31,11 +32,12 @@ export function PurchaseOrderDetailDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const total =
-    order?.purchase_order_items.reduce((sum, item) => sum + item.subtotal, 0) ?? 0
+    order?.purchase_order_items.reduce((sum, item) => sum + item.subtotal, 0) ??
+    0
 
   return (
     <Dialog open={order !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{order?.supplier?.name ?? '—'}</DialogTitle>
         </DialogHeader>
@@ -43,15 +45,24 @@ export function PurchaseOrderDetailDialog({
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="text-muted-foreground">
-                {new Date(order.ticket_date ?? order.created_at).toLocaleDateString('es-MX', {
+                {new Date(
+                  order.ticket_date ?? order.created_at,
+                ).toLocaleDateString('es-MX', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
                   timeZone: order.ticket_date ? 'UTC' : undefined,
                 })}
               </span>
-              <Badge variant={order.status === 'received' ? 'default' : 'secondary'}>
-                {STATUS_LABELS[order.status] ?? order.status}
+              <Badge
+                variant={order.status === 'received' ? 'default' : 'secondary'}
+              >
+                {order.status === 'ordered' &&
+                order.purchase_order_items.some(
+                  (item) => item.received_quantity > 0,
+                )
+                  ? 'Parcialmente recibida'
+                  : (STATUS_LABELS[order.status] ?? order.status)}
               </Badge>
             </div>
 
@@ -60,6 +71,8 @@ export function PurchaseOrderDetailDialog({
                 <TableRow>
                   <TableHead>Producto</TableHead>
                   <TableHead>Cant.</TableHead>
+                  <TableHead>Recibido</TableHead>
+                  <TableHead>Pendiente</TableHead>
                   <TableHead>Costo</TableHead>
                   <TableHead className="text-right">Subtotal</TableHead>
                 </TableRow>
@@ -71,6 +84,12 @@ export function PurchaseOrderDetailDialog({
                       {item.product?.name ?? '—'}
                     </TableCell>
                     <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{item.received_quantity}</TableCell>
+                    <TableCell>
+                      {Math.round(
+                        (item.quantity - item.received_quantity) * 1000,
+                      ) / 1000}
+                    </TableCell>
                     <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(item.subtotal)}
@@ -85,6 +104,7 @@ export function PurchaseOrderDetailDialog({
               <span>{formatCurrency(total)}</span>
             </div>
 
+            <PurchaseReceiptHistory key={order.id} orderId={order.id} />
             {order.notes && (
               <div className="flex flex-col gap-1">
                 <span className="text-muted-foreground text-xs">Nota</span>
