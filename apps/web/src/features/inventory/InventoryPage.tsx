@@ -1,6 +1,5 @@
-import { MovementHistoryDialog } from './MovementHistoryDialog'
+import { InventoryProductPanel } from './InventoryProductPanel'
 import { useInventoryMinimums } from './useInventoryMinimums'
-import { StockMinimumDialog } from './StockMinimumDialog'
 import {
   downloadReplenishment,
   needsReplenishment,
@@ -9,7 +8,7 @@ import {
 import { LoadError } from '@/components/LoadError'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StockStatus } from './StockStatus'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Boxes, ImageOff, ScanBarcode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
@@ -80,10 +79,15 @@ export function InventoryPage({
   const [stockFilter, setStockFilter] = useState<'all' | 'out' | 'low'>('all')
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
-  const [historyProduct, setHistoryProduct] = useState<
-    (typeof rows)[number]['product'] | null
-  >(null)
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  )
   const [scannerOpen, setScannerOpen] = useState(false)
+  const detailTrigger = useRef<HTMLButtonElement | null>(null)
+
+  const selectedRow = rows.find((row) => row.product.id === selectedProductId)
+  const hasFilters =
+    search !== '' || filterCategory !== 'all' || stockFilter !== 'all'
 
   const canRegister = role !== null && CAN_REGISTER_MOVEMENTS.includes(role)
   const activeCategories = categories.filter((c) => c.active)
@@ -161,115 +165,140 @@ export function InventoryPage({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={(value) => {
-            setSearch(value)
-            setPage(1)
-          }}
-          placeholder="Buscar producto por nombre o SKU…"
-          containerClassName="max-w-sm min-w-[200px] flex-1"
-        />
+      <div className="bg-background/95 sticky top-2 z-10 space-y-3 rounded-xl border p-3 shadow-sm backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchInput
+            value={search}
+            onChange={(value) => {
+              setSearch(value)
+              setPage(1)
+            }}
+            placeholder="Buscar producto por nombre o SKU…"
+            containerClassName="min-w-0 flex-1"
+          />
 
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Buscar por código de barras con la cámara"
-          onClick={() => setScannerOpen(true)}
-        >
-          <ScanBarcode />
-        </Button>
-
-        <Select
-          items={[
-            { value: 'all', label: 'Todas las categorías' },
-            { value: NO_CATEGORY, label: 'Sin categoría' },
-            ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
-          ]}
-          value={filterCategory}
-          onValueChange={(value) => {
-            setFilterCategory(value ?? 'all')
-            setPage(1)
-          }}
-        >
-          <SelectTrigger
-            aria-label="Filtrar inventario por categoría"
-            className="w-full shrink-0 sm:w-48"
-          >
-            <SelectValue placeholder="Todas las categorías" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las categorías</SelectItem>
-            <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
-            {activeCategories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant={stockFilter === 'out' ? 'default' : 'outline'}
-          aria-pressed={stockFilter === 'out'}
-          onClick={() => {
-            setStockFilter((value) => (value === 'out' ? 'all' : 'out'))
-            setPage(1)
-          }}
-        >
-          Agotados ({rows.filter((row) => row.quantityOnHand <= 0).length})
-        </Button>
-        <Button
-          variant={stockFilter === 'low' ? 'default' : 'outline'}
-          aria-pressed={stockFilter === 'low'}
-          disabled={minimumsLoading || !!minimumsError}
-          onClick={() => {
-            setStockFilter((value) => (value === 'low' ? 'all' : 'low'))
-            setPage(1)
-          }}
-        >
-          Por reponer (
-          {
-            rows.filter((row) =>
-              needsReplenishment(
-                row.quantityOnHand,
-                minimums.get(row.product.id) ?? 0,
-              ),
-            ).length
-          }
-          )
-        </Button>
-        {canRegister && (
           <Button
+            type="button"
             variant="outline"
-            disabled={
-              loading ||
-              !!error ||
-              minimumsLoading ||
-              !!minimumsError ||
-              !filteredRows.some((row) =>
+            size="icon"
+            aria-label="Buscar por código de barras con la cámara"
+            onClick={() => setScannerOpen(true)}
+          >
+            <ScanBarcode />
+          </Button>
+
+          <Select
+            items={[
+              { value: 'all', label: 'Todas las categorías' },
+              { value: NO_CATEGORY, label: 'Sin categoría' },
+              ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+            value={filterCategory}
+            onValueChange={(value) => {
+              setFilterCategory(value ?? 'all')
+              setPage(1)
+            }}
+          >
+            <SelectTrigger
+              aria-label="Filtrar inventario por categoría"
+              className="w-full shrink-0 sm:w-48"
+            >
+              <SelectValue placeholder="Todas las categorías" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
+              {activeCategories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant={stockFilter === 'all' ? 'default' : 'outline'}
+            aria-pressed={stockFilter === 'all'}
+            onClick={() => {
+              setStockFilter('all')
+              setPage(1)
+            }}
+          >
+            Todos ({rows.length})
+          </Button>
+          <Button
+            variant={stockFilter === 'out' ? 'default' : 'outline'}
+            aria-pressed={stockFilter === 'out'}
+            onClick={() => {
+              setStockFilter((value) => (value === 'out' ? 'all' : 'out'))
+              setPage(1)
+            }}
+          >
+            Agotados ({rows.filter((row) => row.quantityOnHand <= 0).length})
+          </Button>
+          <Button
+            variant={stockFilter === 'low' ? 'default' : 'outline'}
+            aria-pressed={stockFilter === 'low'}
+            disabled={minimumsLoading || !!minimumsError}
+            onClick={() => {
+              setStockFilter((value) => (value === 'low' ? 'all' : 'low'))
+              setPage(1)
+            }}
+          >
+            Por reponer (
+            {
+              rows.filter((row) =>
                 needsReplenishment(
                   row.quantityOnHand,
                   minimums.get(row.product.id) ?? 0,
                 ),
-              )
+              ).length
             }
-            onClick={() =>
-              downloadReplenishment(
-                replenishmentCsv(filteredRows, minimums, unitCode),
-              )
-            }
+            )
+          </Button>
+          {canRegister && (
+            <Button
+              variant="outline"
+              disabled={
+                loading ||
+                !!error ||
+                minimumsLoading ||
+                !!minimumsError ||
+                !filteredRows.some((row) =>
+                  needsReplenishment(
+                    row.quantityOnHand,
+                    minimums.get(row.product.id) ?? 0,
+                  ),
+                )
+              }
+              onClick={() =>
+                downloadReplenishment(
+                  replenishmentCsv(filteredRows, minimums, unitCode),
+                )
+              }
+            >
+              Descargar reposición
+            </Button>
+          )}
+          <span className="text-muted-foreground text-sm">
+            {filteredRows.length} productos
+          </span>
+        </div>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setFilterCategory('all')
+              setStockFilter('all')
+              setPage(1)
+            }}
           >
-            Descargar reposición
+            Limpiar filtros
           </Button>
         )}
-        <span className="text-muted-foreground text-sm">
-          {filteredRows.length} productos
-        </span>
       </div>
       {canRegister &&
         renderReplenishment?.(
@@ -324,30 +353,13 @@ export function InventoryPage({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setHistoryProduct(row.product)}
+              onClick={(event) => {
+                detailTrigger.current = event.currentTarget
+                setSelectedProductId(row.product.id)
+              }}
             >
-              Ver movimientos
+              Ver detalle
             </Button>
-            {canRegister && !minimumsLoading && !minimumsError && (
-              <StockMinimumDialog
-                productId={row.product.id}
-                name={row.product.name}
-                minimum={minimums.get(row.product.id) ?? 0}
-                unit={unitCode(row.product.unit_id)}
-                onSave={saveMinimum}
-              />
-            )}
-            {canRegister && (
-              <NewMovementDialog
-                triggerLabel="Ajustar existencia"
-                triggerVariant="outline"
-                triggerSize="sm"
-                rows={rows}
-                unitCode={unitCode}
-                initialProductId={row.product.id}
-                onRegister={registerMovement}
-              />
-            )}
           </article>
         ))}
       </div>
@@ -413,32 +425,13 @@ export function InventoryPage({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setHistoryProduct(row.product)}
+                    onClick={(event) => {
+                      detailTrigger.current = event.currentTarget
+                      setSelectedProductId(row.product.id)
+                    }}
                   >
-                    Movimientos
+                    Ver detalle
                   </Button>
-                  {canRegister && (
-                    <>
-                      {!minimumsLoading && !minimumsError && (
-                        <StockMinimumDialog
-                          productId={row.product.id}
-                          name={row.product.name}
-                          minimum={minimums.get(row.product.id) ?? 0}
-                          unit={unitCode(row.product.unit_id)}
-                          onSave={saveMinimum}
-                        />
-                      )}
-                      <NewMovementDialog
-                        triggerLabel="Ajustar"
-                        triggerVariant="ghost"
-                        triggerSize="sm"
-                        rows={rows}
-                        unitCode={unitCode}
-                        initialProductId={row.product.id}
-                        onRegister={registerMovement}
-                      />
-                    </>
-                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -454,19 +447,30 @@ export function InventoryPage({
         onPageChange={setPage}
       />
 
-      {historyProduct && (
-        <MovementHistoryDialog
-          key={historyProduct.id}
-          productId={historyProduct.id}
-          productName={historyProduct.name}
-          unit={unitCode(historyProduct.unit_id)}
-          onClose={() => setHistoryProduct(null)}
+      {selectedRow && (
+        <InventoryProductPanel
+          key={selectedRow.product.id}
+          row={selectedRow}
+          returnFocus={detailTrigger}
+          unit={unitCode(selectedRow.product.unit_id)}
+          minimum={
+            minimumsLoading || minimumsError
+              ? undefined
+              : (minimums.get(selectedRow.product.id) ?? 0)
+          }
+          canRegister={canRegister}
+          onSaveMinimum={saveMinimum}
+          onRegister={registerMovement}
+          onClose={() => setSelectedProductId(null)}
         />
       )}
       <BarcodeScannerDialog
         open={scannerOpen}
         onOpenChange={setScannerOpen}
-        onDetected={setSearch}
+        onDetected={(value) => {
+          setSearch(value)
+          setPage(1)
+        }}
       />
     </div>
   )
