@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProductForm } from './ProductForm'
@@ -134,4 +135,36 @@ describe('Guardado de productos', () => {
       expect.objectContaining({ productId: 'new-product', quantity: 5 }),
     )
   })
+})
+
+it('conserva la captura al cancelar el descarte y solo cierra tras confirmarlo', async () => {
+  const input = props()
+  render(<ProductForm {...input} />)
+  fireEvent.change(screen.getByLabelText('Nombre'), {
+    target: { value: 'Producto nuevo' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+  expect(input.onOpenChange).not.toHaveBeenCalled()
+  expect(
+    screen.getByRole('heading', { name: '¿Descartar cambios del producto?' }),
+  ).toBeInTheDocument()
+  const dialogs = screen.getAllByRole('dialog')
+  fireEvent.click(
+    within(dialogs[dialogs.length - 1]).getByRole('button', {
+      name: 'Cancelar',
+    }),
+  )
+  await waitFor(() =>
+    expect(screen.getByLabelText('Nombre')).toHaveValue('Producto nuevo'),
+  )
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('heading', {
+        name: '¿Descartar cambios del producto?',
+      }),
+    ).not.toBeInTheDocument(),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }))
+  expect(input.onOpenChange).toHaveBeenCalledWith(false)
 })

@@ -19,6 +19,9 @@ export function useProductFilters(
   const [filterActive, setFilterActive] = useState<ActiveFilter>('all')
   const [filterGranel, setFilterGranel] = useState<GranelFilter>('all')
   const [filterNoPrice, setFilterNoPrice] = useState(false)
+  const [filterMissing, setFilterMissing] = useState<'all' | 'photo' | 'sku'>(
+    'all',
+  )
   // Hoja de filtros: solo existe para el toolbar compacto de mobile --
   // en sm+ los 4 controles ya se ven inline, no hay nada que abrir.
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -44,12 +47,14 @@ export function useProductFilters(
     filterCategory !== 'all' ||
     filterActive !== 'all' ||
     filterGranel !== 'all' ||
-    filterNoPrice
+    filterNoPrice ||
+    filterMissing !== 'all'
   const clearFilters = () => {
     setFilterCategory('all')
     setFilterActive('all')
     setFilterGranel('all')
     setFilterNoPrice(false)
+    setFilterMissing('all')
   }
 
   const filteredProducts = useMemo(() => {
@@ -73,6 +78,8 @@ export function useProductFilters(
       if (filterGranel === 'yes' && !p.sold_by_weight) return false
       if (filterGranel === 'no' && p.sold_by_weight) return false
       if (filterNoPrice && p.price !== 0) return false
+      if (filterMissing === 'photo' && p.image_url) return false
+      if (filterMissing === 'sku' && p.sku?.trim()) return false
       return true
     })
   }, [
@@ -82,6 +89,7 @@ export function useProductFilters(
     filterActive,
     filterGranel,
     filterNoPrice,
+    filterMissing,
   ])
 
   const pagination = usePagination(filteredProducts)
@@ -97,6 +105,11 @@ export function useProductFilters(
     setFilterGranel,
     filterNoPrice,
     setFilterNoPrice,
+    filterMissing,
+    setFilterMissing: (value: typeof filterMissing) => {
+      setFilterMissing(value)
+      pagination.setPage(1)
+    },
     filtersOpen,
     setFiltersOpen,
     categoryFilterItems,

@@ -1,3 +1,4 @@
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import {
   useEffect,
   useRef,
@@ -76,6 +77,16 @@ export function ProductForm({
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
+  const [dirty, setDirty] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  function requestClose(nextOpen: boolean) {
+    if (savingRef.current) return
+    if (!nextOpen && dirty) {
+      setConfirmDiscard(true)
+      return
+    }
+    onOpenChange(nextOpen)
+  }
   const [costError, setCostError] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
@@ -88,6 +99,8 @@ export function ProductForm({
   // que pedirlo explícito).
   useEffect(() => {
     if (!open) return
+    setDirty(false)
+    setConfirmDiscard(false)
     setCategoryId(product?.category_id ?? NO_CATEGORY)
     setUnitId(product?.unit_id ?? defaultUnitId)
     setTrackInventory(product?.track_inventory ?? true)
@@ -144,6 +157,7 @@ export function ProductForm({
     setImageFile(null)
     setImagePreview(null)
     setRemoveImage(true)
+    setDirty(true)
   }
 
   const unitCode = (id: string) => units.find((u) => u.id === id)?.code ?? '—'
@@ -242,7 +256,7 @@ export function ProductForm({
       <Dialog
         open={open}
         onOpenChange={(nextOpen) => {
-          if (!savingRef.current) onOpenChange(nextOpen)
+          requestClose(nextOpen)
         }}
       >
         <DialogContent className="sm:max-w-xl" showCloseButton={!saving}>
@@ -253,6 +267,7 @@ export function ProductForm({
           </DialogHeader>
           <form
             onSubmit={handleSubmit}
+            onChange={() => setDirty(true)}
             aria-busy={saving}
             className="flex max-h-[75dvh] min-h-0 flex-col overflow-hidden"
           >
@@ -284,9 +299,10 @@ export function ProductForm({
                         })),
                       ]}
                       value={categoryId}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
                         setCategoryId(value ?? NO_CATEGORY)
-                      }
+                        setDirty(true)
+                      }}
                     >
                       <SelectTrigger id="product-category" className="w-full">
                         <SelectValue placeholder="Sin categoría" />
@@ -312,7 +328,10 @@ export function ProductForm({
                         label: `${u.code} — ${u.name}`,
                       }))}
                       value={unitId}
-                      onValueChange={(value) => setUnitId(value ?? '')}
+                      onValueChange={(value) => {
+                        setUnitId(value ?? '')
+                        setDirty(true)
+                      }}
                     >
                       <SelectTrigger id="product-unit" className="w-full">
                         <SelectValue placeholder="Unidad" />
@@ -374,7 +393,10 @@ export function ProductForm({
                   <Switch
                     aria-label="Vende a granel (por peso)"
                     checked={soldByWeight}
-                    onCheckedChange={setSoldByWeight}
+                    onCheckedChange={(value) => {
+                      setSoldByWeight(value)
+                      setDirty(true)
+                    }}
                   />
                 </div>
 
@@ -414,7 +436,10 @@ export function ProductForm({
                   <Switch
                     aria-label="Controlar inventario"
                     checked={trackInventory}
-                    onCheckedChange={setTrackInventory}
+                    onCheckedChange={(value) => {
+                      setTrackInventory(value)
+                      setDirty(true)
+                    }}
                   />
                 </div>
 
@@ -548,7 +573,7 @@ export function ProductForm({
                 type="button"
                 variant="outline"
                 disabled={saving}
-                onClick={() => onOpenChange(false)}
+                onClick={() => requestClose(false)}
               >
                 Cancelar
               </Button>
@@ -566,6 +591,19 @@ export function ProductForm({
               </Button>
             </DialogFooter>
           </form>
+          <ConfirmDialog
+            open={confirmDiscard}
+            onOpenChange={setConfirmDiscard}
+            title="¿Descartar cambios del producto?"
+            description="Los cambios sin guardar se perderán. Cancela para seguir editando."
+            confirmLabel="Descartar cambios"
+            variant="destructive"
+            onConfirm={() => {
+              setConfirmDiscard(false)
+              setDirty(false)
+              onOpenChange(false)
+            }}
+          />
         </DialogContent>
       </Dialog>
 
@@ -573,6 +611,7 @@ export function ProductForm({
         open={skuScannerOpen}
         onOpenChange={setSkuScannerOpen}
         onDetected={(code) => {
+          setDirty(true)
           if (skuInputRef.current) skuInputRef.current.value = toCode(code)
         }}
       />

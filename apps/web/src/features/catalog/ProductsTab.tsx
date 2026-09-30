@@ -1,8 +1,8 @@
+import { ProductActions } from './ProductActions'
 import { LoadError } from '@/components/LoadError'
 import { useState } from 'react'
 import {
   AlertTriangle,
-  Boxes,
   FileImage,
   ImageOff,
   LayoutGrid,
@@ -10,12 +10,8 @@ import {
   PackageSearch,
   ScanBarcode,
   SlidersHorizontal,
-  Trash2,
   Pencil,
   Plus,
-  Power,
-  PowerOff,
-  Tag,
   TableIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -133,6 +129,8 @@ export function ProductsTab({ role }: { role: Role | null }) {
     filterGranel,
     setFilterGranel,
     filterNoPrice,
+    filterMissing,
+    setFilterMissing,
     setFilterNoPrice,
     filtersOpen,
     setFiltersOpen,
@@ -519,6 +517,51 @@ export function ProductsTab({ role }: { role: Role | null }) {
         </label>
       </div>
 
+      <div
+        className="flex flex-wrap items-center gap-2"
+        aria-label="Pendientes del catálogo"
+      >
+        <Button
+          size="sm"
+          variant={filterMissing === 'all' ? 'default' : 'outline'}
+          aria-pressed={filterMissing === 'all'}
+          onClick={() => setFilterMissing('all')}
+        >
+          Todos
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMissing === 'photo' ? 'default' : 'outline'}
+          aria-pressed={filterMissing === 'photo'}
+          onClick={() => setFilterMissing('photo')}
+        >
+          Sin foto ({products.filter((p) => !p.image_url).length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMissing === 'sku' ? 'default' : 'outline'}
+          aria-pressed={filterMissing === 'sku'}
+          onClick={() => setFilterMissing('sku')}
+        >
+          Sin código ({products.filter((p) => !p.sku?.trim()).length})
+        </Button>
+        <span className="text-muted-foreground text-sm" role="status">
+          {filteredProducts.length} productos
+        </span>
+        {(filtersActive || search) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              clearFilters()
+              setSearch('')
+              setPage(1)
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        )}
+      </div>
       {view === 'cards' ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {loading &&
@@ -608,64 +651,18 @@ export function ProductsTab({ role }: { role: Role | null }) {
                   </p>
                 )}
                 {canManage && (
-                  // Solo íconos en tarjeta (a diferencia de la tabla, que
-                  // sí tiene ancho de sobra): tres textos no cabían en una
-                  // línea y "Etiqueta" se iba sola a la siguiente.
-                  // justify-between en vez de un gap fijo: reparte los tres
-                  // a lo ancho de la tarjeta (se ve intencional, no
-                  // amontonado) y de paso separa más los puntos de toque.
-                  <div className="border-border mt-2 flex justify-between border-t pt-2">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Editar producto"
-                      onClick={() => openEdit(product)}
-                    >
-                      <Pencil />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        product.active
-                          ? 'Desactivar producto'
-                          : 'Activar producto'
-                      }
-                      onClick={() => toggleActive(product)}
-                    >
-                      {/* El ícono muestra la acción del clic, no el estado
-                          actual (como play/pausa): activo -> se va a
-                          apagar, inactivo -> se va a encender. */}
-                      {product.active ? <PowerOff /> : <Power />}
-                    </Button>
-                    {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Borrar producto"
-                        onClick={() => setDeleteTarget(product)}
-                      >
-                        <Trash2 />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Imprimir etiqueta"
-                      onClick={() => setLabelProductId(product.id)}
-                    >
-                      <Tag />
-                    </Button>
-                    {product.track_inventory && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Ajustar existencia"
-                        onClick={() => setStockAdjustProductId(product.id)}
-                      >
-                        <Boxes />
-                      </Button>
-                    )}
+                  <div className="border-border mt-2 border-t pt-2">
+                    <ProductActions
+                      product={product}
+                      canDelete={canDelete}
+                      onEdit={() => openEdit(product)}
+                      onToggle={() => {
+                        void toggleActive(product)
+                      }}
+                      onLabel={() => setLabelProductId(product.id)}
+                      onStock={() => setStockAdjustProductId(product.id)}
+                      onDelete={() => setDeleteTarget(product)}
+                    />
                   </div>
                 )}
               </div>
@@ -799,47 +796,17 @@ export function ProductsTab({ role }: { role: Role | null }) {
                 {canManage && (
                   <TableCell className="flex justify-end gap-2 text-right">
                     {!priceEditMode && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEdit(product)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleActive(product)}
-                        >
-                          {product.active ? 'Desactivar' : 'Activar'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLabelProductId(product.id)}
-                        >
-                          Etiqueta
-                        </Button>
-                        {product.track_inventory && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setStockAdjustProductId(product.id)}
-                          >
-                            Existencia
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteTarget(product)}
-                          >
-                            Borrar
-                          </Button>
-                        )}
-                      </>
+                      <ProductActions
+                        product={product}
+                        canDelete={canDelete}
+                        onEdit={() => openEdit(product)}
+                        onToggle={() => {
+                          void toggleActive(product)
+                        }}
+                        onLabel={() => setLabelProductId(product.id)}
+                        onStock={() => setStockAdjustProductId(product.id)}
+                        onDelete={() => setDeleteTarget(product)}
+                      />
                     )}
                   </TableCell>
                 )}
