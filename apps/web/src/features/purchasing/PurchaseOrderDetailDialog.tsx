@@ -1,8 +1,10 @@
+import { PurchaseQuantities } from './PurchaseQuantities'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
@@ -32,9 +34,12 @@ export function PurchaseOrderDetailDialog({
 
   return (
     <Dialog open={order !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{order?.supplier?.name ?? '—'}</DialogTitle>
+          <DialogDescription>
+            Orden {order?.id.slice(0, 8)} · Cantidades y entregas registradas.
+          </DialogDescription>
         </DialogHeader>
         {order && (
           <div className="flex flex-col gap-4">
@@ -56,38 +61,66 @@ export function PurchaseOrderDetailDialog({
               </Badge>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cant.</TableHead>
-                  <TableHead>Recibido</TableHead>
-                  <TableHead>Pendiente</TableHead>
-                  <TableHead>Costo</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {order.purchase_order_items.map((item, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="whitespace-normal">
-                      {item.product?.name ?? '—'}
-                    </TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>{item.received_quantity}</TableCell>
-                    <TableCell>
-                      {Math.round(
-                        (item.quantity - item.received_quantity) * 1000,
-                      ) / 1000}
-                    </TableCell>
-                    <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
-                    <TableCell className="text-right">
+            <div className="grid gap-3 sm:hidden">
+              {order.purchase_order_items.map((item) => (
+                <article
+                  key={item.id}
+                  className="space-y-3 rounded-lg border p-3"
+                >
+                  <h3 className="font-medium wrap-break-word">
+                    {item.product?.name ?? 'Producto'}
+                  </h3>
+                  <PurchaseQuantities item={item} />
+                  <div className="flex flex-wrap justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">
+                      Costo: {formatCurrency(item.unit_cost)}
+                    </span>
+                    <span className="font-semibold">
                       {formatCurrency(item.subtotal)}
-                    </TableCell>
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="hidden sm:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Recibido</TableHead>
+                    <TableHead>Pendiente</TableHead>
+                    <TableHead>Costo</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {order.purchase_order_items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-normal">
+                        {item.product?.name ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        {item.quantity} {item.product?.unit?.code}
+                      </TableCell>
+                      <TableCell>
+                        {item.received_quantity} {item.product?.unit?.code}
+                      </TableCell>
+                      <TableCell>
+                        {Math.round(
+                          (item.quantity - item.received_quantity) * 1000,
+                        ) / 1000}{' '}
+                        {item.product?.unit?.code}
+                      </TableCell>
+                      <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(item.subtotal)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
             <div className="flex items-center justify-between text-sm font-semibold">
               <span>Total</span>

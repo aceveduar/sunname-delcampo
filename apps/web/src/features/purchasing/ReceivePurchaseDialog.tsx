@@ -1,3 +1,6 @@
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DeliveryReview } from './DeliveryReview'
+import { PurchaseQuantities } from './PurchaseQuantities'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -31,6 +34,20 @@ export function ReceivePurchaseDialog({
   const [open, setOpen] = useState(false)
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [notes, setNotes] = useState('')
+  const [reviewing, setReviewing] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const dirty =
+    notes.trim() !== '' ||
+    Object.values(quantities).some((value) => value.trim() !== '')
+  const showReview = reviewing || !!delivery.pending
+  function changeOpen(next: boolean) {
+    if (delivery.busy) return
+    if (!next && dirty && !delivery.pending) {
+      setConfirmClose(true)
+      return
+    }
+    setOpen(next)
+  }
   const items = order.purchase_order_items
   const selected = items
     .map((item) => ({
@@ -55,10 +72,21 @@ export function ReceivePurchaseDialog({
     return null
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if ((!valid && !delivery.pending) || !online) return
+    if (
+      delivery.busy ||
+      delivery.blocked ||
+      (!valid && !delivery.pending) ||
+      !online
+    )
+      return
+    if (!showReview) {
+      setReviewing(true)
+      return
+    }
     const receiving = delivery.pending?.items ?? selected
     if (await delivery.submit({ items: selected, notes: notes.trim() })) {
       setOpen(false)
+      setReviewing(false)
       setQuantities({})
       setNotes('')
       toast.success('Entrega registrada. Inventario actualizado.')
@@ -85,18 +113,15 @@ export function ReceivePurchaseDialog({
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
         {delivery.pending ? 'Verificar entrega' : 'Recibir'}
       </Button>
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!delivery.busy) setOpen(next)
-        }}
-      >
+      <Dialog open={open} onOpenChange={changeOpen}>
         <DialogContent
           className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl"
           showCloseButton={!delivery.busy}
         >
           <DialogHeader>
-            <DialogTitle>Recibir mercancía</DialogTitle>
+            <DialogTitle>
+              {showReview ? 'Revisar entrega' : 'Recibir mercancía'}
+            </DialogTitle>
             <DialogDescription>
               {order.supplier?.name}. Captura solo lo que llegó hoy. Lo demás
               quedará pendiente.
@@ -114,9 +139,19 @@ export function ReceivePurchaseDialog({
             </p>
           )}
           <form onSubmit={submit} className="space-y-4">
+            {showReview && (
+              <DeliveryReview
+                order={order}
+                delivery={
+                  delivery.pending ?? { items: selected, notes: notes.trim() }
+                }
+                pending={!!delivery.pending}
+              />
+            )}
             <fieldset
               disabled={delivery.busy || !!delivery.pending || delivery.blocked}
               className="space-y-3"
+              hidden={showReview}
             >
               <legend className="sr-only">Cantidades recibidas</legend>
               <Button
@@ -145,13 +180,7 @@ export function ReceivePurchaseDialog({
                   <Label htmlFor={`receive-${item.id}`}>
                     {item.product?.name ?? 'Producto'}
                   </Label>
-                  <p className="text-muted-foreground text-xs">
-                    Pedido: {item.quantity} · Recibido: {item.received_quantity}{' '}
-                    · Pendiente:{' '}
-                    {Math.round(
-                      (item.quantity - item.received_quantity) * 1000,
-                    ) / 1000}
-                  </p>
+                  <PurchaseQuantities item={item} />
                   <Input
                     id={`receive-${item.id}`}
                     aria-label={`Recibir ${item.product?.name ?? 'producto'}`}
@@ -200,9 +229,14 @@ export function ReceivePurchaseDialog({
                 type="button"
                 variant="outline"
                 disabled={delivery.busy}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  if (reviewing && !delivery.pending) setReviewing(false)
+                  else changeOpen(false)
+                }}
               >
-                Volver
+                {reviewing && !delivery.pending
+                  ? 'Editar cantidades'
+                  : 'Volver'}
               </Button>
               <Button
                 type="submit"
@@ -217,10 +251,27 @@ export function ReceivePurchaseDialog({
                   ? 'Confirmando…'
                   : delivery.pending
                     ? 'Reintentar confirmación'
-                    : 'Registrar entrega'}
+                    : reviewing
+                      ? 'Confirmar entrega'
+                      : 'Revisar entrega'}
               </Button>
             </DialogFooter>
           </form>
+          <ConfirmDialog
+            open={confirmClose}
+            onOpenChange={setConfirmClose}
+            title="¿Descartar la captura?"
+            description="Tienes cantidades o notas sin registrar. Puedes seguir capturando o descartar estos cambios."
+            confirmLabel="Descartar captura"
+            variant="destructive"
+            onConfirm={() => {
+              setConfirmClose(false)
+              setQuantities({})
+              setNotes('')
+              setReviewing(false)
+              setOpen(false)
+            }}
+          />
         </DialogContent>
       </Dialog>
     </>

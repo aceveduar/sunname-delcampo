@@ -24,3 +24,9 @@ export function pendingOrderItems(order: PurchaseOrder) {
     }))
     .filter((item) => item.remaining > 0)
 }
+
+export function remainingQuantity(
+  item: PurchaseOrder['purchase_order_items'][number],
+) {
+  return Math.round((item.quantity - item.received_quantity) * 1000) / 1000
+}
