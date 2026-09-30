@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 
 type PaymentBreakdown = { name: string; amount: number }
 type TopProduct = { name: string; quantity: number; amount: number }
-type CashSessionRow = {
+export type CashSessionRow = {
   id: string
   openedBy: string
   openedAt: string

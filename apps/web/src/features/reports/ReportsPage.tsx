@@ -1,3 +1,5 @@
+import { CashSessionReport } from './CashSessionReport'
+import { ReportSummary } from './ReportSummary'
 import { LoadError } from '@/components/LoadError'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -6,7 +8,6 @@ import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import {
@@ -205,80 +206,16 @@ export function ReportsPage({
         loading={salesLoading}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">
-              Total vendido
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-foreground text-2xl font-semibold">
-            {report.loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : report.updatedAt ? (
-              formatCurrency(report.totalAmount)
-            ) : (
-              '—'
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">
-              Utilidad
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-baseline gap-2 text-2xl font-semibold">
-            {report.loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <>
-                {report.updatedAt ? formatCurrency(report.margin) : '—'}
-                <span className="text-muted-foreground text-sm font-normal">
-                  {report.updatedAt ? report.marginPercent.toFixed(0) : '—'}%
-                </span>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">
-              Ventas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {report.loading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : report.updatedAt ? (
-              report.saleCount
-            ) : (
-              '—'
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-normal">
-              Ticket promedio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {report.loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : report.updatedAt ? (
-              formatCurrency(report.avgTicket)
-            ) : (
-              '—'
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <ReportSummary report={report} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Ventas por método de pago</CardTitle>
+            <CardTitle>Cobros de ventas por método</CardTitle>
+            <p className="text-muted-foreground text-xs">
+              Solo ventas completadas. No incluye entradas ni salidas manuales
+              de caja.
+            </p>
           </CardHeader>
           <CardContent>
             {report.byPaymentMethod.length === 0 ? (
@@ -294,7 +231,9 @@ export function ReportsPage({
                 <TableBody>
                   {report.byPaymentMethod.map((row) => (
                     <TableRow key={row.name}>
-                      <TableCell>{row.name}</TableCell>
+                      <TableCell className="wrap-break-word whitespace-normal">
+                        {row.name}
+                      </TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(row.amount)}
                       </TableCell>
@@ -313,22 +252,31 @@ export function ReportsPage({
           <CardContent>
             {report.topProducts.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Sin ventas en este periodo.
+                {report.loading
+                  ? 'Cargando…'
+                  : report.error
+                    ? 'Datos no disponibles.'
+                    : 'Sin ventas en este periodo.'}
               </p>
             ) : (
-              <Table>
-                <TableBody>
-                  {report.topProducts.map((row) => (
-                    <TableRow key={row.name}>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.quantity}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(row.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ul className="divide-y">
+                {report.topProducts.map((row) => (
+                  <li
+                    key={row.name}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
+                  >
+                    <span className="min-w-0 basis-full font-medium wrap-break-word sm:flex-1 sm:basis-auto">
+                      {row.name}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Cantidad: {row.quantity}
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {formatCurrency(row.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>
@@ -336,7 +284,33 @@ export function ReportsPage({
 
       <Card>
         <CardHeader>
+          <CardTitle>Cortes de caja del periodo</CardTitle>
+          <p className="text-muted-foreground text-xs">
+            Cajas cerradas en estas fechas. Cada corte incluye toda su sesión,
+            aunque se haya abierto antes del periodo.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {report.cashSessions.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {report.loading
+                ? 'Cargando…'
+                : report.error
+                  ? 'Datos no disponibles.'
+                  : 'No hay cortes de caja cerrados en este periodo.'}
+            </p>
+          ) : (
+            <CashSessionReport sessions={report.cashSessions} />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Ventas recientes</CardTitle>
+          <p className="text-muted-foreground text-xs">
+            Hasta 50 ventas del periodo, incluidas las anuladas.
+          </p>
           {salesFrom && (
             <p className="text-muted-foreground text-xs">
               Datos de {formatDateTime(salesFrom)} a{' '}
@@ -353,24 +327,18 @@ export function ReportsPage({
               Sin ventas en este periodo.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Cajero</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {salesLoading && <TableSkeletonRows rows={4} columns={5} />}
+            <>
+              <div className="space-y-3 sm:hidden">
+                {salesLoading && <p role="status">Cargando ventas…</p>}
                 {sales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell>{formatDateTime(sale.createdAt)}</TableCell>
-                    <TableCell>{sale.soldBy}</TableCell>
-                    <TableCell>{formatCurrency(sale.total)}</TableCell>
-                    <TableCell>
+                  <article
+                    key={sale.id}
+                    className="space-y-2 rounded-xl border p-3"
+                  >
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <span className="text-lg font-semibold tabular-nums">
+                        {formatCurrency(sale.total)}
+                      </span>
                       <Badge
                         variant={
                           sale.status === 'voided' ? 'secondary' : 'default'
@@ -378,10 +346,14 @@ export function ReportsPage({
                       >
                         {sale.status === 'voided' ? 'Anulada' : 'Completada'}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      {formatDateTime(sale.createdAt)}
+                    </p>
+                    <p className="text-sm wrap-break-word">{sale.soldBy}</p>
+                    <div className="flex gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => setReceiptId(sale.id)}
                       >
@@ -398,82 +370,68 @@ export function ReportsPage({
                           Anular
                         </Button>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </article>
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Cortes de caja del periodo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.cashSessions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {report.loading
-                ? 'Cargando…'
-                : report.error
-                  ? 'Datos no disponibles.'
-                  : 'No hay cortes de caja cerrados en este periodo.'}
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cerrada</TableHead>
-                  <TableHead>Cajero</TableHead>
-                  <TableHead>Monto inicial</TableHead>
-                  <TableHead>Ventas en efectivo</TableHead>
-                  <TableHead>Entradas</TableHead>
-                  <TableHead>Salidas</TableHead>
-                  <TableHead>Esperado</TableHead>
-                  <TableHead>Contado</TableHead>
-                  <TableHead className="text-right">Diferencia</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.cashSessions.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell>{formatDateTime(session.closedAt)}</TableCell>
-                    <TableCell>{session.openedBy}</TableCell>
-                    <TableCell>
-                      {formatCurrency(session.openingAmount)}
-                    </TableCell>
-                    <TableCell>{formatCurrency(session.cashSales)}</TableCell>
-                    <TableCell>{formatCurrency(session.cashIn)}</TableCell>
-                    <TableCell>{formatCurrency(session.cashOut)}</TableCell>
-                    <TableCell>
-                      {formatCurrency(session.expectedClosing)}
-                    </TableCell>
-                    <TableCell>
-                      {formatCurrency(session.closingAmount)}
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-medium ${
-                        session.difference === 0
-                          ? 'text-success'
-                          : session.difference < 0
-                            ? 'text-destructive'
-                            : 'text-foreground'
-                      }`}
-                    >
-                      {session.difference === 0
-                        ? 'Cuadra'
-                        : formatCurrency(session.difference)}
-                      {session.notes && (
-                        <p className="text-muted-foreground mt-1 max-w-64 text-left text-xs font-normal wrap-break-word whitespace-pre-wrap">
-                          {session.notes}
-                        </p>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              </div>
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hora</TableHead>
+                      <TableHead>Cajero</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {salesLoading && <TableSkeletonRows rows={4} columns={5} />}
+                    {sales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell>{formatDateTime(sale.createdAt)}</TableCell>
+                        <TableCell>{sale.soldBy}</TableCell>
+                        <TableCell>{formatCurrency(sale.total)}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              sale.status === 'voided' ? 'secondary' : 'default'
+                            }
+                          >
+                            {sale.status === 'voided'
+                              ? 'Anulada'
+                              : 'Completada'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setReceiptId(sale.id)}
+                          >
+                            Ver ticket
+                          </Button>
+                          {sale.status === 'completed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setVoidTarget({
+                                  id: sale.id,
+                                  total: sale.total,
+                                })
+                              }
+                            >
+                              Anular
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
