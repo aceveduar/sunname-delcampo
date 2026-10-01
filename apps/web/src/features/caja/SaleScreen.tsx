@@ -1,3 +1,4 @@
+import { useCheckoutHeight } from './useCheckoutHeight'
 import { LoadError } from '@/components/LoadError'
 import { DraftRecovery } from './DraftRecovery'
 import { searchProducts } from './productSearch'
@@ -393,6 +394,7 @@ export function SaleScreen({
     addScannedProduct(scanned)
   }
 
+  const checkoutLayoutRef = useCheckoutHeight()
   const cartHeadingRef = useRef<HTMLHeadingElement>(null)
   useSaleShortcuts({
     onSearch: () => searchInputRef.current?.focus(),
@@ -432,7 +434,8 @@ export function SaleScreen({
       />
       <fieldset disabled={!!pendingDraft || submitting} className="contents">
         <div
-          className={`grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_410px] ${cart.length ? 'pb-32 lg:pb-0' : ''}`}
+          ref={checkoutLayoutRef}
+          className={`grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_430px] ${cart.length ? 'pb-32 lg:pb-0' : ''}`}
         >
           <div className="flex flex-col gap-3">
             <div className="bg-background/95 sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border p-3 shadow-sm backdrop-blur-sm">
@@ -562,9 +565,9 @@ export function SaleScreen({
 
           <Card
             id="current-sale"
-            className="h-fit min-w-0 scroll-mt-4 lg:sticky lg:top-3 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto"
+            className="h-fit min-w-0 scroll-mt-4 lg:sticky lg:top-3 lg:h-[var(--sale-panel-height,calc(100dvh-12rem))] lg:gap-2 lg:overflow-y-auto"
           >
-            <CardHeader>
+            <CardHeader className="shrink-0">
               <CardTitle>
                 <h2
                   ref={cartHeadingRef}
@@ -579,7 +582,7 @@ export function SaleScreen({
                 </h2>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+            <CardContent className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
               {removedLine && (
                 <div
                   role="status"
@@ -602,7 +605,7 @@ export function SaleScreen({
                 // hasta desplazar toda la página, mientras la columna de
                 // productos ya había terminado y dejaba hueco vacío al lado.
                 // Total, método de pago y Cobrar siempre visibles.
-                <div className="relative">
+                <div className="relative lg:min-h-16 lg:flex-1">
                   {cartCanScrollUp && (
                     <div
                       aria-hidden
@@ -612,7 +615,7 @@ export function SaleScreen({
                   <div
                     ref={cartListRef}
                     onScroll={updateCartScrollShadows}
-                    className="flex max-h-[40dvh] flex-col gap-3 overflow-y-auto overscroll-contain pr-1 lg:max-h-[clamp(8rem,calc(100dvh-28rem),24rem)]"
+                    className="flex max-h-[40dvh] flex-col gap-3 overflow-y-auto overscroll-contain pr-1 lg:absolute lg:inset-0 lg:max-h-none"
                   >
                     {cart.map((line, index) => (
                       <div
@@ -730,75 +733,80 @@ export function SaleScreen({
                 </div>
               )}
 
-              <div className="bg-muted/60 flex items-center justify-between gap-3 rounded-lg p-3 text-lg font-semibold">
-                <span>Total</span>
-                <span className="text-foreground text-2xl tabular-nums">
-                  {formatCurrency(total)}
-                </span>
-              </div>
+              <div className="flex shrink-0 flex-col gap-3">
+                <div className="bg-muted/60 flex items-center justify-between gap-3 rounded-lg p-3 text-lg font-semibold">
+                  <span>Total</span>
+                  <span className="text-foreground text-2xl tabular-nums">
+                    {formatCurrency(total)}
+                  </span>
+                </div>
 
-              {/* Método de pago, efectivo, cliente y el botón de cobrar solo
+                {/* Método de pago, efectivo, cliente y el botón de cobrar solo
               aparecen con algo en el carrito -- con $0.00 no hay nada que
               cobrar, y mostrarlos igual era ruido antes del primer
               producto en la pantalla que más se usa del sistema. */}
-              {cart.length > 0 && (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="sale-payment-method">Método de pago</Label>
-                    <Select
-                      items={paymentMethods.map((m) => ({
-                        value: m.id,
-                        label: m.name,
-                      }))}
-                      value={paymentMethodId}
-                      onValueChange={(value) => setPaymentMethodId(value ?? '')}
-                    >
-                      <SelectTrigger
-                        id="sale-payment-method"
-                        className="w-full"
-                      >
-                        <SelectValue placeholder="Método de pago" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {paymentMethods.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {selectedMethod?.code === 'cash' && (
+                {cart.length > 0 && (
+                  <>
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="sale-cash-received">
-                        Efectivo recibido
+                      <Label htmlFor="sale-payment-method">
+                        Método de pago
                       </Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        autoComplete="off"
-                        id="sale-cash-received"
-                        inputMode="decimal"
-                        aria-describedby="sale-change"
-                        placeholder="0.00"
-                        value={cashReceived}
-                        onChange={(event) =>
-                          setCashReceived(event.target.value)
+                      <Select
+                        items={paymentMethods.map((m) => ({
+                          value: m.id,
+                          label: m.name,
+                        }))}
+                        value={paymentMethodId}
+                        onValueChange={(value) =>
+                          setPaymentMethodId(value ?? '')
                         }
-                      />
-                      {change !== null && cashReceived !== '' && (
-                        <p
-                          id="sale-change"
-                          role="status"
-                          className={
-                            change < 0
-                              ? 'text-destructive text-sm'
-                              : 'text-success text-sm'
-                          }
+                      >
+                        <SelectTrigger
+                          id="sale-payment-method"
+                          className="w-full"
                         >
-                          {/* Se probó mostrar aquí una sugerencia de cambio
+                          <SelectValue placeholder="Método de pago" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedMethod?.code === 'cash' && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="sale-cash-received">
+                          Efectivo recibido
+                        </Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          autoComplete="off"
+                          id="sale-cash-received"
+                          inputMode="decimal"
+                          aria-describedby="sale-change"
+                          placeholder="0.00"
+                          value={cashReceived}
+                          onChange={(event) =>
+                            setCashReceived(event.target.value)
+                          }
+                        />
+                        {change !== null && cashReceived !== '' && (
+                          <p
+                            id="sale-change"
+                            role="status"
+                            className={
+                              change < 0
+                                ? 'text-destructive text-sm'
+                                : 'text-success text-sm'
+                            }
+                          >
+                            {/* Se probó mostrar aquí una sugerencia de cambio
                           redondeado y se quitó (2026-09-03): redondear al peso
                           más cercano cae hacia abajo cuando el cambio es menor
                           a $0.50, y terminaba sugiriendo "redondeado: $0.00"
@@ -806,81 +814,84 @@ export function SaleScreen({
                           el dinero del cliente. Qué monedas dar es criterio del
                           cajero, que sabe qué tiene en la caja; el sistema solo
                           dice el número exacto. */}
-                          {change < 0
-                            ? `Falta ${formatCurrency(Math.abs(change))}`
-                            : `Cambio: ${formatCurrency(change)}`}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                            {change < 0
+                              ? `Falta ${formatCurrency(Math.abs(change))}`
+                              : `Cambio: ${formatCurrency(change)}`}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
-                  {/* Cliente va al final a propósito: en un negocio de mostrador
+                    {/* Cliente va al final a propósito: en un negocio de mostrador
                   como Del Campo casi toda venta es anónima -- método de pago
                   y efectivo recibido se tocan siempre, cliente solo a veces.
                   El orden visual debe reflejar qué tan seguido se usa cada
                   campo, no al revés (CLAUDE.md: velocidad del cajero primero). */}
-                  <details className="rounded-lg border p-3">
-                    <summary className="cursor-pointer text-sm font-medium">
-                      {customerId === NO_CUSTOMER
-                        ? 'Asignar cliente (opcional)'
-                        : 'Cliente: ' +
-                          (activeCustomers.find(
-                            (customer) => customer.id === customerId,
-                          )?.name ?? 'Seleccionado')}
-                    </summary>
-                    <div className="mt-3 flex flex-col gap-1.5">
-                      <Label htmlFor="sale-customer">Cliente (opcional)</Label>
-                      <Select
-                        items={[
-                          { value: NO_CUSTOMER, label: 'Sin cliente' },
-                          ...activeCustomers.map((c) => ({
-                            value: c.id,
-                            label: c.name,
-                          })),
-                        ]}
-                        value={customerId}
-                        onValueChange={(value) =>
-                          setCustomerId(value ?? NO_CUSTOMER)
-                        }
-                      >
-                        <SelectTrigger id="sale-customer" className="w-full">
-                          <SelectValue placeholder="Sin cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NO_CUSTOMER}>
-                            Sin cliente
-                          </SelectItem>
-                          {activeCustomers.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
+                    <details className="rounded-lg border p-2">
+                      <summary className="cursor-pointer text-sm font-medium">
+                        {customerId === NO_CUSTOMER
+                          ? 'Asignar cliente (opcional)'
+                          : 'Cliente: ' +
+                            (activeCustomers.find(
+                              (customer) => customer.id === customerId,
+                            )?.name ?? 'Seleccionado')}
+                      </summary>
+                      <div className="mt-3 flex flex-col gap-1.5">
+                        <Label htmlFor="sale-customer">
+                          Cliente (opcional)
+                        </Label>
+                        <Select
+                          items={[
+                            { value: NO_CUSTOMER, label: 'Sin cliente' },
+                            ...activeCustomers.map((c) => ({
+                              value: c.id,
+                              label: c.name,
+                            })),
+                          ]}
+                          value={customerId}
+                          onValueChange={(value) =>
+                            setCustomerId(value ?? NO_CUSTOMER)
+                          }
+                        >
+                          <SelectTrigger id="sale-customer" className="w-full">
+                            <SelectValue placeholder="Sin cliente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_CUSTOMER}>
+                              Sin cliente
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </details>
+                            {activeCustomers.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </details>
 
-                  <Button
-                    className="min-h-12 w-full text-base"
-                    onClick={handleCheckout}
-                    disabled={checkoutDisabled}
-                  >
-                    {submitting ? (
-                      'Cobrando…'
-                    ) : (
-                      <>
-                        {`Cobrar ${formatCurrency(total)}`}
-                        {/* El atajo es para quien tiene teclado (PC del negocio) --
+                    <Button
+                      className="min-h-12 w-full text-base"
+                      onClick={handleCheckout}
+                      disabled={checkoutDisabled}
+                    >
+                      {submitting ? (
+                        'Cobrando…'
+                      ) : (
+                        <>
+                          {`Cobrar ${formatCurrency(total)}`}
+                          {/* El atajo es para quien tiene teclado (PC del negocio) --
                         en un celular/tablet por touch no aplica y solo le
                         resta espacio al botón en la pantalla más angosta. */}
-                        <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
-                          F9
-                        </kbd>
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
+                          <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
+                            F9
+                          </kbd>
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
 

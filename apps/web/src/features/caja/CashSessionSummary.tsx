@@ -6,27 +6,20 @@ import { formatCurrency } from '@/lib/currency'
 import { LoadError } from '@/components/LoadError'
 import { Button } from '@/components/ui/button'
 import { fetchCashBalance } from './cashBalance'
-import { useCashMovement } from './useCashMovement'
+import type { useCashMovement } from './useCashMovement'
 import { CashMovementDialog } from './CashMovementDialog'
 
 const PAGE_SIZE = 10
 export function CashSessionSummary({
   sessionId,
-  userId,
   revision,
-  onPendingChange,
+  movement,
 }: {
   sessionId: string
-  userId: string
   revision: number
-  onPendingChange: (pending: boolean) => void
+  movement: ReturnType<typeof useCashMovement>
 }) {
   const [page, setPage] = useState(0)
-  const movement = useCashMovement(sessionId, userId)
-  const pending = !!movement.pending || movement.busy || movement.blocked
-  useEffect(() => {
-    onPendingChange(pending)
-  }, [pending, onPendingChange])
   const load = useCallback(async () => {
     const [balance, history] = await Promise.all([
       fetchCashBalance(sessionId),

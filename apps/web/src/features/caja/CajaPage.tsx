@@ -1,7 +1,7 @@
 import { TicketSearchDialog } from './TicketSearchDialog'
 import { formatCurrency } from '@/lib/currency'
 import { useCallback, useEffect, useState } from 'react'
-import { CashSessionSummary } from './CashSessionSummary'
+import { CashManagementDialog } from './CashManagementDialog'
 import { LoadError } from '@/components/LoadError'
 import { useCart } from './CartContext'
 import type { Database } from '@/lib/database.types'
@@ -57,7 +57,7 @@ export function CajaPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-foreground text-2xl font-semibold">Caja</h1>
@@ -71,6 +71,13 @@ export function CajaPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start">
+          <CashManagementDialog
+            key={`${session.id}:${userId}`}
+            sessionId={session.id}
+            userId={userId}
+            revision={cashRevision}
+            onPendingChange={setMovementPending}
+          />
           <TicketSearchDialog />
           <CloseSessionDialog
             key={session.id}
@@ -86,20 +93,6 @@ export function CajaPage({
         </div>
       </div>
 
-      <details className="bg-muted/20 rounded-lg border p-3">
-        <summary className="cursor-pointer text-sm font-medium">
-          Administrar efectivo y movimientos de caja
-        </summary>
-        <div className="mt-3">
-          <CashSessionSummary
-            key={`${session.id}:${userId}`}
-            sessionId={session.id}
-            userId={userId}
-            revision={cashRevision}
-            onPendingChange={setMovementPending}
-          />
-        </div>
-      </details>
       <SaleScreen
         cashSessionId={session.id}
         role={role}
