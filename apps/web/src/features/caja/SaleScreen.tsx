@@ -45,7 +45,7 @@ import { ReceiptDialog } from './ReceiptDialog'
 import { VoiceCommandButton } from './VoiceCommandButton'
 import { EditCartPriceDialog } from './EditCartPriceDialog'
 import { useTopSellingProducts } from './useTopSellingProducts'
-import { useCart, NO_CUSTOMER } from './CartContext'
+import { useCart, NO_CUSTOMER, type CartLine } from './CartContext'
 import { useSubmitSale } from './useSubmitSale'
 import { ProductResultCard } from './ProductResultCard'
 
@@ -125,6 +125,9 @@ export function SaleScreen({
   const [granelInitialGrams, setGranelInitialGrams] = useState<
     number | undefined
   >(undefined)
+  const [editingWeightLine, setEditingWeightLine] = useState<CartLine | null>(
+    null,
+  )
   const [scannerOpen, setScannerOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -407,6 +410,7 @@ export function SaleScreen({
     checkoutDisabled,
     dialogOpen:
       granelProduct !== null ||
+      editingWeightLine !== null ||
       receipt !== null ||
       scannerOpen ||
       editingPriceProduct !== null,
@@ -657,6 +661,17 @@ export function SaleScreen({
                               {line.product.sold_by_weight
                                 ? `${Math.round(line.quantity * 1000)} g`
                                 : `${formatCurrency(line.product.price)} c/u`}
+                              {line.product.sold_by_weight && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  aria-label={`Editar peso o monto de ${line.product.name}`}
+                                  onClick={() => setEditingWeightLine(line)}
+                                >
+                                  Editar peso
+                                </Button>
+                              )}
                               {canEditPrice && (
                                 <Button
                                   type="button"
@@ -891,6 +906,30 @@ export function SaleScreen({
               setGranelProduct(null)
               setGranelInitialGrams(undefined)
               afterAdd()
+            }}
+          />
+
+          <GranelDialog
+            product={editingWeightLine?.product ?? null}
+            initialGrams={
+              editingWeightLine
+                ? Math.round(editingWeightLine.quantity * 1000)
+                : undefined
+            }
+            initialAmount={editingWeightLine?.amountMxn}
+            editing
+            onOpenChange={(open) => {
+              if (!open) setEditingWeightLine(null)
+            }}
+            onConfirm={(quantity, amountMxn) => {
+              setCart((previous) =>
+                previous.map((line) =>
+                  line === editingWeightLine
+                    ? { ...line, quantity, amountMxn }
+                    : line,
+                ),
+              )
+              setEditingWeightLine(null)
             }}
           />
 
