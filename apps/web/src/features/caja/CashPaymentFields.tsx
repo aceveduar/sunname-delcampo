@@ -14,8 +14,15 @@ export function CashPaymentFields({
   change: number | null
   onChange: (value: string) => void
 }) {
-  const suggestions = [20, 50, 100, 200, 500, 1000]
-    .filter((amount) => amount > total)
+  const step = total < 100 ? 10 : total < 500 ? 50 : 100
+  const next = (Math.floor(total / step) + 1) * step
+  const suggestions = [
+    ...new Set([next, next + step, 20, 50, 100, 200, 500, 1000]),
+  ]
+    .filter(
+      (amount) => Number.isFinite(amount) && amount > total && amount < 1e10,
+    )
+    .sort((a, b) => a - b)
     .slice(0, 3)
   return (
     <div className="flex flex-col gap-1.5">
@@ -63,16 +70,21 @@ export function CashPaymentFields({
         id="sale-change"
         role="status"
         className={
-          change !== null && change < 0
-            ? 'text-destructive text-sm font-semibold tabular-nums'
-            : 'text-success text-lg font-semibold tabular-nums'
+          value === '' || !Number.isFinite(Number(value))
+            ? 'text-muted-foreground text-sm'
+            : change !== null && change < 0
+              ? 'text-destructive text-sm font-semibold tabular-nums'
+              : 'text-success text-lg font-semibold tabular-nums'
         }
       >
-        {change !== null &&
-          value !== '' &&
-          (change < 0
-            ? `Falta ${formatCurrency(Math.abs(change))}`
-            : `Cambio: ${formatCurrency(change)}`)}
+        {value === ''
+          ? 'Ingresa el efectivo recibido para cobrar.'
+          : !Number.isFinite(Number(value))
+            ? 'Ingresa un importe válido.'
+            : change !== null &&
+              (change < 0
+                ? `Falta ${formatCurrency(Math.abs(change))}`
+                : `Cambio: ${formatCurrency(change)}`)}
       </p>
     </div>
   )

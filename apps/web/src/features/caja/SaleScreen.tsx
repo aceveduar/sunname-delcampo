@@ -1,3 +1,9 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useCheckoutHeight } from './useCheckoutHeight'
 import { LoadError } from '@/components/LoadError'
 import { DraftRecovery } from './DraftRecovery'
@@ -7,7 +13,7 @@ import { toast } from 'sonner'
 import {
   Minus,
   Package,
-  Pencil,
+  MoreHorizontal,
   Plus,
   ScanBarcode,
   Search,
@@ -615,7 +621,7 @@ export function SaleScreen({
                   {cartCanScrollUp && (
                     <div
                       aria-hidden
-                      className="from-card pointer-events-none absolute top-0 right-0 left-0 z-10 h-6 bg-gradient-to-b to-transparent"
+                      className="from-card pointer-events-none absolute top-0 right-0 left-0 z-10 h-2 bg-gradient-to-b to-transparent"
                     />
                   )}
                   <div
@@ -659,7 +665,7 @@ export function SaleScreen({
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-muted-foreground flex items-center gap-1 text-xs">
                               {line.product.sold_by_weight
-                                ? `${Math.round(line.quantity * 1000)} g`
+                                ? `${line.amountMxn !== undefined ? `Por ${formatCurrency(line.amountMxn)} · ` : ''}${Math.round(line.quantity * 1000)} g`
                                 : `${formatCurrency(line.product.price)} c/u`}
                               {line.product.sold_by_weight && (
                                 <Button
@@ -669,22 +675,35 @@ export function SaleScreen({
                                   aria-label={`Editar peso o monto de ${line.product.name}`}
                                   onClick={() => setEditingWeightLine(line)}
                                 >
-                                  Editar peso
+                                  {line.amountMxn !== undefined
+                                    ? 'Editar monto'
+                                    : 'Editar peso'}
                                 </Button>
                               )}
                               {canEditPrice && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label="Corregir precio"
-                                  onClick={() =>
-                                    setEditingPriceProduct(line.product)
-                                  }
-                                  className="hover:text-foreground shrink-0"
-                                >
-                                  <Pencil className="size-3" />
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Más acciones de ${line.product.name}`}
+                                      />
+                                    }
+                                  >
+                                    <MoreHorizontal className="size-3" />
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        setEditingPriceProduct(line.product)
+                                      }
+                                    >
+                                      Corregir precio del catálogo
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               )}
                             </p>
                             <div className="flex flex-wrap items-center gap-2">
@@ -744,7 +763,7 @@ export function SaleScreen({
                   {cartCanScrollDown && (
                     <div
                       aria-hidden
-                      className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-6 bg-gradient-to-t to-transparent"
+                      className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-2 bg-gradient-to-t to-transparent"
                     />
                   )}
                 </div>

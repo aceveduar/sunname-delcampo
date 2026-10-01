@@ -43,3 +43,27 @@ it('muestra el cambio exacto sin redondearlo a pesos', () => {
   )
   expect(screen.getByRole('status')).toHaveTextContent('Cambio: $0.40')
 })
+
+it('ofrece importes cercanos y explica por qué falta efectivo', () => {
+  const onChange = vi.fn()
+  render(
+    <CashPaymentFields
+      total={224}
+      value=""
+      change={-224}
+      onChange={onChange}
+    />,
+  )
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Ingresa el efectivo recibido para cobrar.',
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Recibí $250.00' }))
+  expect(onChange).toHaveBeenLastCalledWith('250.00')
+  expect(
+    screen.getByRole('button', { name: 'Recibí $300.00' }),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Recibí $500.00' }),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Recibí $1,000.00' })).toBeNull()
+})

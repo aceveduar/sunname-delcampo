@@ -417,3 +417,5 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 - 2026-09-30: Caja incorpora `CashPaymentFields`: importe exacto y hasta tres importes frecuentes superiores al total, que reemplazan el efectivo recibido sin enviar la venta; conserva cambio exacto en centavos. `useCartHighlight` resalta durante dos segundos la línea agregada o incrementada y desplaza solo la lista, sin mover el foco ni la página. Sin migraciones.
 
 - 2026-09-30: Captura de granel con gramos/kilos equivalentes y resumen de peso/importe; edición por referencia de la línea del carrito para distinguir pesadas del mismo producto. Ventas por monto conservan su importe exacto y modo inicial. Validación a gramos completos y centavos; sin cambios de tarifas ni migraciones.
+
+- 2026-09-30: Pulido de Caja: atajos de efectivo incluyen importes cercanos al total, mensaje cuando falta capturarlo, sombras reducidas del carrito, líneas por monto identificadas y corrección de precio en menú secundario exclusivo de administradores. Sin migraciones.
