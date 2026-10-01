@@ -453,6 +453,7 @@ export function SaleScreen({
             <div className="bg-background/95 sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border p-3 shadow-sm backdrop-blur-sm">
               <SearchInput
                 ref={searchInputRef}
+                className="focus-visible:border-input focus-visible:ring-0"
                 value={search}
                 onChange={changeSearch}
                 onKeyDown={handleSearchKeyDown}
@@ -632,7 +633,7 @@ export function SaleScreen({
                     {cart.map((line, index) => (
                       <div
                         key={`${line.product.id}-${index}`}
-                        className={`flex items-start gap-2.5 rounded-md ${line === highlightedLine ? 'bg-brand-gold/15 ring-brand-gold ring-1 ring-inset' : ''}`}
+                        className={`flex items-start gap-2.5 rounded-md p-2 ${line === highlightedLine ? 'bg-brand-gold/15 ring-brand-gold ring-1 ring-inset' : ''}`}
                       >
                         {/* Miniatura -- mismo estilo y placeholder que la
                         rejilla de productos, no solo decorativa: es una

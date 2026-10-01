@@ -419,3 +419,5 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 - 2026-09-30: Captura de granel con gramos/kilos equivalentes y resumen de peso/importe; edición por referencia de la línea del carrito para distinguir pesadas del mismo producto. Ventas por monto conservan su importe exacto y modo inicial. Validación a gramos completos y centavos; sin cambios de tarifas ni migraciones.
 
 - 2026-09-30: Pulido de Caja: atajos de efectivo incluyen importes cercanos al total, mensaje cuando falta capturarlo, sombras reducidas del carrito, líneas por monto identificadas y corrección de precio en menú secundario exclusivo de administradores. Sin migraciones.
+
+- 2026-09-30: Caja añade padding uniforme a los renglones para separar miniatura y texto del resaltado sin saltos de tamaño. El buscador conserva un único contorno de foco y los atajos de efectivo reflejan el importe capturado con aria-pressed, también al escribirlo manualmente.

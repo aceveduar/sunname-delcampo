@@ -14,6 +14,8 @@ export function CashPaymentFields({
   change: number | null
   onChange: (value: string) => void
 }) {
+  const isSelected = (amount: number) =>
+    value.trim() !== '' && Number(value) === amount
   const step = total < 100 ? 10 : total < 500 ? 50 : 100
   const next = (Math.floor(total / step) + 1) * step
   const suggestions = [
@@ -46,7 +48,8 @@ export function CashPaymentFields({
       >
         <Button
           type="button"
-          variant="outline"
+          variant={isSelected(total) ? 'default' : 'outline'}
+          aria-pressed={isSelected(total)}
           size="sm"
           disabled={!Number.isFinite(total) || total <= 0}
           onClick={() => onChange(total.toFixed(2))}
@@ -57,7 +60,8 @@ export function CashPaymentFields({
           <Button
             key={amount}
             type="button"
-            variant="outline"
+            variant={isSelected(amount) ? 'default' : 'outline'}
+            aria-pressed={isSelected(amount)}
             size="sm"
             aria-label={`Recibí ${formatCurrency(amount)}`}
             onClick={() => onChange(amount.toFixed(2))}
