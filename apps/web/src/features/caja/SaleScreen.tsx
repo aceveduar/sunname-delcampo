@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useSaleShortcuts } from '@/hooks/useSaleShortcuts'
 import { MobileCartSummary } from './MobileCartSummary'
-import { Input } from '@/components/ui/input'
+import { CashPaymentFields } from './CashPaymentFields'
+import { useCartHighlight } from './useCartHighlight'
 import { SearchInput } from '@/components/ui/search-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -168,6 +169,7 @@ export function SaleScreen({
     canScrollEnd: cartCanScrollDown,
     onScroll: updateCartScrollShadows,
   } = useScrollShadows<HTMLDivElement>({ extraDep: cart.length })
+  const highlightedLine = useCartHighlight(cart, cartListRef)
 
   // Una búsqueda = un producto agregado = listo para la siguiente -- igual
   // sea por clic o por escaneo, el buscador se limpia y recupera el foco
@@ -620,7 +622,7 @@ export function SaleScreen({
                     {cart.map((line, index) => (
                       <div
                         key={`${line.product.id}-${index}`}
-                        className="flex items-start gap-2.5"
+                        className={`flex items-start gap-2.5 rounded-md ${line === highlightedLine ? 'bg-brand-gold/15 ring-brand-gold ring-1 ring-inset' : ''}`}
                       >
                         {/* Miniatura -- mismo estilo y placeholder que la
                         rejilla de productos, no solo decorativa: es una
@@ -778,48 +780,12 @@ export function SaleScreen({
                     </div>
 
                     {selectedMethod?.code === 'cash' && (
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="sale-cash-received">
-                          Efectivo recibido
-                        </Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          autoComplete="off"
-                          id="sale-cash-received"
-                          inputMode="decimal"
-                          aria-describedby="sale-change"
-                          placeholder="0.00"
-                          value={cashReceived}
-                          onChange={(event) =>
-                            setCashReceived(event.target.value)
-                          }
-                        />
-                        {change !== null && cashReceived !== '' && (
-                          <p
-                            id="sale-change"
-                            role="status"
-                            className={
-                              change < 0
-                                ? 'text-destructive text-sm'
-                                : 'text-success text-sm'
-                            }
-                          >
-                            {/* Se probó mostrar aquí una sugerencia de cambio
-                          redondeado y se quitó (2026-09-03): redondear al peso
-                          más cercano cae hacia abajo cuando el cambio es menor
-                          a $0.50, y terminaba sugiriendo "redondeado: $0.00"
-                          sobre un cambio real de $0.40 -- o sea, quedarse con
-                          el dinero del cliente. Qué monedas dar es criterio del
-                          cajero, que sabe qué tiene en la caja; el sistema solo
-                          dice el número exacto. */}
-                            {change < 0
-                              ? `Falta ${formatCurrency(Math.abs(change))}`
-                              : `Cambio: ${formatCurrency(change)}`}
-                          </p>
-                        )}
-                      </div>
+                      <CashPaymentFields
+                        total={total}
+                        value={cashReceived}
+                        change={change}
+                        onChange={setCashReceived}
+                      />
                     )}
 
                     {/* Cliente va al final a propósito: en un negocio de mostrador
