@@ -264,13 +264,13 @@ export function SaleScreen({
       return
     }
     addToCart(product, weightKg, amountMxn)
-    toast.success(`Agregado: ${product.name}`)
+
     afterAdd()
   }
 
   const handleVoiceQuantity = (product: Product, quantity: number) => {
     addToCart(product, undefined, undefined, quantity)
-    toast.success(`Agregado: ${product.name}`)
+
     afterAdd()
   }
 
@@ -281,7 +281,7 @@ export function SaleScreen({
   // comentario completo en VoiceCommandButton.tsx.
   const handleVoiceWeight = (product: Product, grams: number) => {
     addToCart(product, grams / 1000)
-    toast.success(`Agregado: ${product.name}`)
+
     afterAdd()
   }
 
@@ -369,7 +369,7 @@ export function SaleScreen({
       return
     }
     addToCart(product)
-    toast.success(`Agregado: ${product.name}`)
+
     afterAdd()
   }
 
@@ -453,7 +453,6 @@ export function SaleScreen({
             <div className="bg-background/95 sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border p-3 shadow-sm backdrop-blur-sm">
               <SearchInput
                 ref={searchInputRef}
-                className="focus-visible:border-input focus-visible:ring-0"
                 value={search}
                 onChange={changeSearch}
                 onKeyDown={handleSearchKeyDown}
@@ -628,7 +627,7 @@ export function SaleScreen({
                   <div
                     ref={cartListRef}
                     onScroll={updateCartScrollShadows}
-                    className="flex max-h-[40dvh] flex-col gap-3 overflow-y-auto overscroll-contain pr-1 lg:absolute lg:inset-0 lg:max-h-none"
+                    className="flex max-h-[40dvh] flex-col gap-1 overflow-y-auto overscroll-contain pr-1 lg:absolute lg:inset-0 lg:max-h-none"
                   >
                     {cart.map((line, index) => (
                       <div
@@ -921,7 +920,6 @@ export function SaleScreen({
             onConfirm={(weightKg, amountMxn) => {
               if (granelProduct) {
                 addToCart(granelProduct, weightKg, amountMxn)
-                toast.success(`Agregado: ${granelProduct.name}`)
               }
               setGranelProduct(null)
               setGranelInitialGrams(undefined)

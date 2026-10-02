@@ -421,3 +421,5 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 - 2026-09-30: Pulido de Caja: atajos de efectivo incluyen importes cercanos al total, mensaje cuando falta capturarlo, sombras reducidas del carrito, líneas por monto identificadas y corrección de precio en menú secundario exclusivo de administradores. Sin migraciones.
 
 - 2026-09-30: Caja añade padding uniforme a los renglones para separar miniatura y texto del resaltado sin saltos de tamaño. El buscador conserva un único contorno de foco y los atajos de efectivo reflejan el importe capturado con aria-pressed, también al escribirlo manualmente.
+
+- 2026-10-01: Inputs, áreas de texto y selectores comparten el contorno global de foco sin superponer anillos. Caja elimina notificaciones de producto agregado y reduce la separación entre renglones a 4 px conservando padding de 8 px y resaltado.
