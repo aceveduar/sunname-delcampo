@@ -423,3 +423,5 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 - 2026-09-30: Caja añade padding uniforme a los renglones para separar miniatura y texto del resaltado sin saltos de tamaño. El buscador conserva un único contorno de foco y los atajos de efectivo reflejan el importe capturado con aria-pressed, también al escribirlo manualmente.
 
 - 2026-10-01: Inputs, áreas de texto y selectores comparten el contorno global de foco sin superponer anillos. Caja elimina notificaciones de producto agregado y reduce la separación entre renglones a 4 px conservando padding de 8 px y resaltado.
+
+- 2026-10-01: Confirmación de venta destaca cambio (incluido cero), prioriza Nueva venta y devuelve foco al buscador. Ticket con scroll independiente y acciones fijas; resumen operativo fuera del área impresa. Copias y anulaciones no muestran instrucción de entregar cambio. Se elimina aviso duplicado de venta registrada.

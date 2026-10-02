@@ -951,7 +951,11 @@ export function SaleScreen({
             }}
           />
 
-          <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} />
+          <ReceiptDialog
+            receipt={receipt}
+            onClose={() => setReceipt(null)}
+            returnFocus={searchInputRef}
+          />
 
           <BarcodeScannerDialog
             open={scannerOpen}

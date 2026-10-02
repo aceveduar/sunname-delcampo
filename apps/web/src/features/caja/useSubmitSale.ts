@@ -1,6 +1,5 @@
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/currency'
 import { reportError } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
@@ -90,7 +89,6 @@ export function useSubmitSale({
       if (error) throw error
       if (!saleId) throw new Error('La venta no devolvió una confirmación')
 
-      toast.success('Venta registrada')
       setReceipt({
         saleId: saleId as string,
         createdAt: new Date().toISOString(),
