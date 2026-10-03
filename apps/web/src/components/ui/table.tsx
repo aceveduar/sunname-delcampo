@@ -1,14 +1,14 @@
-import * as React from "react"
+import * as React from 'react'
 
-import { useScrollShadows } from "@/hooks/useScrollShadows"
-import { cn } from "@/lib/utils"
+import { useScrollShadows } from '@/hooks/useScrollShadows'
+import { cn } from '@/lib/utils'
 
 // En mobile una tabla ancha (Reportes, Inventario, Clientes...) sí se
 // puede deslizar horizontalmente, pero nada lo indicaba -- se veía como
 // si las columnas de la derecha simplemente estuvieran cortadas. Este
 // degradado a los lados solo aparece cuando de verdad hay más contenido
 // que ver, y desaparece al llegar al final del scroll.
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({ className, ...props }: React.ComponentProps<'table'>) {
   const tableRef = React.useRef<HTMLTableElement>(null)
   // contentRef en <table>: el ancho que cambia con un filtro (menos/más
   // filas, columnas que se re-miden por su contenido) es el suyo, no el
@@ -19,19 +19,22 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     canScrollStart: canScrollLeft,
     canScrollEnd: canScrollRight,
     onScroll,
-  } = useScrollShadows<HTMLDivElement>({ axis: "horizontal", contentRef: tableRef })
+  } = useScrollShadows<HTMLDivElement>({
+    axis: 'horizontal',
+    contentRef: tableRef,
+  })
 
   return (
     <div
       ref={wrapperRef}
       data-slot="table-container"
       onScroll={onScroll}
-      className="relative w-full overflow-x-auto"
+      className="bg-card relative w-full overflow-x-auto rounded-xl border"
     >
       <table
         ref={tableRef}
         data-slot="table"
-        className={cn("min-w-full caption-bottom text-sm", className)}
+        className={cn('min-w-full caption-bottom text-sm', className)}
         {...props}
       />
       {canScrollLeft && (
@@ -50,72 +53,72 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   )
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn('bg-muted/45 [&_tr]:border-b', className)}
       {...props}
     />
   )
 }
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+function TableBody({ className, ...props }: React.ComponentProps<'tbody'>) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn('[&_tr:last-child]:border-0', className)}
       {...props}
     />
   )
 }
 
-function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
+function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
   return (
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
-        className
+        'bg-muted/50 border-t font-medium [&>tr]:last:border-b-0',
+        className,
       )}
       {...props}
     />
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
+function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
-        className
+        'hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors',
+        className,
       )}
       {...props}
     />
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
-        className
+        'text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+        className,
       )}
       {...props}
     />
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
-        className
+        'p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+        className,
       )}
       {...props}
     />
@@ -125,11 +128,11 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 function TableCaption({
   className,
   ...props
-}: React.ComponentProps<"caption">) {
+}: React.ComponentProps<'caption'>) {
   return (
     <caption
       data-slot="table-caption"
-      className={cn("mt-4 text-sm text-muted-foreground", className)}
+      className={cn('text-muted-foreground mt-4 text-sm', className)}
       {...props}
     />
   )

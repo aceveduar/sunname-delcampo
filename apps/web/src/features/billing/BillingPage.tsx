@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { ReceiptText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { FileWarning, Receipt } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -50,14 +52,11 @@ export function BillingPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-foreground text-2xl font-semibold">
-          Facturación
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Factura global CFDI 4.0 por corte de caja.
-        </p>
-      </div>
+      <PageHeader
+        icon={ReceiptText}
+        title="Facturación"
+        description="Consulta tus cortes de caja y da seguimiento a las solicitudes de factura."
+      />
 
       {!loadingFiscal && !isComplete && (
         <div className="border-destructive/30 bg-destructive/5 flex items-start gap-3 rounded-lg border p-4">
@@ -81,8 +80,8 @@ export function BillingPage() {
         <p className="text-muted-foreground">
           El timbrado con un proveedor autorizado (PAC) todavía no está
           conectado -- solicitar una factura aquí la deja registrada como{' '}
-          <span className="font-medium">pendiente</span>, lista para cuando
-          esa conexión exista.
+          <span className="font-medium">pendiente</span>, lista para cuando esa
+          conexión exista.
         </p>
       </div>
 

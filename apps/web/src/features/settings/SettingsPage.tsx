@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { Settings2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,7 +29,10 @@ const TOGGLEABLE_MODULES: ModuleKey[] = ['crm', 'purchasing', 'billing']
 
 const REGIMEN_FISCAL_OPTIONS = [
   { value: '626', label: '626 — Régimen Simplificado de Confianza (RESICO)' },
-  { value: '612', label: '612 — Personas Físicas con Actividades Empresariales' },
+  {
+    value: '612',
+    label: '612 — Personas Físicas con Actividades Empresariales',
+  },
   { value: '621', label: '621 — Incorporación Fiscal (RIF)' },
   { value: '601', label: '601 — General de Ley Personas Morales' },
 ]
@@ -80,15 +85,11 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-foreground text-2xl font-semibold">
-          Configuración
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Identidad y módulos activos de tu negocio. Caja, Catálogo e Inventario
-          son el núcleo del sistema y siempre están disponibles.
-        </p>
-      </div>
+      <PageHeader
+        icon={Settings2}
+        title="Configuración"
+        description="Tu negocio, tus preferencias. Personaliza la información y los módulos disponibles."
+      />
 
       <Card>
         <CardHeader>
@@ -154,8 +155,8 @@ export function SettingsPage() {
         <CardContent>
           <p className="text-muted-foreground mb-3 text-sm">
             Necesarios para timbrar la factura global de cada corte de caja
-            (CFDI 4.0). El timbrado con un PAC todavía no está conectado --
-            esto solo guarda los datos para cuando lo esté.
+            (CFDI 4.0). El timbrado con un PAC todavía no está conectado -- esto
+            solo guarda los datos para cuando lo esté.
           </p>
           {!loadingFiscal && (
             <form

@@ -1,8 +1,9 @@
+import { PageHeader } from '@/components/PageHeader'
+import { CustomerDirectory } from './CustomerDirectory'
 import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Contact, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,16 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
-import { EmptyState } from '@/components/EmptyState'
 import { toTitleCase } from '@/lib/text'
 import { useCustomers, type Customer } from './useCustomers'
 
@@ -68,69 +59,23 @@ export function CustomersPage() {
   return (
     <div className="flex flex-col gap-6">
       <LoadError message={error} onRetry={refresh} loading={loading} />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-semibold">Clientes</h1>
-          <p className="text-muted-foreground text-sm">Tus clientes.</p>
-        </div>
-        <Button onClick={openCreate} size="sm" className="self-start">
-          <Plus /> Nuevo cliente
-        </Button>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Teléfono</TableHead>
-            <TableHead>Correo</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading && <TableSkeletonRows rows={5} columns={5} />}
-          {!loading && !error && customers.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5}>
-                <EmptyState
-                  icon={Contact}
-                  title="Aún no hay clientes"
-                  description="Da de alta tu primer cliente para llevar su historial de compra."
-                />
-              </TableCell>
-            </TableRow>
-          )}
-          {customers.map((customer) => (
-            <TableRow key={customer.id}>
-              <TableCell className="font-medium">{customer.name}</TableCell>
-              <TableCell>{customer.phone ?? '—'}</TableCell>
-              <TableCell>{customer.email ?? '—'}</TableCell>
-              <TableCell>
-                <Badge variant={customer.active ? 'default' : 'secondary'}>
-                  {customer.active ? 'Activo' : 'Inactivo'}
-                </Badge>
-              </TableCell>
-              <TableCell className="flex justify-end gap-2 text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEdit(customer)}
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleActive(customer)}
-                >
-                  {customer.active ? 'Desactivar' : 'Activar'}
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <PageHeader
+        icon={Contact}
+        title="Clientes"
+        description="Personas que vuelven. Ten sus datos siempre a mano."
+        actions={
+          <Button onClick={openCreate}>
+            <Plus /> Nuevo cliente
+          </Button>
+        }
+      />
+      <CustomerDirectory
+        customers={customers}
+        loading={loading}
+        error={error}
+        onEdit={openEdit}
+        onToggle={toggleActive}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

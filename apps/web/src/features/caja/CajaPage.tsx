@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { Store } from 'lucide-react'
 import { TicketSearchDialog } from './TicketSearchDialog'
 import { formatCurrency } from '@/lib/currency'
 import { useCallback, useEffect, useState } from 'react'
@@ -42,12 +44,12 @@ export function CajaPage({
   if (!session) {
     return (
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-foreground text-2xl font-semibold">Caja</h1>
-          <p className="text-muted-foreground text-sm">
-            No hay una caja abierta ahora mismo.
-          </p>
-        </div>
+        <PageHeader
+          compact
+          icon={Store}
+          title="Caja"
+          description="No hay una caja abierta ahora mismo."
+        />
         <div>
           <TicketSearchDialog />
         </div>
@@ -59,17 +61,21 @@ export function CajaPage({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-semibold">Caja</h1>
-          <p className="text-muted-foreground text-sm">
-            Abierta a las{' '}
-            {new Date(session.opened_at).toLocaleTimeString('es-MX', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}{' '}
-            con {formatCurrency(session.opening_amount)}.
-          </p>
-        </div>
+        <PageHeader
+          compact
+          icon={Store}
+          title="Caja"
+          description={
+            <>
+              Abierta a las{' '}
+              {new Date(session.opened_at).toLocaleTimeString('es-MX', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}{' '}
+              con {formatCurrency(session.opening_amount)}.
+            </>
+          }
+        />
         <div className="flex flex-wrap items-center gap-2 self-start">
           <CashManagementDialog
             key={`${session.id}:${userId}`}

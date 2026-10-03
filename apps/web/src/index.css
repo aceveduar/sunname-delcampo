@@ -211,3 +211,31 @@ html[data-text-size='lg'] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Superficies compartidas: identidad sobria, compatible con ambos temas. */
+.app-workspace {
+  background-color: var(--background);
+  background-image: radial-gradient(
+    ellipse at 95% 0%,
+    color-mix(in srgb, var(--brand-gold) 5%, transparent),
+    transparent 45%
+  );
+}
+.module-heading {
+  background: linear-gradient(
+    110deg,
+    var(--card) 45%,
+    color-mix(in srgb, var(--primary) 6%, var(--card))
+  );
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+@media (pointer: coarse), (max-width: 639px) {
+  [data-slot='tabs-trigger'] {
+    min-height: 2.75rem;
+  }
+  [data-slot='tabs-list'] {
+    max-width: 100%;
+    flex-wrap: wrap;
+    height: auto;
+  }
+}

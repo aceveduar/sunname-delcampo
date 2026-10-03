@@ -19,14 +19,12 @@ export function EmptyState({
         className,
       )}
     >
-      <div className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-full">
-        <Icon className="size-6" />
+      <div className="bg-primary/6 text-primary ring-primary/10 mb-2 flex size-16 items-center justify-center rounded-2xl ring-1">
+        <Icon className="size-7" />
       </div>
-      <p className="text-foreground text-sm font-medium">{title}</p>
+      <p className="text-foreground text-base font-semibold">{title}</p>
       {description && (
-        <p className="text-muted-foreground max-w-xs text-sm">
-          {description}
-        </p>
+        <p className="text-muted-foreground max-w-xs text-sm">{description}</p>
       )}
     </div>
   )

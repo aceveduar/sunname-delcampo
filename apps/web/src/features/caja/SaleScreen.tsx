@@ -20,6 +20,7 @@ import {
   Search,
   Trash2,
   TrendingUp,
+  Star,
 } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
@@ -532,12 +533,16 @@ export function SaleScreen({
               filterCategory === 'all' ? (
               <>
                 <section
-                  className="flex flex-col gap-2"
+                  className="bg-brand-gold/5 border-brand-gold/20 flex flex-col gap-3 rounded-xl border p-3"
                   aria-label="Mis favoritos"
                 >
-                  <p className="text-muted-foreground text-xs">
-                    Mis favoritos · En este navegador
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Star aria-hidden className="text-brand-gold size-4" />
+                    <h2 className="text-sm font-semibold">Mis favoritos</h2>
+                    <span className="text-muted-foreground text-xs">
+                      En este navegador
+                    </span>
+                  </div>
                   {favoriteProducts.length ? (
                     <div className={PRODUCT_GRID_CLASS}>
                       {favoriteProducts.map((product) => (

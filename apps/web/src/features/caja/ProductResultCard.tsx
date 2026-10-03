@@ -18,7 +18,7 @@ export function ProductResultCard({
   onClick: () => void
 }) {
   return (
-    <div className="bg-card relative flex rounded-lg border">
+    <div className="bg-card hover:border-primary/30 focus-within:border-primary/40 relative flex rounded-xl border transition-[border-color,box-shadow] duration-150 hover:shadow-md">
       <button
         type="button"
         onClick={onClick}

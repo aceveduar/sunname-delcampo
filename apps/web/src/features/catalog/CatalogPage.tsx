@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { Package } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Database } from '@/lib/database.types'
 import { ProductsTab } from './ProductsTab'
@@ -9,12 +11,11 @@ type Role = Database['public']['Enums']['user_role']
 export function CatalogPage({ role }: { role: Role | null }) {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Catálogo</h1>
-        <p className="text-muted-foreground text-sm">
-          Productos, categorías y unidades de medida.
-        </p>
-      </div>
+      <PageHeader
+        icon={Package}
+        title="Catálogo"
+        description="Todo lo que vendes, organizado a tu manera."
+      />
 
       <Tabs defaultValue="products">
         <TabsList>

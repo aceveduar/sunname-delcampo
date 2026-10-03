@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { UsersRound } from 'lucide-react'
 import { LoadError } from '@/components/LoadError'
 import { useState, type FormEvent } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -104,20 +106,19 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <LoadError message={error} onRetry={refresh} loading={loading} />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-semibold">Usuarios</h1>
-          <p className="text-muted-foreground text-sm">
-            Roles y acceso de tu equipo.
-          </p>
-        </div>
-        <div className="self-start">
-          <InviteUserDialog
-            onInvited={refresh}
-            currentUserRole={currentUserRole}
-          />
-        </div>
-      </div>
+      <PageHeader
+        icon={UsersRound}
+        title="Usuarios"
+        description="Organiza tu equipo y sus permisos de acceso."
+        actions={
+          <div className="self-start">
+            <InviteUserDialog
+              onInvited={refresh}
+              currentUserRole={currentUserRole}
+            />
+          </div>
+        }
+      />
 
       <Table>
         <TableHeader>

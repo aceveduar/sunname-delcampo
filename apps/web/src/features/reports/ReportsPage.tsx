@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { ChartNoAxesCombined } from 'lucide-react'
 import { CashSessionReport } from './CashSessionReport'
 import { ReportSummary } from './ReportSummary'
 import { LoadError } from '@/components/LoadError'
@@ -106,28 +108,27 @@ export function ReportsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-semibold">Reportes</h1>
-          <p className="text-muted-foreground text-sm">
-            Ventas e historial de caja del periodo.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {PRESETS.map((p) => (
-            <Button
-              key={p.key}
-              variant={preset === p.key ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={preset === p.key}
-              disabled={busy}
-              onClick={() => applyRange(p.key)}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        icon={ChartNoAxesCombined}
+        title="Reportes"
+        description="Una vista clara de tus ventas y movimientos de caja."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((p) => (
+              <Button
+                key={p.key}
+                variant={preset === p.key ? 'default' : 'outline'}
+                size="sm"
+                aria-pressed={preset === p.key}
+                disabled={busy}
+                onClick={() => applyRange(p.key)}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
       {preset === 'custom' && (
         <form

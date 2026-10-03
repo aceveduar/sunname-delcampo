@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/PageHeader'
+import { Warehouse } from 'lucide-react'
 import { InventoryProductPanel } from './InventoryProductPanel'
 import { useInventoryMinimums } from './useInventoryMinimums'
 import {
@@ -146,24 +148,23 @@ export function InventoryPage({
         onRetry={refreshUnits}
         loading={unitsLoading}
       />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-semibold">Inventario</h1>
-          <p className="text-muted-foreground text-sm">
-            Existencias de productos que llevan control de inventario.
-          </p>
-        </div>
-        {canRegister && (
-          <div className="self-start">
-            <NewMovementDialog
-              triggerLabel="Nuevo movimiento"
-              rows={rows}
-              unitCode={unitCode}
-              onRegister={registerMovement}
-            />
-          </div>
-        )}
-      </div>
+      <PageHeader
+        icon={Warehouse}
+        title="Inventario"
+        description="Detecta faltantes y encuentra lo que necesita tu almacén."
+        actions={
+          canRegister && (
+            <div className="self-start">
+              <NewMovementDialog
+                triggerLabel="Nuevo movimiento"
+                rows={rows}
+                unitCode={unitCode}
+                onRegister={registerMovement}
+              />
+            </div>
+          )
+        }
+      />
 
       <div className="bg-background/95 sticky top-2 z-10 space-y-3 rounded-xl border p-3 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center gap-3">

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AppNavigation } from './AppNavigation'
 import { useTheme } from 'next-themes'
-import { ALargeSmall, LogOut, Moon, Sun } from 'lucide-react'
+import { ALargeSmall, LogOut, Moon, Sun, Layers3 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,18 +50,26 @@ export function AppShell({
   const isDark = resolvedTheme === 'dark'
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="app-workspace min-h-screen">
       <a
         href="#main-content"
         className="focus:bg-background focus:text-foreground sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:p-3"
       >
         Saltar al contenido
       </a>
-      <header className="bg-sidebar text-sidebar-foreground">
+      <header className="bg-sidebar text-sidebar-foreground border-sidebar-border border-b shadow-sm">
         <div className="flex min-h-14 flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
-          <span className="justify-self-start text-sm font-semibold tracking-wide">
-            Sunname ERP
-          </span>
+          <div className="flex items-center gap-2.5 text-sm font-semibold tracking-wide">
+            <span
+              aria-hidden
+              className="bg-sidebar-primary/15 text-sidebar-primary ring-sidebar-primary/30 flex size-8 items-center justify-center rounded-lg ring-1"
+            >
+              <Layers3 className="size-5" />
+            </span>
+            <span>
+              Sunname <span className="font-normal opacity-70">ERP</span>
+            </span>
+          </div>
 
           <div className="order-last flex shrink-0 sm:order-none sm:ml-auto">
             <AppNavigation
