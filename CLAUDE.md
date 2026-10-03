@@ -425,3 +425,5 @@ El sistema **no asume hardware específico** en el núcleo. Cada vertical puede 
 - 2026-10-01: Inputs, áreas de texto y selectores comparten el contorno global de foco sin superponer anillos. Caja elimina notificaciones de producto agregado y reduce la separación entre renglones a 4 px conservando padding de 8 px y resaltado.
 
 - 2026-10-01: Confirmación de venta destaca cambio (incluido cero), prioriza Nueva venta y devuelve foco al buscador. Ticket con scroll independiente y acciones fijas; resumen operativo fuera del área impresa. Copias y anulaciones no muestran instrucción de entregar cambio. Se elimina aviso duplicado de venta registrada.
+
+- 2026-10-02: Favoritos de Caja por usuario/proyecto en localStorage (máximo 12), orden de fijación y estrella independiente de agregar a venta; productos inactivos no se venden desde favoritos. Recuperación de módulo con reintento sin recarga y recarga manual solo tras verificar respaldo del carrito, bloqueada durante escrituras. El formateador de errores recorre message/error/cause sin mostrar [object Object]; se captura la excepción original en Sentry. Sin migraciones.

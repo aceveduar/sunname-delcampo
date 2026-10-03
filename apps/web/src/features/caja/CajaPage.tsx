@@ -94,6 +94,7 @@ export function CajaPage({
       </div>
 
       <SaleScreen
+        userId={userId}
         cashSessionId={session.id}
         role={role}
         onSaleRecorded={onSaleRecorded}

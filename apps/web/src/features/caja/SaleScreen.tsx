@@ -1,3 +1,4 @@
+import { useFavoriteProducts } from './useFavoriteProducts'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,10 +66,12 @@ const PRODUCT_GRID_CLASS =
 
 export function SaleScreen({
   cashSessionId,
+  userId,
   role,
   onSaleRecorded,
 }: {
   cashSessionId: string
+  userId: string
   role: Role | null
   onSaleRecorded?: () => void
 }) {
@@ -87,6 +90,12 @@ export function SaleScreen({
   } = usePaymentMethods()
   const { customers } = useCustomers()
   const { categories } = useCategories()
+  const favorites = useFavoriteProducts(userId)
+  const favoriteProducts = favorites.ids
+    .map((id) =>
+      products.find((product) => product.id === id && product.active),
+    )
+    .filter((product): product is Product => !!product)
   const topSellingIds = useTopSellingProducts()
   // La venta en curso vive en un contexto que envuelve las rutas (nunca
   // se desmonta al navegar) -- así el cajero puede ir a consultar
@@ -521,24 +530,79 @@ export function SaleScreen({
             ) : productsError &&
               products.length === 0 ? null : search.trim() === '' &&
               filterCategory === 'all' ? (
-              topProducts.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
-                    <TrendingUp className="size-3.5" />
-                    Más vendidos
+              <>
+                <section
+                  className="flex flex-col gap-2"
+                  aria-label="Mis favoritos"
+                >
+                  <p className="text-muted-foreground text-xs">
+                    Mis favoritos · En este navegador
                   </p>
-                  <div className={PRODUCT_GRID_CLASS}>
-                    {topProducts.map((product, index) => (
-                      <ProductResultCard
-                        key={product.id}
-                        product={product}
-                        rank={index + 1}
-                        onClick={() => handleProductClick(product)}
-                      />
+                  {favoriteProducts.length ? (
+                    <div className={PRODUCT_GRID_CLASS}>
+                      {favoriteProducts.map((product) => (
+                        <ProductResultCard
+                          key={product.id}
+                          product={product}
+                          favorite
+                          onToggleFavorite={() => favorites.toggle(product.id)}
+                          onClick={() => handleProductClick(product)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      Marca la estrella de un producto para fijarlo aquí.
+                    </p>
+                  )}
+                  {favorites.ids
+                    .filter(
+                      (id) =>
+                        !products.some(
+                          (product) => product.id === id && product.active,
+                        ),
+                    )
+                    .map((id) => (
+                      <div
+                        key={id}
+                        className="text-muted-foreground flex items-center gap-2 text-sm"
+                      >
+                        <span>
+                          {products.find((product) => product.id === id)
+                            ?.name ?? 'Producto no disponible'}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => favorites.toggle(id)}
+                        >
+                          Quitar favorito
+                        </Button>
+                      </div>
                     ))}
+                </section>
+                {topProducts.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
+                      <TrendingUp className="size-3.5" />
+                      Más vendidos
+                    </p>
+                    <div className={PRODUCT_GRID_CLASS}>
+                      {topProducts.map((product, index) => (
+                        <ProductResultCard
+                          key={product.id}
+                          product={product}
+                          favorite={favorites.ids.includes(product.id)}
+                          onToggleFavorite={() => favorites.toggle(product.id)}
+                          rank={index + 1}
+                          onClick={() => handleProductClick(product)}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
+                )}
+              </>
             ) : results.length === 0 ? (
               <EmptyState
                 icon={Search}
@@ -559,6 +623,8 @@ export function SaleScreen({
                     <ProductResultCard
                       key={product.id}
                       product={product}
+                      favorite={favorites.ids.includes(product.id)}
+                      onToggleFavorite={() => favorites.toggle(product.id)}
                       onClick={() => handleProductClick(product)}
                     />
                   ))}

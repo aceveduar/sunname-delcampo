@@ -1,7 +1,8 @@
+import { ModuleRecovery } from '@/components/integrations/ModuleRecovery'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 import { SafeAppUpdate } from '@/components/integrations/SafeAppUpdate'
 import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { AppShell } from '@/components/layout/AppShell'
 import { useTenantModules } from '@/features/settings/useTenantModules'
@@ -68,6 +69,7 @@ const SettingsPage = lazy(() =>
 )
 
 function App() {
+  const location = useLocation()
   const { session, profile, loading, toggleLargeText } = useAuth()
   const { isEnabled: isModuleEnabled, loading: modulesLoading } =
     useTenantModules(!!session)
@@ -127,7 +129,12 @@ function App() {
     >
       <CartProvider key={session.user.id} userId={session.user.id}>
         <SafeAppUpdate />
-        <ModuleErrorBoundary>
+        <ModuleErrorBoundary
+          key={location.pathname}
+          fallback={(retry) => (
+            <ModuleRecovery userId={session.user.id} retry={retry} />
+          )}
+        >
           <Suspense
             fallback={
               <p role="status" className="text-muted-foreground py-8">

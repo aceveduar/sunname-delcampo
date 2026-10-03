@@ -13,7 +13,28 @@ export function BarcodeScannerDialog(props: {
 }) {
   if (!props.open) return null
   return (
-    <ModuleErrorBoundary>
+    <ModuleErrorBoundary
+      fallback={(retry) => (
+        <section role="alert" className="space-y-2 rounded-lg border p-3">
+          <p>
+            No se pudo abrir el lector. Puedes cerrarlo y escribir el código en
+            el buscador.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" className="underline" onClick={retry}>
+              Reintentar
+            </button>
+            <button
+              type="button"
+              className="underline"
+              onClick={() => props.onOpenChange(false)}
+            >
+              Cerrar lector
+            </button>
+          </div>
+        </section>
+      )}
+    >
       <Suspense
         fallback={
           <p role="status">
