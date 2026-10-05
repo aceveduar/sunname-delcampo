@@ -1,3 +1,4 @@
+import { AppSidebar } from './AppSidebar'
 import { ConnectionStatus } from '@/components/ConnectionStatus'
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
@@ -71,7 +72,7 @@ export function AppShell({
             </span>
           </div>
 
-          <div className="order-last flex shrink-0 sm:order-none sm:ml-auto">
+          <div className="order-last flex shrink-0 sm:order-none sm:ml-auto xl:hidden">
             <AppNavigation
               isAdmin={isAdmin}
               isOwner={isOwner}
@@ -80,7 +81,7 @@ export function AppShell({
             />
           </div>
 
-          <div className="ml-auto flex items-center gap-1 sm:ml-2">
+          <div className="ml-auto flex items-center gap-1 sm:ml-2 xl:ml-auto">
             <button
               onClick={onToggleLargeText}
               className={`hover:bg-sidebar-accent flex items-center justify-center rounded-md p-2 ${
@@ -150,20 +151,24 @@ export function AppShell({
         </div>
       </header>
 
-      {/* Mismo ancho máximo en todas las pantallas (antes Caja tenía uno
-          propio, más ancho) -- el sistema se ve más armónico si el resto
-          de módulos aprovecha el mismo espacio en vez de solo la pantalla
-          de mayor uso; el contenido angosto (formularios de Configuración,
-          buscadores) ya se limita a su propio ancho desde adentro, así
-          que no se ve raro flotando en un contenedor más ancho. */}
-      <ConnectionStatus />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto max-w-[100rem] px-4 py-8"
-      >
-        {children}
-      </main>
+      <div className="flex items-start">
+        <AppSidebar
+          isAdmin={isAdmin}
+          isOwner={isOwner}
+          isLargeText={isLargeText}
+          isModuleEnabled={isModuleEnabled}
+        />
+        <div className="min-w-0 flex-1">
+          <ConnectionStatus />
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="mx-auto max-w-[100rem] px-4 py-6 sm:px-6"
+          >
+            {children}
+          </main>
+        </div>
+      </div>
     </div>
   )
 }

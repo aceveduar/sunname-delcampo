@@ -11,6 +11,18 @@ import { isAdminRole, isOwnerRole } from '@/lib/roles'
 import { LoginForm } from './components/LoginForm'
 import { useAuth } from './hooks/useAuth'
 
+const CustomerPurchaseHistory = lazy(() =>
+  import('@/features/caja/CustomerPurchaseHistory').then((module) => ({
+    default: module.CustomerPurchaseHistory,
+  })),
+)
+
+const OperationsHome = lazy(() =>
+  import('@/components/integrations/OperationsHome').then((module) => ({
+    default: module.OperationsHome,
+  })),
+)
+
 const ReplenishmentOrder = lazy(() =>
   import('@/components/integrations/ReplenishmentOrder').then((module) => ({
     default: module.ReplenishmentOrder,
@@ -143,7 +155,24 @@ function App() {
             }
           >
             <Routes>
-              <Route path="/" element={<Navigate to="/caja" replace />} />
+              <Route
+                path="/"
+                element={
+                  <Navigate to={isAdmin ? '/inicio' : '/caja'} replace />
+                }
+              />
+              <Route
+                path="/inicio"
+                element={
+                  isAdmin ? (
+                    <OperationsHome
+                      purchasingEnabled={isModuleEnabled('purchasing')}
+                    />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
+                }
+              />
               <Route
                 path="/caja"
                 element={
@@ -184,7 +213,18 @@ function App() {
                 path="/clientes"
                 element={
                   isModuleEnabled('crm') ? (
-                    <CustomersPage />
+                    <CustomersPage
+                      renderHistory={(customerId) => (
+                        <Suspense
+                          fallback={<p role="status">Cargando compras…</p>}
+                        >
+                          <CustomerPurchaseHistory
+                            key={customerId}
+                            customerId={customerId}
+                          />
+                        </Suspense>
+                      )}
+                    />
                   ) : (
                     <Navigate to="/caja" replace />
                   )

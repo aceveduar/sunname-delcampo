@@ -1,16 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import {
-  BarChart3,
-  Boxes,
-  Contact,
-  Menu,
-  Package,
-  Receipt,
-  Settings,
-  ShoppingCart,
-  Store,
-  Users,
-} from 'lucide-react'
+import { Menu } from 'lucide-react'
+import { navigationItems } from './navigation'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -20,49 +10,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { ModuleKey } from '@/features/settings/useTenantModules'
-
-const NAV_ITEMS: {
-  to: string
-  label: string
-  icon: typeof Store
-  adminOnly: boolean
-  ownerOnly?: boolean
-  moduleKey?: ModuleKey
-}[] = [
-  { to: '/caja', label: 'Caja', icon: Store, adminOnly: false },
-  { to: '/catalogo', label: 'Catálogo', icon: Package, adminOnly: false },
-  { to: '/inventario', label: 'Inventario', icon: Boxes, adminOnly: false },
-  {
-    to: '/clientes',
-    label: 'Clientes',
-    icon: Contact,
-    adminOnly: false,
-    moduleKey: 'crm',
-  },
-  {
-    to: '/compras',
-    label: 'Compras',
-    icon: ShoppingCart,
-    adminOnly: true,
-    moduleKey: 'purchasing',
-  },
-  { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
-  {
-    to: '/facturacion',
-    label: 'Facturación',
-    icon: Receipt,
-    adminOnly: true,
-    moduleKey: 'billing',
-  },
-  { to: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
-  {
-    to: '/configuracion',
-    label: 'Configuración',
-    icon: Settings,
-    adminOnly: true,
-    ownerOnly: true,
-  },
-]
 
 export function AppNavigation({
   isAdmin,
@@ -76,12 +23,7 @@ export function AppNavigation({
   isModuleEnabled: (key: ModuleKey) => boolean
 }) {
   const { pathname } = useLocation()
-  const visibleItems = NAV_ITEMS.filter(
-    (item) =>
-      (!item.adminOnly || isAdmin) &&
-      (!item.ownerOnly || isOwner) &&
-      (!item.moduleKey || isModuleEnabled(item.moduleKey)),
-  )
+  const visibleItems = navigationItems(isAdmin, isOwner, isModuleEnabled)
   const primaryItems = visibleItems.filter((item) => !item.adminOnly)
   const secondaryActive = visibleItems.some(
     (item) => item.adminOnly && item.to === pathname,

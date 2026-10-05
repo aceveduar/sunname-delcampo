@@ -18,7 +18,8 @@ import { PurchaseOrderDetailDialog } from './PurchaseOrderDetailDialog'
 
 const FILTERS = [
   { key: 'all', label: 'Todas' },
-  { key: 'ordered', label: 'Pendientes' },
+  { key: 'pending', label: 'Por recibir' },
+  { key: 'ordered', label: 'Sin entregas' },
   { key: 'partial', label: 'Parciales' },
   { key: 'received', label: 'Recibidas' },
   { key: 'draft', label: 'Borradores' },
@@ -50,7 +51,10 @@ export function PurchaseOrdersTab({ userId }: { userId: string }) {
     )
   const visible = orders.filter(
     (order) =>
-      (filter === 'all' || orderStatus(order) === filter) &&
+      (filter === 'all' ||
+        (filter === 'pending'
+          ? order.status === 'ordered'
+          : orderStatus(order) === filter)) &&
       normalizeSearch((order.supplier?.name ?? '') + ' ' + order.id).includes(
         normalizeSearch(query),
       ),

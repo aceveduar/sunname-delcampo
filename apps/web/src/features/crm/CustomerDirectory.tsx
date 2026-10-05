@@ -24,12 +24,14 @@ export function CustomerDirectory({
   error,
   onEdit,
   onToggle,
+  onView,
 }: {
   customers: Customer[]
   loading: boolean
   error: string | null
   onEdit: (customer: Customer) => void
   onToggle: (customer: Customer) => void
+  onView?: (customer: Customer) => void
 }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
@@ -183,7 +185,17 @@ export function CustomerDirectory({
                             .join('')
                             .toUpperCase()}
                         </span>
-                        <span className="font-medium">{customer.name}</span>
+                        {onView ? (
+                          <button
+                            className="text-foreground text-left font-medium underline-offset-4 hover:underline"
+                            onClick={() => onView(customer)}
+                          >
+                            {customer.name}
+                            <span className="sr-only">: ver ficha</span>
+                          </button>
+                        ) : (
+                          <span className="font-medium">{customer.name}</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -216,7 +228,17 @@ export function CustomerDirectory({
               >
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="min-w-0 font-semibold wrap-break-word">
-                    {customer.name}
+                    {onView ? (
+                      <button
+                        className="text-foreground text-left underline-offset-4 hover:underline"
+                        onClick={() => onView(customer)}
+                      >
+                        {customer.name}
+                        <span className="sr-only">: ver ficha</span>
+                      </button>
+                    ) : (
+                      customer.name
+                    )}
                   </h2>
                   {state(customer)}
                 </div>

@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader'
 import { Warehouse } from 'lucide-react'
 import { InventoryProductPanel } from './InventoryProductPanel'
@@ -78,7 +79,20 @@ export function InventoryPage({
     refresh: refreshMinimums,
     saveMinimum,
   } = useInventoryMinimums()
-  const [stockFilter, setStockFilter] = useState<'all' | 'out' | 'low'>('all')
+  const [params, setParams] = useSearchParams()
+  const stockFilter = ['out', 'low'].includes(params.get('stock') ?? '')
+    ? params.get('stock')!
+    : 'all'
+  const setStockFilter = (value: string) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (value === 'all') next.delete('stock')
+        else next.set('stock', value)
+        return next
+      },
+      { replace: true },
+    )
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
@@ -233,7 +247,7 @@ export function InventoryPage({
             variant={stockFilter === 'out' ? 'default' : 'outline'}
             aria-pressed={stockFilter === 'out'}
             onClick={() => {
-              setStockFilter((value) => (value === 'out' ? 'all' : 'out'))
+              setStockFilter(stockFilter === 'out' ? 'all' : 'out')
               setPage(1)
             }}
           >
@@ -244,7 +258,7 @@ export function InventoryPage({
             aria-pressed={stockFilter === 'low'}
             disabled={minimumsLoading || !!minimumsError}
             onClick={() => {
-              setStockFilter((value) => (value === 'low' ? 'all' : 'low'))
+              setStockFilter(stockFilter === 'low' ? 'all' : 'low')
               setPage(1)
             }}
           >
