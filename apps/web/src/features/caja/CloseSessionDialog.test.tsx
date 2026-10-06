@@ -85,3 +85,31 @@ it('no permite abrir el cierre mientras hay una venta pendiente', async () => {
   expect(fetchCashBalance).not.toHaveBeenCalled()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
+
+it('permite contar piezas, bloquea cantidades inválidas y transfiere el total al modo manual', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn().mockResolvedValue(true)
+  render(<CloseSessionDialog sessionId="session" onClose={onClose} />)
+  await user.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+  await screen.findByText('Efectivo esperado')
+  await user.click(screen.getByRole('button', { name: 'Billetes y monedas' }))
+  fireEvent.change(screen.getByLabelText('Billetes de $100.00'), {
+    target: { value: '1' },
+  })
+  fireEvent.change(screen.getByLabelText('Billetes de $50.00'), {
+    target: { value: '1.5' },
+  })
+  expect(
+    screen.getByRole('button', { name: 'Confirmar cierre' }),
+  ).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('Billetes de $50.00'), {
+    target: { value: '1' },
+  })
+  expect(screen.getByText('La caja cuadra.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Capturar total' }))
+  expect(screen.getByLabelText('Efectivo contado')).toHaveValue(150)
+  await user.click(screen.getByRole('button', { name: 'Billetes y monedas' }))
+  expect(screen.getByLabelText('Billetes de $50.00')).toHaveValue('1')
+  await user.click(screen.getByRole('button', { name: 'Confirmar cierre' }))
+  await waitFor(() => expect(onClose).toHaveBeenCalledWith(150, null, 150))
+})

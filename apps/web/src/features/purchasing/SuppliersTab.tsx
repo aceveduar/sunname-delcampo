@@ -1,29 +1,14 @@
-import { LoadError } from '@/components/LoadError'
-import { useState, type FormEvent } from 'react'
-import { Plus, Truck } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
-import { EmptyState } from '@/components/EmptyState'
-import { toTitleCase } from '@/lib/text'
+import { LoadError } from '@/components/LoadError'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { reportError } from '@/lib/errors'
 import { useSuppliers, type Supplier } from './useSuppliers'
+import { SupplierDirectory } from './SupplierDirectory'
+import { SupplierForm } from './SupplierForm'
+import { SupplierPanel } from './SupplierPanel'
+import { SupplierOrderHistory } from './SupplierOrderHistory'
 
 export function SuppliersTab() {
   const {
@@ -36,152 +21,99 @@ export function SuppliersTab() {
     toggleActive,
   } = useSuppliers()
   const [editing, setEditing] = useState<Supplier | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-
-  const openCreate = () => {
-    setEditing(null)
-    setDialogOpen(true)
-  }
-
-  const openEdit = (supplier: Supplier) => {
+  const [formOpen, setFormOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [toggle, setToggle] = useState<Supplier | null>(null)
+  const [toggling, setToggling] = useState(false)
+  const toggleBusy = useRef(false)
+  const selected = suppliers.find((supplier) => supplier.id === selectedId)
+  const edit = (supplier: Supplier) => {
     setEditing(supplier)
-    setDialogOpen(true)
+    setFormOpen(true)
   }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const values = {
-      name: toTitleCase(String(form.get('name') ?? '')),
-      contact_name: toTitleCase(String(form.get('contact_name') ?? '')) || null,
-      phone: String(form.get('phone') ?? '').trim() || null,
-      email: String(form.get('email') ?? '').trim() || null,
+  const form = formOpen && (
+    <SupplierForm
+      key={editing?.id ?? 'new'}
+      supplier={editing}
+      onClose={() => setFormOpen(false)}
+      onSave={async (values) =>
+        editing
+          ? updateSupplier(editing.id, values)
+          : !!(await createSupplier(values))
+      }
+    />
+  )
+  const confirmToggle = async () => {
+    if (!toggle || toggleBusy.current) return
+    toggleBusy.current = true
+    setToggling(true)
+    try {
+      if (await toggleActive(toggle)) setToggle(null)
+    } catch (cause) {
+      reportError('No se pudo cambiar el estado del proveedor', cause)
+    } finally {
+      toggleBusy.current = false
+      setToggling(false)
     }
-
-    const ok = editing
-      ? await updateSupplier(editing.id, values)
-      : await createSupplier(values)
-
-    if (ok) setDialogOpen(false)
   }
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       <LoadError message={error} onRetry={refresh} loading={loading} />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-muted-foreground text-sm">Tus proveedores.</p>
-        <Button onClick={openCreate} size="sm" className="self-start">
-          <Plus /> Nuevo proveedor
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-muted-foreground text-sm">
+          Contactos y órdenes, en una misma ficha.
+        </p>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditing(null)
+            setFormOpen(true)
+          }}
+        >
+          <Plus />
+          Nuevo proveedor
         </Button>
       </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Contacto</TableHead>
-            <TableHead>Teléfono</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading && <TableSkeletonRows rows={5} columns={5} />}
-          {!loading && !error && suppliers.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5}>
-                <EmptyState
-                  icon={Truck}
-                  title="Aún no hay proveedores"
-                  description="Da de alta tu primer proveedor para poder crear órdenes de compra."
-                />
-              </TableCell>
-            </TableRow>
-          )}
-          {suppliers.map((supplier) => (
-            <TableRow key={supplier.id}>
-              <TableCell className="font-medium">{supplier.name}</TableCell>
-              <TableCell>{supplier.contact_name ?? '—'}</TableCell>
-              <TableCell>{supplier.phone ?? '—'}</TableCell>
-              <TableCell>
-                <Badge variant={supplier.active ? 'default' : 'secondary'}>
-                  {supplier.active ? 'Activo' : 'Inactivo'}
-                </Badge>
-              </TableCell>
-              <TableCell className="flex justify-end gap-2 text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEdit(supplier)}
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleActive(supplier)}
-                >
-                  {supplier.active ? 'Desactivar' : 'Activar'}
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? 'Editar proveedor' : 'Nuevo proveedor'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="supplier-name">Nombre</Label>
-              <Input
-                id="supplier-name"
-                name="name"
-                defaultValue={editing?.name}
-                placeholder="Distribuidora del Bajío"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="supplier-contact">Contacto (opcional)</Label>
-              <Input
-                id="supplier-contact"
-                name="contact_name"
-                defaultValue={editing?.contact_name ?? ''}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="supplier-phone">Teléfono (opcional)</Label>
-                <Input
-                  id="supplier-phone"
-                  name="phone"
-                  defaultValue={editing?.phone ?? ''}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="supplier-email">Correo (opcional)</Label>
-                <Input
-                  id="supplier-email"
-                  name="email"
-                  type="email"
-                  defaultValue={editing?.email ?? ''}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">
-                {editing ? 'Guardar cambios' : 'Crear proveedor'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <SupplierDirectory
+        suppliers={suppliers}
+        loading={loading}
+        error={error}
+        onEdit={edit}
+        onToggle={setToggle}
+        onView={(supplier) => setSelectedId(supplier.id)}
+      />
+      {selected ? (
+        <SupplierPanel
+          supplier={selected}
+          onClose={() => setSelectedId(null)}
+          onEdit={() => edit(selected)}
+        >
+          <SupplierOrderHistory
+            key={'orders-' + selected.id}
+            supplierId={selected.id}
+          />
+          {form}
+        </SupplierPanel>
+      ) : (
+        form
+      )}
+      <ConfirmDialog
+        open={!!toggle}
+        onOpenChange={(open) => {
+          if (!open && !toggleBusy.current) setToggle(null)
+        }}
+        title={
+          toggle?.active ? '¿Desactivar proveedor?' : '¿Activar proveedor?'
+        }
+        description={
+          toggle?.active
+            ? 'Conservarás su historial. Dejará de aparecer al crear nuevas órdenes.'
+            : 'Volverá a estar disponible para nuevas órdenes de compra.'
+        }
+        confirmLabel={toggle?.active ? 'Desactivar' : 'Activar'}
+        confirming={toggling}
+        onConfirm={() => void confirmToggle()}
+      />
     </div>
   )
 }

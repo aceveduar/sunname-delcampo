@@ -23,16 +23,17 @@ export type PurchaseOrder = PurchaseOrderRow & {
   }[]
 }
 
+export const PURCHASE_ORDER_SELECT =
+  '*, supplier:suppliers(name), purchase_order_items(id, received_quantity, quantity, unit_cost, subtotal, product:products(name, price, active, unit:units_of_measure(code)))'
+
 export function usePurchaseOrders() {
   // El join no coincide exacto con el tipo generado (las relaciones
   // anidadas salen más laxas de lo que sabemos que son) -- se castea
-  // aquí, en el único lugar que arma esta consulta.
+  // aquí y en el historial paginado por proveedor.
   const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
       .from('purchase_orders')
-      .select(
-        '*, supplier:suppliers(name), purchase_order_items(id, received_quantity, quantity, unit_cost, subtotal, product:products(name, price, active, unit:units_of_measure(code)))',
-      )
+      .select(PURCHASE_ORDER_SELECT)
       .order('created_at', { ascending: false })
     return { data: data as PurchaseOrder[] | null, error }
   }, [])

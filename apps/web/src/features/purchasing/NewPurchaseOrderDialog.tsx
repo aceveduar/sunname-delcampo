@@ -1,7 +1,9 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { PurchaseProductPicker } from './PurchaseProductPicker'
+import { PurchaseLineEditor } from './PurchaseLineEditor'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -20,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { reportError } from '@/lib/errors'
 import { formatCurrency } from '@/lib/currency'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import type { Product } from '@/features/catalog/useProducts'
@@ -52,13 +55,24 @@ export function NewPurchaseOrderDialog({
   const [open, setOpen] = useState(false)
   const [supplierId, setSupplierId] = useState('')
   const [lines, setLines] = useState<PurchaseDraftLine[]>([])
-  const [draftProductId, setDraftProductId] = useState('')
+  const [discard, setDiscard] = useState(false)
+  const [initialDraft, setInitialDraft] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const busy = useRef(false)
   const [unconfirmed, setUnconfirmed] = useState(false)
   const activeSuppliers = suppliers.filter((s) => s.active)
-  const activeProducts = products.filter((p) => p.active)
+  const dirty =
+    !!supplierId || !!notes || JSON.stringify(lines) !== initialDraft
+  useEffect(() => {
+    if (!unconfirmed && (!open || !dirty)) return
+    const guard = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', guard)
+    return () => window.removeEventListener('beforeunload', guard)
+  }, [open, dirty, unconfirmed])
   const selected = lines.filter((line) => line.selected)
   const valid =
     selected.length > 0 &&
@@ -74,11 +88,15 @@ export function NewPurchaseOrderDialog({
   )
   const handleOpenChange = (next: boolean) => {
     if (busy.current) return
+    if (!next && dirty && !unconfirmed) {
+      setDiscard(true)
+      return
+    }
     setOpen(next)
     if (next && !unconfirmed) {
       setSupplierId('')
       setLines(seedPurchaseLines(initialLines))
-      setDraftProductId('')
+      setInitialDraft(JSON.stringify(seedPurchaseLines(initialLines)))
       setNotes('')
     }
   }
@@ -88,17 +106,12 @@ export function NewPurchaseOrderDialog({
         line.productId === productId ? { ...line, ...values } : line,
       ),
     )
-  const addLine = () => {
-    if (
-      !draftProductId ||
-      lines.some((line) => line.productId === draftProductId)
+  const addLine = (productId: string) => {
+    setLines((previous) =>
+      previous.some((line) => line.productId === productId)
+        ? previous
+        : [...previous, ...seedPurchaseLines([{ productId, quantity: 1 }])],
     )
-      return
-    setLines((previous) => [
-      ...previous,
-      ...seedPurchaseLines([{ productId: draftProductId, quantity: 1 }]),
-    ])
-    setDraftProductId('')
   }
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -117,6 +130,9 @@ export function NewPurchaseOrderDialog({
       })
       setUnconfirmed(!ok)
       if (ok) setOpen(false)
+    } catch (cause) {
+      reportError('No se pudo confirmar la orden', cause)
+      setUnconfirmed(true)
     } finally {
       busy.current = false
       setSubmitting(false)
@@ -128,7 +144,10 @@ export function NewPurchaseOrderDialog({
         <Plus />
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl" showCloseButton={!submitting}>
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-2xl"
+        showCloseButton={!submitting}
+      >
         <DialogHeader>
           <DialogTitle>Nueva orden de compra</DialogTitle>
           <DialogDescription>
@@ -136,16 +155,14 @@ export function NewPurchaseOrderDialog({
             acordado. El inventario cambia al recibir la orden.
           </DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={handleSubmit}
-          className="flex max-h-[70dvh] flex-col gap-4"
-        >
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
           <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
             <fieldset disabled={submitting} className="space-y-4">
               {unconfirmed && (
                 <p role="status" className="text-sm">
                   Si el resultado fue incierto, reintenta sin cambiar los datos
-                  para verificar la misma orden.
+                  para verificar la misma orden. Tu captura se conserva al
+                  cerrar este formulario.
                 </p>
               )}
               <div className="space-y-1.5">
@@ -175,125 +192,37 @@ export function NewPurchaseOrderDialog({
                   </p>
                 )}
               </div>
-              <div className="flex items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <Label htmlFor={id + 'product'}>Agregar producto</Label>
-                  <Select
-                    items={activeProducts.map((p) => ({
-                      value: p.id,
-                      label: p.name,
-                    }))}
-                    value={draftProductId}
-                    onValueChange={(value) => setDraftProductId(value ?? '')}
-                  >
-                    <SelectTrigger id={id + 'product'} className="w-full">
-                      <SelectValue placeholder="Producto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeProducts.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addLine}
-                  disabled={
-                    !draftProductId ||
-                    lines.some((line) => line.productId === draftProductId)
-                  }
-                >
-                  Agregar
-                </Button>
-              </div>
+              <PurchaseProductPicker
+                products={products}
+                included={new Set(lines.map((line) => line.productId))}
+                onAdd={addLine}
+              />
+              <h3 className="text-sm font-semibold">
+                Productos en la orden ({lines.length})
+              </h3>
+              {!lines.length && (
+                <p className="text-muted-foreground text-sm">
+                  Busca un producto arriba para empezar tu orden.
+                </p>
+              )}
               {lines.map((line) => {
                 const name =
                   products.find((p) => p.id === line.productId)?.name ??
                   'Producto no disponible'
                 return (
-                  <div
+                  <PurchaseLineEditor
                     key={line.productId}
-                    className="space-y-2 rounded-lg border p-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="flex min-h-10 items-center gap-2 font-medium">
-                        <input
-                          type="checkbox"
-                          checked={line.selected}
-                          onChange={(event) =>
-                            editLine(line.productId, {
-                              selected: event.target.checked,
-                            })
-                          }
-                          aria-label={'Incluir ' + name}
-                        />
-                        {name}
-                      </label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={'Quitar ' + name}
-                        onClick={() =>
-                          setLines((previous) =>
-                            previous.filter(
-                              (item) => item.productId !== line.productId,
-                            ),
-                          )
-                        }
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1.5">
-                        <Label htmlFor={id + line.productId + 'qty'}>
-                          Cantidad
-                        </Label>
-                        <Input
-                          id={id + line.productId + 'qty'}
-                          aria-label={'Cantidad de ' + name}
-                          type="number"
-                          step="0.001"
-                          min="0.001"
-                          max="999999999.999"
-                          required={line.selected}
-                          disabled={!line.selected}
-                          value={line.quantity}
-                          onChange={(event) =>
-                            editLine(line.productId, {
-                              quantity: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor={id + line.productId + 'cost'}>
-                          Costo unitario
-                        </Label>
-                        <Input
-                          id={id + line.productId + 'cost'}
-                          aria-label={'Costo de ' + name}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="9999999999.99"
-                          required={line.selected}
-                          disabled={!line.selected}
-                          value={line.unitCost}
-                          onChange={(event) =>
-                            editLine(line.productId, {
-                              unitCost: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
+                    line={line}
+                    name={name}
+                    onChange={(values) => editLine(line.productId, values)}
+                    onRemove={() =>
+                      setLines((previous) =>
+                        previous.filter(
+                          (item) => item.productId !== line.productId,
+                        ),
+                      )
+                    }
+                  />
                 )
               })}
               <div className="space-y-1.5">
@@ -314,12 +243,37 @@ export function NewPurchaseOrderDialog({
             </span>
             <span>{formatCurrency(total)}</span>
           </p>
+          {!online && (
+            <p role="status" className="text-sm">
+              Necesitas conexión para crear la orden.
+            </p>
+          )}
           <DialogFooter className="shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => handleOpenChange(false)}
+            >
+              Cerrar
+            </Button>
             <Button type="submit" disabled={!valid || !online || submitting}>
               {submitting ? 'Confirmando…' : 'Crear orden'}
             </Button>
           </DialogFooter>
         </form>
+        <ConfirmDialog
+          open={discard}
+          onOpenChange={setDiscard}
+          title="¿Descartar esta orden?"
+          description="La orden aún no se ha enviado. Perderás los productos, cantidades y notas de esta captura."
+          confirmLabel="Descartar orden"
+          variant="destructive"
+          onConfirm={() => {
+            setDiscard(false)
+            setOpen(false)
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

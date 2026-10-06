@@ -1,3 +1,5 @@
+import { CashDenominationCounter } from './CashDenominationCounter'
+import { cashCountTotal, type CashCounts } from './cashCount'
 import { useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,8 +44,16 @@ export function CloseSessionDialog({
   const [error, setError] = useState<string | null>(null)
   const [counted, setCounted] = useState('')
   const [notes, setNotes] = useState('')
-  const amount = Number(counted)
-  const valid = counted.trim() !== '' && Number.isFinite(amount) && amount >= 0
+  const [mode, setMode] = useState<'total' | 'pieces'>('total')
+  const [counts, setCounts] = useState<CashCounts>({})
+  const cents = cashCountTotal(counts)
+  const amount = mode === 'pieces' ? (cents ?? 0) / 100 : Number(counted)
+  const valid =
+    (mode === 'pieces' ? cents !== null : counted.trim() !== '') &&
+    Number.isFinite(amount) &&
+    amount >= 0 &&
+    amount < 10000000000 &&
+    Math.abs(amount * 100 - Math.round(amount * 100)) < 0.0001
   const difference =
     balance && valid
       ? cashDifference(amount, balance.expectedAmount) / 100
@@ -66,6 +76,8 @@ export function CloseSessionDialog({
     setOpen(next)
     if (next) {
       setCounted('')
+      setCounts({})
+      setMode('total')
       setNotes('')
       setBalance(null)
       void loadBalance()
@@ -114,7 +126,7 @@ export function CloseSessionDialog({
         Cerrar caja
       </DialogTrigger>
       <DialogContent
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl"
         showCloseButton={!busy}
       >
         <DialogHeader>
@@ -144,20 +156,70 @@ export function CloseSessionDialog({
           </dl>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="closing_amount">Efectivo contado</Label>
-            <Input
-              id="closing_amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              required
-              value={counted}
+          <div
+            role="group"
+            aria-label="Forma de contar efectivo"
+            className="bg-muted grid grid-cols-2 gap-2 rounded-lg p-1"
+          >
+            <Button
+              type="button"
+              variant={mode === 'total' ? 'default' : 'ghost'}
+              aria-pressed={mode === 'total'}
               disabled={busy}
-              onChange={(event) => setCounted(event.target.value)}
-            />
+              onClick={() => {
+                if (mode === 'pieces' && cents !== null)
+                  setCounted((cents / 100).toFixed(2))
+                setMode('total')
+              }}
+            >
+              Capturar total
+            </Button>
+            <Button
+              type="button"
+              variant={mode === 'pieces' ? 'default' : 'ghost'}
+              aria-pressed={mode === 'pieces'}
+              disabled={busy}
+              onClick={() => setMode('pieces')}
+            >
+              Billetes y monedas
+            </Button>
           </div>
+          {mode === 'pieces' ? (
+            <>
+              <CashDenominationCounter
+                counts={counts}
+                onChange={setCounts}
+                disabled={busy}
+              />
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-sm">Efectivo contado</p>
+                <p className="text-2xl font-semibold tabular-nums">
+                  {cents === null
+                    ? 'Revisa las cantidades'
+                    : formatCurrency(cents / 100)}
+                </p>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                El cierre guardará el total contado. El desglose te ayuda a
+                calcularlo en esta pantalla.
+              </p>
+            </>
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="closing_amount">Efectivo contado</Label>
+              <Input
+                id="closing_amount"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                required
+                value={counted}
+                disabled={busy}
+                onChange={(event) => setCounted(event.target.value)}
+              />
+            </div>
+          )}
           <p role="status" className="bg-muted rounded-md p-3 text-sm">
             {difference === null
               ? 'Ingresa el efectivo contado para ver la diferencia.'
