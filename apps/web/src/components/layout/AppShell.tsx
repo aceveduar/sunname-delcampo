@@ -153,6 +153,8 @@ export function AppShell({
 
       <div className="flex items-start">
         <AppSidebar
+          key={session.user.id}
+          userId={session.user.id}
           isAdmin={isAdmin}
           isOwner={isOwner}
           isLargeText={isLargeText}

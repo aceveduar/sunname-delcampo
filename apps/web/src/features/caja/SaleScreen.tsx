@@ -1,3 +1,5 @@
+import { FavoriteProductStrip } from './FavoriteProductStrip'
+import { CartScrollControls } from './CartScrollControls'
 import { useFavoriteProducts } from './useFavoriteProducts'
 import {
   DropdownMenu,
@@ -9,7 +11,14 @@ import { useCheckoutHeight } from './useCheckoutHeight'
 import { LoadError } from '@/components/LoadError'
 import { DraftRecovery } from './DraftRecovery'
 import { searchProducts } from './productSearch'
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { toast } from 'sonner'
 import {
   Minus,
@@ -20,7 +29,6 @@ import {
   Search,
   Trash2,
   TrendingUp,
-  Star,
 } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
@@ -31,7 +39,13 @@ import { MobileCartSummary } from './MobileCartSummary'
 import { CashPaymentFields } from './CashPaymentFields'
 import { useCartHighlight } from './useCartHighlight'
 import { SearchInput } from '@/components/ui/search-input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -63,7 +77,7 @@ type Role = Database['public']['Enums']['user_role']
 // búsqueda -- mismo tamaño de tarjeta en los dos casos, un solo lugar
 // para ajustar cuántas columnas caben en cada ancho.
 const PRODUCT_GRID_CLASS =
-  'grid gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+  'grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-3'
 
 export function SaleScreen({
   cashSessionId,
@@ -92,11 +106,6 @@ export function SaleScreen({
   const { customers } = useCustomers()
   const { categories } = useCategories()
   const favorites = useFavoriteProducts(userId)
-  const favoriteProducts = favorites.ids
-    .map((id) =>
-      products.find((product) => product.id === id && product.active),
-    )
-    .filter((product): product is Product => !!product)
   const topSellingIds = useTopSellingProducts()
   // La venta en curso vive en un contexto que envuelve las rutas (nunca
   // se desmonta al navegar) -- así el cajero puede ir a consultar
@@ -177,17 +186,13 @@ export function SaleScreen({
       !productsLoading && !productsError && !methodsLoading && !methodsError,
   })
 
-  // Sombra de scroll del carrito -- ver hooks/useScrollShadows. Se le
-  // pasa cart.length como dependencia extra porque el contenedor tiene
-  // altura máxima fija (max-h-[45vh]): agregar una línea no cambia la
-  // caja del propio contenedor (lo que ResizeObserver vigila), solo su
-  // scrollHeight interno.
+  const cartListId = useId()
   const {
     ref: cartListRef,
     canScrollStart: cartCanScrollUp,
     canScrollEnd: cartCanScrollDown,
     onScroll: updateCartScrollShadows,
-  } = useScrollShadows<HTMLDivElement>({ extraDep: cart.length })
+  } = useScrollShadows<HTMLDivElement>({ extraDep: cart })
   const highlightedLine = useCartHighlight(cart, cartListRef)
 
   // Una búsqueda = un producto agregado = listo para la siguiente -- igual
@@ -459,7 +464,7 @@ export function SaleScreen({
           ref={checkoutLayoutRef}
           className={`grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_430px] ${cart.length ? 'pb-32 lg:pb-0' : ''}`}
         >
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <div className="bg-background/95 sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border p-3 shadow-sm backdrop-blur-sm">
               <SearchInput
                 ref={searchInputRef}
@@ -532,61 +537,12 @@ export function SaleScreen({
               products.length === 0 ? null : search.trim() === '' &&
               filterCategory === 'all' ? (
               <>
-                <section
-                  className="bg-brand-gold/5 border-brand-gold/20 flex flex-col gap-3 rounded-xl border p-3"
-                  aria-label="Mis favoritos"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Star aria-hidden className="text-brand-gold size-4" />
-                    <h2 className="text-sm font-semibold">Mis favoritos</h2>
-                    <span className="text-muted-foreground text-xs">
-                      En este navegador
-                    </span>
-                  </div>
-                  {favoriteProducts.length ? (
-                    <div className={PRODUCT_GRID_CLASS}>
-                      {favoriteProducts.map((product) => (
-                        <ProductResultCard
-                          key={product.id}
-                          product={product}
-                          favorite
-                          onToggleFavorite={() => favorites.toggle(product.id)}
-                          onClick={() => handleProductClick(product)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      Marca la estrella de un producto para fijarlo aquí.
-                    </p>
-                  )}
-                  {favorites.ids
-                    .filter(
-                      (id) =>
-                        !products.some(
-                          (product) => product.id === id && product.active,
-                        ),
-                    )
-                    .map((id) => (
-                      <div
-                        key={id}
-                        className="text-muted-foreground flex items-center gap-2 text-sm"
-                      >
-                        <span>
-                          {products.find((product) => product.id === id)
-                            ?.name ?? 'Producto no disponible'}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => favorites.toggle(id)}
-                        >
-                          Quitar favorito
-                        </Button>
-                      </div>
-                    ))}
-                </section>
+                <FavoriteProductStrip
+                  products={products}
+                  ids={favorites.ids}
+                  onToggle={favorites.toggle}
+                  onChoose={handleProductClick}
+                />
                 {topProducts.length > 0 && (
                   <div className="flex flex-col gap-2">
                     <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
@@ -648,10 +604,10 @@ export function SaleScreen({
 
           <Card
             id="current-sale"
-            className="h-fit min-w-0 scroll-mt-4 lg:sticky lg:top-3 lg:h-[var(--sale-panel-height,calc(100dvh-12rem))] lg:gap-2 lg:overflow-y-auto"
+            className="h-fit min-w-0 scroll-mt-4 lg:sticky lg:top-3 lg:h-[var(--sale-panel-height,calc(100dvh-12rem))] lg:gap-2 lg:overflow-hidden"
           >
             <CardHeader className="shrink-0">
-              <CardTitle>
+              <CardTitle className="flex items-center justify-between gap-2">
                 <h2
                   ref={cartHeadingRef}
                   tabIndex={-1}
@@ -663,9 +619,15 @@ export function SaleScreen({
                     )
                   </span>
                 </h2>
+                <CartScrollControls
+                  listRef={cartListRef}
+                  listId={cartListId}
+                  canScrollUp={cartCanScrollUp}
+                  canScrollDown={cartCanScrollDown}
+                />
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
+            <CardContent className="flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               {removedLine && (
                 <div
                   role="status"
@@ -687,18 +649,17 @@ export function SaleScreen({
                 // que la pantalla y el Total/Cobrar quedaban fuera de vista
                 // hasta desplazar toda la página, mientras la columna de
                 // productos ya había terminado y dejaba hueco vacío al lado.
-                // Total, método de pago y Cobrar siempre visibles.
-                <div className="relative lg:min-h-16 lg:flex-1">
-                  {cartCanScrollUp && (
-                    <div
-                      aria-hidden
-                      className="from-card pointer-events-none absolute top-0 right-0 left-0 z-10 h-2 bg-gradient-to-b to-transparent"
-                    />
-                  )}
+                // El cobro queda fuera del scroll. Con texto grande, el cuerpo
+                // también puede desplazarse sin ocultar la acción principal.
+                <div className="relative border-y lg:min-h-36 lg:flex-1">
                   <div
                     ref={cartListRef}
+                    id={cartListId}
+                    role="region"
+                    aria-label="Productos de la venta"
+                    tabIndex={0}
                     onScroll={updateCartScrollShadows}
-                    className="flex max-h-[40dvh] flex-col gap-1 overflow-y-auto overscroll-contain pr-1 lg:absolute lg:inset-0 lg:max-h-none"
+                    className="flex max-h-[40dvh] flex-col gap-1 overflow-y-auto overscroll-contain py-2 pr-1 lg:absolute lg:inset-0 lg:max-h-none"
                   >
                     {cart.map((line, index) => (
                       <div
@@ -831,12 +792,6 @@ export function SaleScreen({
                       </div>
                     ))}
                   </div>
-                  {cartCanScrollDown && (
-                    <div
-                      aria-hidden
-                      className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-2 bg-gradient-to-t to-transparent"
-                    />
-                  )}
                 </div>
               )}
 
@@ -940,30 +895,33 @@ export function SaleScreen({
                         </Select>
                       </div>
                     </details>
-
-                    <Button
-                      className="min-h-12 w-full text-base"
-                      onClick={handleCheckout}
-                      disabled={checkoutDisabled}
-                    >
-                      {submitting ? (
-                        'Cobrando…'
-                      ) : (
-                        <>
-                          {`Cobrar ${formatCurrency(total)}`}
-                          {/* El atajo es para quien tiene teclado (PC del negocio) --
-                        en un celular/tablet por touch no aplica y solo le
-                        resta espacio al botón en la pantalla más angosta. */}
-                          <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
-                            F9
-                          </kbd>
-                        </>
-                      )}
-                    </Button>
                   </>
                 )}
               </div>
             </CardContent>
+            {cart.length > 0 && (
+              <CardFooter className="bg-card shrink-0 border-0 pt-3">
+                <Button
+                  className="min-h-12 w-full text-base"
+                  onClick={handleCheckout}
+                  disabled={checkoutDisabled}
+                >
+                  {submitting ? (
+                    'Cobrando…'
+                  ) : (
+                    <>
+                      {`Cobrar ${formatCurrency(total)}`}
+                      {/* El atajo es para quien tiene teclado (PC del negocio) --
+                        en un celular/tablet por touch no aplica y solo le
+                        resta espacio al botón en la pantalla más angosta. */}
+                      <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 sm:inline">
+                        F9
+                      </kbd>
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            )}
           </Card>
 
           {cart.length > 0 && (

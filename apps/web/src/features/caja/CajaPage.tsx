@@ -1,7 +1,7 @@
 import { PageHeader } from '@/components/PageHeader'
 import { Store } from 'lucide-react'
 import { TicketSearchDialog } from './TicketSearchDialog'
-import { formatCurrency } from '@/lib/currency'
+import { CashSessionStatus } from './CashSessionStatus'
 import { useCallback, useEffect, useState } from 'react'
 import { CashManagementDialog } from './CashManagementDialog'
 import { LoadError } from '@/components/LoadError'
@@ -66,14 +66,10 @@ export function CajaPage({
           icon={Store}
           title="Caja"
           description={
-            <>
-              Abierta a las{' '}
-              {new Date(session.opened_at).toLocaleTimeString('es-MX', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}{' '}
-              con {formatCurrency(session.opening_amount)}.
-            </>
+            <CashSessionStatus
+              openedAt={session.opened_at}
+              openingAmount={session.opening_amount}
+            />
           }
         />
         <div className="flex flex-wrap items-center gap-2 self-start">

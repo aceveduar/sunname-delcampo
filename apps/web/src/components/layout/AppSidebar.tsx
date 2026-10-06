@@ -1,23 +1,30 @@
-import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { Tooltip } from '@base-ui/react/tooltip'
+import { SidebarLink } from './SidebarLink'
+import { useSidebarPreference } from './useSidebarPreference'
+import { useLocation } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { navigationItems } from './navigation'
 import type { ModuleKey } from '@/features/settings/useTenantModules'
 
 export function AppSidebar({
+  userId,
   isAdmin,
   isOwner,
   isLargeText,
   isModuleEnabled,
 }: {
+  userId: string
   isAdmin: boolean
   isOwner: boolean
   isLargeText: boolean
   isModuleEnabled: (key: ModuleKey) => boolean
 }) {
   const { pathname } = useLocation()
-  const [preference, setPreference] = useState<boolean | null>(null)
-  const collapsed = preference ?? (pathname === '/caja' || isLargeText)
+  const { collapsed, toggle } = useSidebarPreference(
+    userId,
+    pathname === '/caja',
+    isLargeText,
+  )
   const items = navigationItems(isAdmin, isOwner, isModuleEnabled)
   return (
     <aside
@@ -39,7 +46,7 @@ export function AppSidebar({
           aria-controls="sidebar-navigation"
           aria-label={collapsed ? 'Expandir navegación' : 'Plegar navegación'}
           title={collapsed ? 'Expandir navegación' : 'Plegar navegación'}
-          onClick={() => setPreference(!collapsed)}
+          onClick={toggle}
         >
           {collapsed ? (
             <PanelLeftOpen className="size-5" />
@@ -53,22 +60,11 @@ export function AppSidebar({
         aria-label="Navegación principal"
         className="space-y-1"
       >
-        {items.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              'focus-visible:outline-ring flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium focus-visible:outline-2 ' +
-              (isActive
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground')
-            }
-          >
-            <Icon aria-hidden className="size-5 shrink-0" />
-            <span className={collapsed ? 'sr-only' : ''}>{label}</span>
-          </NavLink>
-        ))}
+        <Tooltip.Provider delay={200}>
+          {items.map((item) => (
+            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+          ))}
+        </Tooltip.Provider>
       </nav>
       {!collapsed && (
         <p className="text-muted-foreground mt-auto px-2 pt-8 text-xs">
