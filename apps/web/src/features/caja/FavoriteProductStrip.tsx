@@ -82,13 +82,13 @@ export function FavoriteProductStrip({
           ref={ref}
           id={id}
           onScroll={onScroll}
-          className="snap-x snap-mandatory scroll-px-1 overflow-x-auto overscroll-x-contain py-1"
+          className="scrollbar-subtle snap-x snap-mandatory scroll-px-1 overflow-x-auto overscroll-x-contain py-1"
         >
           <div ref={contentRef} className="flex w-max items-stretch gap-2 px-1">
             {available.map((product) => (
               <div
                 key={product.id}
-                className="flex w-64 max-w-[calc(100vw-3.5rem)] shrink-0 snap-start [&>div]:w-full"
+                className="flex w-72 max-w-[calc(100vw-3.5rem)] shrink-0 snap-start [&>div]:w-full"
               >
                 <ProductResultCard
                   product={product}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Clock3 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import { sessionAge } from './sessionAge'
 
@@ -31,6 +32,12 @@ export function CashSessionStatus({
       <span className="whitespace-nowrap">
         · Fondo {formatCurrency(openingAmount)}
       </span>
+      {age?.isLongRunning && (
+        <span className="bg-brand-gold/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+          <Clock3 aria-hidden className="text-brand-gold size-3.5 shrink-0" />
+          24 h o más abierta · Revisa el cierre
+        </span>
+      )}
     </span>
   )
 }

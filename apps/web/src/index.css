@@ -239,3 +239,22 @@ html[data-text-size='lg'] {
     height: auto;
   }
 }
+
+/* A visible, unobtrusive track for compact horizontal product strips. */
+@utility scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) transparent;
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 999px;
+  }
+  @media (forced-colors: active) {
+    scrollbar-color: auto;
+  }
+}

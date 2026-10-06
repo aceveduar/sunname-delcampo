@@ -1,3 +1,4 @@
+import { ProductName } from '@/components/ProductName'
 import { FavoriteProductStrip } from './FavoriteProductStrip'
 import { CartScrollControls } from './CartScrollControls'
 import { useFavoriteProducts } from './useFavoriteProducts'
@@ -692,7 +693,7 @@ export function SaleScreen({
                           En la pantalla donde se cobra dinero real, poder
                           distinguirlos pesa más que una fila más compacta. */}
                           <p className="line-clamp-2 text-sm font-medium">
-                            {line.product.name}
+                            <ProductName name={line.product.name} />
                           </p>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-muted-foreground flex items-center gap-1 text-xs">

@@ -26,3 +26,13 @@ it('maneja el primer minuto, horas de hoy y fechas inválidas', () => {
   })
   expect(sessionAge('invalid', now)).toBeNull()
 })
+
+it('recomienda revisar el cierre desde 24 horas transcurridas, no por cambiar de fecha', () => {
+  const opened = '2026-10-05T23:50:00Z'
+  const start = new Date(opened).getTime()
+  expect(sessionAge(opened, start + 25 * 60000)?.isLongRunning).toBe(false)
+  expect(sessionAge(opened, start + 24 * 3600000 - 1)?.isLongRunning).toBe(
+    false,
+  )
+  expect(sessionAge(opened, start + 24 * 3600000)?.isLongRunning).toBe(true)
+})

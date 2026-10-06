@@ -1,4 +1,5 @@
 import { Package, Star } from 'lucide-react'
+import { ProductName } from '@/components/ProductName'
 import { formatCurrency } from '@/lib/currency'
 import type { Product } from '@/features/catalog/useProducts'
 
@@ -22,7 +23,10 @@ export function ProductResultCard({
       <button
         type="button"
         onClick={onClick}
-        className="hover:bg-muted flex min-w-0 flex-1 flex-col gap-3 rounded-xl p-3 text-left transition-colors"
+        className={
+          'hover:bg-muted flex min-w-0 flex-1 flex-col rounded-xl text-left transition-colors ' +
+          (compact ? 'gap-2 p-2.5' : 'gap-3 p-3')
+        }
       >
         <span className="flex w-full items-start gap-2.5">
           <span className="relative shrink-0">
@@ -53,13 +57,14 @@ export function ProductResultCard({
             )}
           </span>
           <span className="min-w-0 flex-1 text-sm leading-snug font-medium wrap-break-word">
-            {product.name}
+            <ProductName name={product.name} />
           </span>
         </span>
         <span
           className={
             'mt-auto flex w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 ' +
-            (onToggleFavorite ? 'pr-10' : '')
+            (onToggleFavorite ? 'pr-10 ' : '') +
+            (compact ? 'min-h-8' : '')
           }
         >
           {product.price === 0 ? (

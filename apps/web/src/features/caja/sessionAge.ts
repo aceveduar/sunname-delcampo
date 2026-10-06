@@ -28,5 +28,9 @@ export function sessionAge(openedAt: string, now: number) {
     hour: '2-digit',
     minute: '2-digit',
   })
-  return { elapsed, openedLabel: date + ' a las ' + time }
+  return {
+    elapsed,
+    openedLabel: date + ' a las ' + time,
+    isLongRunning: minutes >= 1440,
+  }
 }
