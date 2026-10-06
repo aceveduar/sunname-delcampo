@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { formatStock } from './stockQuantity'
 import { Button } from '@/components/ui/button'
 import { LoadError } from '@/components/LoadError'
 import { supabase } from '@/lib/supabase'
@@ -87,12 +88,17 @@ export function MovementHistory({
                         ? 'Salida manual'
                         : 'Ajuste manual')}
                 </span>
-                <span className="shrink-0 font-semibold tabular-nums">
+                <span
+                  className={
+                    'shrink-0 font-semibold tabular-nums ' +
+                    (delta < 0 ? 'text-destructive' : 'text-success')
+                  }
+                >
                   {delta > 0 ? '+' : ''}
-                  {delta} {unit}
+                  {formatStock(delta)} {unit}
                 </span>
               </div>
-              <p>
+              <p className="text-muted-foreground text-xs">
                 {new Date(row.created_at).toLocaleString('es-MX')} ·{' '}
                 {row.actor?.full_name ?? 'Responsable no disponible'}
               </p>
