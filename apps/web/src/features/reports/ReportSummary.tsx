@@ -36,8 +36,12 @@ export function ReportSummary({
     {
       title: 'Utilidad bruta',
       icon: ChartNoAxesCombined,
-      value: formatCurrency(report.margin),
-      help: `${report.marginPercent.toFixed(0)}% sobre ventas. Antes de gastos.`,
+      value: report.missingCostCount ? '—' : formatCurrency(report.margin),
+      help: report.missingCostCount
+        ? `${report.missingCostCount} ${report.missingCostCount === 1 ? 'renglón' : 'renglones'} sin costo histórico. Utilidad no disponible.`
+        : report.totalAmount === 0
+          ? 'Sin porcentaje sobre ventas. Antes de gastos.'
+          : `${report.marginPercent.toFixed(0)}% sobre ventas. Antes de gastos.`,
     },
   ]
   return (
