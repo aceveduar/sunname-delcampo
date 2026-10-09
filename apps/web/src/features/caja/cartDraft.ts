@@ -14,6 +14,7 @@ export type CartDraft = {
   version: 1
   sessionId: string
   checkoutId: string | null
+  customerId?: string
   lines: DraftLine[]
 }
 
@@ -29,6 +30,9 @@ export function parseDraft(value: string | null): CartDraft | null {
       draft.version !== 1 ||
       typeof draft.sessionId !== 'string' ||
       !(draft.checkoutId === null || typeof draft.checkoutId === 'string') ||
+      !(
+        draft.customerId === undefined || typeof draft.customerId === 'string'
+      ) ||
       !Array.isArray(draft.lines) ||
       !draft.lines.length
     )
@@ -63,11 +67,13 @@ export function createDraft(
   cart: CartLine[],
   sessionId: string,
   checkoutId: string | null,
+  customerId?: string,
 ): CartDraft {
   return {
     version: 1,
     sessionId,
     checkoutId,
+    ...(customerId === undefined ? {} : { customerId }),
     lines: cart.map(({ product, quantity, amountMxn }) => ({
       productId: product.id,
       quantity,

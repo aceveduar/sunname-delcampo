@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { LoadError } from '@/components/LoadError'
 import { supabase } from '@/lib/supabase'
 import type { Product } from '@/features/catalog/useProducts'
-import { useCart } from './CartContext'
+import { NO_CUSTOMER, useCart } from './CartContext'
 
 export function DraftRecovery({
   products,
@@ -38,13 +38,23 @@ export function DraftRecovery({
           return
         }
       }
-      const { omitted, repriced } = recoverDraft(products)
+      let customerId = pendingDraft.customerId ?? NO_CUSTOMER
+      if (customerId !== NO_CUSTOMER) {
+        const customer = await supabase
+          .from('customers')
+          .select('id, active')
+          .eq('id', customerId)
+          .maybeSingle()
+        if (customer.error) throw customer.error
+        if (!customer.data?.active) customerId = NO_CUSTOMER
+      }
+      const { omitted, repriced } = recoverDraft(products, customerId)
       toast.info(
         `Venta recuperada. Revisa el carrito antes de cobrar.${repriced ? ` ${repriced} precios actualizados.` : ''}${omitted ? ` ${omitted} productos no disponibles o con cambio de unidad se omitieron.` : ''}`,
       )
     } catch {
       setError(
-        'No se pudo verificar el cobro anterior. Reintenta antes de continuar.',
+        'No se pudo revisar la venta guardada. Reintenta antes de continuar.',
       )
     } finally {
       setChecking(false)
@@ -58,8 +68,8 @@ export function DraftRecovery({
     >
       <h2 className="font-semibold">Hay una venta pendiente en esta pestaña</h2>
       <p className="text-muted-foreground text-sm">
-        Se recuperarán los productos disponibles con sus precios actuales.
-        Vuelve a indicar el cliente y el efectivo recibido.
+        Se recuperarán los productos disponibles con sus precios actuales. Se
+        revisará el cliente guardado. Vuelve a indicar el efectivo recibido.
       </p>
       {pendingDraft.checkoutId && (
         <p className="text-sm">

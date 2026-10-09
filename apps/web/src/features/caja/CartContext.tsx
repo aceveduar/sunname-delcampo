@@ -7,9 +7,12 @@ import {
   type ReactNode,
 } from 'react'
 import { useCartDraft } from './useCartDraft'
-import { restoreDraft } from './cartDraft'
-import type { CartDraft } from './cartDraft'
+import { createDraft, restoreDraft, type CartDraft } from './cartDraft'
 import type { Product } from '@/features/catalog/useProducts'
+import { createHeldSale, type HeldSale } from './heldSales'
+import { parkSale, takeHeldSale, discardHeldSale } from './heldSaleStorage'
+import { useHeldSales } from './useHeldSales'
+import type { HeldSaleReview } from './reviewHeldSale'
 
 // amountMxn solo existe en líneas pedidas "por monto" ("dame $50 de
 // piquín"): ahí el total de la línea es ese monto exacto y quantity es
@@ -41,13 +44,29 @@ type CartContextValue = {
   pendingDraft: CartDraft | null
   storageError: boolean
   discardDraft: () => void
-  recoverDraft: (products: Product[]) => { omitted: number; repriced: number }
+  recoverDraft: (
+    products: Product[],
+    customerId?: string,
+  ) => { omitted: number; repriced: number }
+  draftReadError: boolean
+  retryDraftRead: () => void
   beginCheckout: () => string
   holdForVerification: () => void
   resetSale: () => void
   removedLine: CartLine | null
   removeCartLine: (index: number) => void
   undoRemoval: () => void
+  heldSales: HeldSale[]
+  heldSalesError: string | null
+  transferBusy: boolean
+  holdSale: (label: string, customerName: string | null) => Promise<void>
+  resumeSale: (
+    id: string,
+    review: HeldSaleReview,
+    sessionId: string,
+  ) => Promise<void>
+  discardHeld: (id: string) => Promise<void>
+  refreshHeld: () => void
 }
 
 const CartContext = createContext<CartContextValue | null>(null)
@@ -63,7 +82,11 @@ export function CartProvider({
   children: ReactNode
   userId: string
 }) {
-  const [cart, setCart] = useState<CartLine[]>([])
+  const [cart, updateCart] = useState<CartLine[]>([])
+  const held = useHeldSales(userId)
+  const setCart: React.Dispatch<React.SetStateAction<CartLine[]>> = (next) => {
+    if (!held.busyRef.current) updateCart(next)
+  }
   const [paymentMethodId, setPaymentMethodId] = useState('')
   const [cashReceived, setCashReceived] = useState('')
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
@@ -73,27 +96,30 @@ export function CartProvider({
     clearDraft,
     syncDraftSession,
     acceptDraft,
-    beginCheckout,
+    beginCheckout: startCheckout,
     holdForVerification,
-  } = useCartDraft(userId, cart)
+    hasCheckoutAttempt,
+    draftReadError,
+    retryDraftRead,
+  } = useCartDraft(userId, cart, customerId)
   const [removed, setRemoved] = useState<{
     line: CartLine
     index: number
   } | null>(null)
   const resetSale = useCallback(() => {
-    setCart([])
+    updateCart([])
     setCashReceived('')
     setPaymentMethodId('')
     setCustomerId(NO_CUSTOMER)
     setRemoved(null)
     clearDraft()
   }, [clearDraft])
-  const recoverDraft = (products: Product[]) => {
+  const recoverDraft = (products: Product[], validatedCustomerId?: string) => {
     if (!pendingDraft) return { omitted: 0, repriced: 0 }
     const restored = restoreDraft(pendingDraft, products)
     setCart(restored.cart)
     setCashReceived('')
-    setCustomerId(NO_CUSTOMER)
+    setCustomerId(validatedCustomerId ?? pendingDraft.customerId ?? NO_CUSTOMER)
     setRemoved(null)
     acceptDraft()
     return restored
@@ -124,6 +150,64 @@ export function CartProvider({
     setRemoved(null)
   }
   const cashSessionIdRef = useRef<string | null>(null)
+  const beginCheckout = () => {
+    if (held.busyRef.current)
+      throw new Error('Espera a que termine la operación actual.')
+    return startCheckout()
+  }
+  const holdSale = (label: string, customerName: string | null) =>
+    held.run(async () => {
+      const sessionId = cashSessionIdRef.current
+      const guard = () => {
+        if (
+          !sessionId ||
+          cashSessionIdRef.current !== sessionId ||
+          !cart.length ||
+          pendingDraft ||
+          hasCheckoutAttempt() ||
+          draftReadError
+        )
+          throw new Error(
+            'Termina de verificar la venta actual antes de ponerla en espera.',
+          )
+      }
+      guard()
+      await parkSale(
+        userId,
+        createHeldSale(cart, sessionId!, customerId, customerName, label),
+        guard,
+      )
+      resetSale()
+    })
+  const resumeSale = (id: string, review: HeldSaleReview, sessionId: string) =>
+    held.run(async () => {
+      const guard = () => {
+        if (
+          cart.length ||
+          pendingDraft ||
+          hasCheckoutAttempt() ||
+          draftReadError
+        )
+          throw new Error(
+            'Pon la venta actual en espera o termínala antes de retomar otra.',
+          )
+        if (cashSessionIdRef.current !== sessionId)
+          throw new Error('La sesión de caja cambió. Revisa la venta de nuevo.')
+        if (!review.cart.length)
+          throw new Error('Esta venta no tiene productos disponibles.')
+      }
+      await takeHeldSale(
+        userId,
+        id,
+        createDraft(review.cart, sessionId, null, review.customerId),
+        guard,
+      )
+      updateCart(review.cart)
+      setCustomerId(review.customerId)
+      setCashReceived('')
+      setPaymentMethodId('')
+      setRemoved(null)
+    })
 
   // Las dependencias son callbacks estables; navegar entre módulos no
   // vuelve a sincronizar ni borra una venta de la misma sesión.
@@ -155,6 +239,8 @@ export function CartProvider({
         syncCashSession,
         pendingDraft,
         storageError,
+        draftReadError,
+        retryDraftRead,
         discardDraft: resetSale,
         recoverDraft,
         beginCheckout,
@@ -163,6 +249,13 @@ export function CartProvider({
         removedLine: removed?.line ?? null,
         removeCartLine,
         undoRemoval,
+        heldSales: held.sales,
+        heldSalesError: held.error,
+        transferBusy: held.busy,
+        holdSale,
+        resumeSale,
+        discardHeld: (id) => held.run(() => discardHeldSale(userId, id)),
+        refreshHeld: held.refresh,
       }}
     >
       {children}

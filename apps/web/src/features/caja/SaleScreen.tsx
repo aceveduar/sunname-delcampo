@@ -1,6 +1,7 @@
 import { ProductName } from '@/components/ProductName'
 import { FavoriteProductStrip } from './FavoriteProductStrip'
 import { CartScrollControls } from './CartScrollControls'
+import { HeldSalesControl } from './HeldSalesControl'
 import { useFavoriteProducts } from './useFavoriteProducts'
 import {
   DropdownMenu,
@@ -104,7 +105,7 @@ export function SaleScreen({
     error: methodsError,
     refresh: refreshMethods,
   } = usePaymentMethods()
-  const { customers } = useCustomers()
+  const { customers, refresh: refreshCustomers } = useCustomers()
   const { categories } = useCategories()
   const favorites = useFavoriteProducts(userId)
   const topSellingIds = useTopSellingProducts()
@@ -126,6 +127,9 @@ export function SaleScreen({
     customerId,
     setCustomerId,
     syncCashSession,
+    transferBusy,
+    draftReadError,
+    retryDraftRead,
   } = useCart()
 
   useEffect(() => {
@@ -444,7 +448,15 @@ export function SaleScreen({
         products={products}
         ready={!productsLoading && !productsError}
       />
-      {storageError && (
+      <LoadError
+        message={
+          draftReadError
+            ? 'No se pudo leer el respaldo de la venta. Reintenta antes de continuar.'
+            : null
+        }
+        onRetry={retryDraftRead}
+      />
+      {storageError && !draftReadError && (
         <p role="alert" className="text-destructive mb-3 text-sm">
           No se pudo guardar el borrador en este navegador. Mantén esta pestaña
           abierta hasta terminar la venta.
@@ -460,7 +472,12 @@ export function SaleScreen({
         onRetry={refreshMethods}
         loading={methodsLoading}
       />
-      <fieldset disabled={!!pendingDraft || submitting} className="contents">
+      <fieldset
+        disabled={
+          !!pendingDraft || submitting || transferBusy || draftReadError
+        }
+        className="contents"
+      >
         <div
           ref={checkoutLayoutRef}
           className={`grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_430px] ${cart.length ? 'pb-32 lg:pb-0' : ''}`}
@@ -627,6 +644,19 @@ export function SaleScreen({
                   canScrollDown={cartCanScrollDown}
                 />
               </CardTitle>
+              <HeldSalesControl
+                sessionId={cashSessionId}
+                customerName={
+                  customers.find((customer) => customer.id === customerId)
+                    ?.name ?? null
+                }
+                disabled={submitting}
+                returnFocus={searchInputRef}
+                onResumed={() => {
+                  void refreshCustomers()
+                  void refreshProducts()
+                }}
+              />
             </CardHeader>
             <CardContent className="flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               {removedLine && (

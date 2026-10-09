@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useCart } from '@/features/caja/CartContext'
-import { createDraft, draftKey, parseDraft } from '@/features/caja/cartDraft'
+import { createDraft } from '@/features/caja/cartDraft'
+import { readCartDraft } from '@/features/caja/heldSaleStorage'
 import { usePendingWrites } from '@/lib/pendingWrites'
 
 export function ModuleRecovery({
@@ -11,13 +12,14 @@ export function ModuleRecovery({
   userId: string
   retry: () => void
 }) {
-  const { cart, pendingDraft, storageError } = useCart()
+  const { cart, pendingDraft, storageError, customerId, transferBusy } =
+    useCart()
   const writes = usePendingWrites()
   const [message, setMessage] = useState('')
   function reload() {
-    if (writes) return
+    if (writes || transferBusy) return
     try {
-      const saved = parseDraft(sessionStorage.getItem(draftKey(userId)))
+      const saved = readCartDraft(userId)
       if (
         storageError ||
         (pendingDraft &&
@@ -27,7 +29,12 @@ export function ModuleRecovery({
           (!saved ||
             JSON.stringify(saved) !==
               JSON.stringify(
-                createDraft(cart, saved.sessionId, saved.checkoutId),
+                createDraft(
+                  cart,
+                  saved.sessionId,
+                  saved.checkoutId,
+                  customerId,
+                ),
               )))
       ) {
         setMessage(
@@ -53,7 +60,7 @@ export function ModuleRecovery({
         <p>
           Hay una venta pendiente. Antes de recargar comprobaremos su respaldo;
           al volver podrás revisar el borrador. Tendrás que volver a capturar el
-          pago y el cliente.
+          pago.
         </p>
       )}
       {writes > 0 && <p>Espera a que termine la operación en curso.</p>}
@@ -65,7 +72,7 @@ export function ModuleRecovery({
         <Button
           variant="outline"
           onClick={reload}
-          disabled={writes > 0 || storageError}
+          disabled={writes > 0 || storageError || transferBusy}
         >
           Recargar aplicación
         </Button>

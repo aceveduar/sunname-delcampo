@@ -34,6 +34,8 @@ export function useSubmitSale({
     paymentMethodId,
     cashReceived,
     customerId,
+    transferBusy,
+    draftReadError,
   } = useCart()
   const online = useOnlineStatus()
   const submittingRef = useRef(false)
@@ -64,6 +66,8 @@ export function useSubmitSale({
     !!pendingDraft ||
     !Number.isFinite(received) ||
     submitting ||
+    transferBusy ||
+    draftReadError ||
     (selectedMethod?.code === 'cash' && received < total)
 
   const handleCheckout = async () => {

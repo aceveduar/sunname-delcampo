@@ -29,7 +29,7 @@ export function CajaPage({
   )
   const { session, loading, error, refresh, openSession, closeSession } =
     useCashSession()
-  const { resetSale, cart, pendingDraft } = useCart()
+  const { resetSale, cart, pendingDraft, transferBusy } = useCart()
   useEffect(() => {
     if (!loading && !error && !session) resetSale()
   }, [loading, error, session, resetSale])
@@ -85,7 +85,12 @@ export function CajaPage({
             key={session.id}
             sessionId={session.id}
             onClose={closeSession}
-            disabled={cart.length > 0 || !!pendingDraft || movementPending}
+            disabled={
+              cart.length > 0 ||
+              !!pendingDraft ||
+              movementPending ||
+              transferBusy
+            }
           />
           {(cart.length > 0 || pendingDraft) && (
             <p className="text-muted-foreground mt-1 max-w-xs text-xs">

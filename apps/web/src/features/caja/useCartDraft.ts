@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createDraft, draftKey, parseDraft, type CartDraft } from './cartDraft'
+import { createDraft, draftKey, type CartDraft } from './cartDraft'
 import type { CartLine } from './CartContext'
+import { readCartDraft } from './heldSaleStorage'
 
 /** sessionStorage aísla pestañas; la clave aísla usuarios y proyectos. */
-export function useCartDraft(userId: string, cart: CartLine[]) {
+export function useCartDraft(
+  userId: string,
+  cart: CartLine[],
+  customerId: string,
+) {
   const key = draftKey(userId)
-  const [pendingDraft, setPendingDraft] = useState(() => {
+  const [initial] = useState(() => {
     try {
-      return parseDraft(sessionStorage.getItem(key))
+      return { draft: readCartDraft(userId), failed: false }
     } catch {
-      return null
+      return { draft: null, failed: true }
     }
   })
+  const [pendingDraft, setPendingDraft] = useState(initial.draft)
+  const [draftReadError, setDraftReadError] = useState(initial.failed)
   const [storageError, setStorageError] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const attemptId = useRef<string | null>(null)
@@ -29,17 +36,20 @@ export function useCartDraft(userId: string, cart: CartLine[]) {
   )
 
   useEffect(() => {
-    if (!sessionId || pendingDraft) return
+    if (!sessionId || pendingDraft || draftReadError) return
     persist(
-      cart.length ? createDraft(cart, sessionId, attemptId.current) : null,
+      cart.length
+        ? createDraft(cart, sessionId, attemptId.current, customerId)
+        : null,
     )
-  }, [cart, sessionId, pendingDraft, persist])
+  }, [cart, sessionId, pendingDraft, persist, customerId, draftReadError])
 
   const clearDraft = useCallback(() => {
+    if (draftReadError) return
     attemptId.current = null
     setPendingDraft(null)
     persist(null)
-  }, [persist])
+  }, [persist, draftReadError])
 
   const syncDraftSession = useCallback((id: string) => {
     setSessionId(id)
@@ -55,24 +65,39 @@ export function useCartDraft(userId: string, cart: CartLine[]) {
   }, [pendingDraft])
 
   const beginCheckout = () => {
-    if (!sessionId) throw new Error('La caja no está lista')
+    if (!sessionId || draftReadError) throw new Error('La caja no está lista')
     attemptId.current ??= crypto.randomUUID()
-    persist(createDraft(cart, sessionId, attemptId.current))
+    persist(createDraft(cart, sessionId, attemptId.current, customerId))
     return attemptId.current
   }
 
   const holdForVerification = () => {
     if (sessionId)
-      setPendingDraft(createDraft(cart, sessionId, attemptId.current))
+      setPendingDraft(
+        createDraft(cart, sessionId, attemptId.current, customerId),
+      )
   }
 
   return {
     pendingDraft,
-    storageError,
+    storageError: storageError || draftReadError,
+    draftReadError,
+    retryDraftRead: () => {
+      try {
+        const draft = readCartDraft(userId)
+        setPendingDraft(
+          !sessionId || draft?.sessionId === sessionId ? draft : null,
+        )
+        setDraftReadError(false)
+      } catch {
+        setDraftReadError(true)
+      }
+    },
     clearDraft,
     syncDraftSession,
     acceptDraft,
     beginCheckout,
     holdForVerification,
+    hasCheckoutAttempt: () => attemptId.current !== null,
   }
 }
