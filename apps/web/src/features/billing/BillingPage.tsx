@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/PageHeader'
+import { LoadError } from '@/components/LoadError'
 import { ReceiptText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { FileWarning, Receipt } from 'lucide-react'
@@ -46,7 +47,12 @@ function InvoiceStatusBadge({
 }
 
 export function BillingPage() {
-  const { isComplete, loading: loadingFiscal } = useTenantFiscalSettings()
+  const {
+    isComplete,
+    loading: loadingFiscal,
+    error: fiscalError,
+    refresh: refreshFiscal,
+  } = useTenantFiscalSettings()
   const { sessions, loading, requestingId, requestInvoice } =
     useFiscalInvoices()
 
@@ -58,7 +64,12 @@ export function BillingPage() {
         description="Consulta tus cortes de caja y da seguimiento a las solicitudes de factura."
       />
 
-      {!loadingFiscal && !isComplete && (
+      <LoadError
+        message={fiscalError}
+        onRetry={refreshFiscal}
+        loading={loadingFiscal}
+      />
+      {!loadingFiscal && !fiscalError && !isComplete && (
         <div className="border-destructive/30 bg-destructive/5 flex items-start gap-3 rounded-lg border p-4">
           <FileWarning className="text-destructive mt-0.5 size-5 shrink-0" />
           <div className="flex flex-col gap-1">

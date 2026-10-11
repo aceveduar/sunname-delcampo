@@ -34,14 +34,27 @@ export function ConfirmDialog({
   onConfirm: () => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!confirming) onOpenChange(next)
+      }}
+    >
+      <DialogContent
+        className="sm:max-w-md"
+        showCloseButton={!confirming}
+        aria-busy={confirming}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="text-muted-foreground text-sm">{description}</div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            disabled={confirming}
+            onClick={() => onOpenChange(false)}
+          >
             Cancelar
           </Button>
           <Button variant={variant} disabled={confirming} onClick={onConfirm}>

@@ -1,4 +1,5 @@
 import { ModuleRecovery } from '@/components/integrations/ModuleRecovery'
+import { LoadError } from '@/components/LoadError'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 import { SafeAppUpdate } from '@/components/integrations/SafeAppUpdate'
 import { lazy, Suspense, useEffect } from 'react'
@@ -81,10 +82,7 @@ const SettingsPage = lazy(() =>
 )
 
 function App() {
-  const location = useLocation()
   const { session, profile, loading, toggleLargeText } = useAuth()
-  const { isEnabled: isModuleEnabled, loading: modulesLoading } =
-    useTenantModules(!!session)
 
   // Un solo lugar aplica el atributo que dispara el CSS de modo texto
   // grande (index.css) -- así se agranda la app entera con un cambio, sin
@@ -98,12 +96,8 @@ function App() {
     }
   }, [profile?.large_text_mode])
 
-  // Ambos deben terminar de cargar antes de decidir cualquier redirect --
-  // igual que con el perfil en useAuth, decidir con isModuleEnabled() en
-  // false por default (mientras carga) manda a /caja de vuelta a alguien
-  // que sí tiene el módulo activo, con solo entrar directo a la URL o
-  // refrescar la página.
-  if (loading || (session && modulesLoading)) {
+  // No se resuelven rutas antes de conocer la sesión y el perfil.
+  if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
         <p className="text-muted-foreground">Cargando…</p>
@@ -125,6 +119,44 @@ function App() {
             <LoginForm />
           </CardContent>
         </Card>
+      </main>
+    )
+  }
+
+  return (
+    <Workspace
+      key={session.user.id}
+      session={session}
+      profile={profile}
+      toggleLargeText={toggleLargeText}
+    />
+  )
+}
+
+/** El estado de módulos se comparte con Configuración y se descarta al cambiar de usuario. */
+function Workspace({
+  session,
+  profile,
+  toggleLargeText,
+}: {
+  session: NonNullable<ReturnType<typeof useAuth>['session']>
+  profile: ReturnType<typeof useAuth>['profile']
+  toggleLargeText: ReturnType<typeof useAuth>['toggleLargeText']
+}) {
+  const location = useLocation()
+  const tenantModules = useTenantModules()
+  const {
+    isEnabled: isModuleEnabled,
+    loading: modulesLoading,
+    modules,
+    error,
+    refresh,
+  } = tenantModules
+  if (!modules) {
+    return (
+      <main className="mx-auto max-w-lg p-8">
+        {modulesLoading && !error && <p role="status">Cargando módulos…</p>}
+        <LoadError message={error} onRetry={refresh} loading={modulesLoading} />
       </main>
     )
   }
@@ -281,7 +313,11 @@ function App() {
               <Route
                 path="/configuracion"
                 element={
-                  isOwner ? <SettingsPage /> : <Navigate to="/caja" replace />
+                  isOwner ? (
+                    <SettingsPage tenantModules={tenantModules} />
+                  ) : (
+                    <Navigate to="/caja" replace />
+                  )
                 }
               />
               <Route path="*" element={<Navigate to="/caja" replace />} />

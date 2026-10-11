@@ -1,46 +1,49 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { reportError } from '@/lib/errors'
+import { useAsyncResource } from '@/lib/useAsyncResource'
+
+const fetchSettings = () =>
+  supabase.from('tenant_settings').select('business_name').single()
 
 export function useTenantSettings() {
-  const [businessName, setBusinessName] = useState('')
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('tenant_settings')
-      .select('business_name')
-      .single()
-    if (error) {
-      reportError('No se pudo cargar la configuración del negocio', error)
-    } else {
-      setBusinessName(data.business_name)
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
+  const { data, setData, loading, error, refresh } = useAsyncResource<{
+    business_name: string
+  } | null>(
+    fetchSettings,
+    'No se pudo cargar la configuración del negocio',
+    null,
+  )
+  const ready = data !== null && !loading && !error
   const updateBusinessName = useCallback(
     async (name: string) => {
-      const { error } = await supabase
+      if (!ready || !name.trim()) return false
+      const { data: saved, error: saveError } = await supabase
         .from('tenant_settings')
-        .update({ business_name: name })
+        .update({ business_name: name.trim() })
         .eq('id', 1)
-      if (error) {
-        reportError('No se pudo guardar el nombre del negocio', error)
+        .select('business_name')
+        .single()
+      if (saveError || !saved) {
+        reportError(
+          'No se pudo guardar el nombre del negocio',
+          saveError ?? new Error('Respuesta sin datos'),
+        )
         return false
       }
+      setData(saved)
       toast.success('Nombre del negocio actualizado')
-      await refresh()
       return true
     },
-    [refresh],
+    [ready, setData],
   )
-
-  return { businessName, loading, updateBusinessName }
+  return {
+    businessName: data?.business_name ?? '',
+    ready,
+    loading,
+    error,
+    refresh,
+    updateBusinessName,
+  }
 }

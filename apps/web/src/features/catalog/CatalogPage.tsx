@@ -2,6 +2,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { Package } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Database } from '@/lib/database.types'
+import { isAdminRole } from '@/lib/roles'
 import { ProductsTab } from './ProductsTab'
 import { CategoriesTab } from './CategoriesTab'
 import { UnitsTab } from './UnitsTab'
@@ -27,10 +28,10 @@ export function CatalogPage({ role }: { role: Role | null }) {
           <ProductsTab role={role} />
         </TabsContent>
         <TabsContent value="categories">
-          <CategoriesTab />
+          <CategoriesTab canManage={isAdminRole(role)} />
         </TabsContent>
         <TabsContent value="units">
-          <UnitsTab />
+          <UnitsTab canManage={isAdminRole(role)} />
         </TabsContent>
       </Tabs>
     </div>

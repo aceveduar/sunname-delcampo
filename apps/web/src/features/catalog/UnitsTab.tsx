@@ -1,17 +1,8 @@
 import { LoadError } from '@/components/LoadError'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -20,10 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { toCode, toTitleCase } from '@/lib/text'
 import { useUnits, type UnitOfMeasure } from './useUnits'
 
-export function UnitsTab() {
+import { UnitForm } from './UnitForm'
+import { useAsyncAction } from '@/lib/useAsyncAction'
+
+export function UnitsTab({ canManage = false }: { canManage?: boolean }) {
   const {
     units,
     loading,
@@ -36,27 +29,20 @@ export function UnitsTab() {
   const [editing, setEditing] = useState<UnitOfMeasure | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  const toggle = useAsyncAction(
+    'No se pudo cambiar el estado. Inténtalo de nuevo.',
+  )
+
   const openCreate = () => {
+    if (!canManage || toggle.pendingRef.current) return
     setEditing(null)
     setDialogOpen(true)
   }
 
   const openEdit = (unit: UnitOfMeasure) => {
+    if (!canManage || toggle.pendingRef.current) return
     setEditing(unit)
     setDialogOpen(true)
-  }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const code = toCode(String(form.get('code') ?? ''))
-    const name = toTitleCase(String(form.get('name') ?? ''))
-
-    const ok = editing
-      ? await updateUnit(editing.id, { code, name })
-      : await createUnit({ code, name })
-
-    if (ok) setDialogOpen(false)
   }
 
   return (
@@ -67,25 +53,39 @@ export function UnitsTab() {
           Unidades en las que se venden y miden los productos (pieza, kilogramo,
           litro...).
         </p>
-        <Button onClick={openCreate} size="sm" className="self-start">
-          <Plus /> Nueva unidad
-        </Button>
+        {canManage && (
+          <Button
+            onClick={openCreate}
+            size="sm"
+            className="self-start"
+            disabled={toggle.pending}
+          >
+            <Plus /> Nueva unidad
+          </Button>
+        )}
       </div>
 
+      {toggle.error && (
+        <p role="alert" className="text-destructive text-sm">
+          {toggle.error}
+        </p>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Código</TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            {canManage && (
+              <TableHead className="text-right">Acciones</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {!loading && !error && units.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={4}
+                colSpan={canManage ? 4 : 3}
                 className="text-muted-foreground text-center"
               >
                 Aún no hay unidades de medida.
@@ -101,63 +101,46 @@ export function UnitsTab() {
                   {unit.active ? 'Activa' : 'Inactiva'}
                 </Badge>
               </TableCell>
-              <TableCell className="flex justify-end gap-2 text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEdit(unit)}
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleActive(unit)}
-                >
-                  {unit.active ? 'Desactivar' : 'Activar'}
-                </Button>
-              </TableCell>
+              {canManage && (
+                <TableCell className="flex justify-end gap-2 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={toggle.pending}
+                    onClick={() => openEdit(unit)}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={toggle.pending}
+                    onClick={() => {
+                      if (canManage) void toggle.run(() => toggleActive(unit))
+                    }}
+                  >
+                    {unit.active ? 'Desactivar' : 'Activar'}
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? 'Editar unidad' : 'Nueva unidad'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="unit-code">Código</Label>
-              <Input
-                id="unit-code"
-                name="code"
-                defaultValue={editing?.code}
-                placeholder="KG"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="unit-name">Nombre</Label>
-              <Input
-                id="unit-name"
-                name="name"
-                defaultValue={editing?.name}
-                placeholder="Kilogramo"
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit">
-                {editing ? 'Guardar cambios' : 'Crear unidad'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {canManage && dialogOpen && (
+        <UnitForm
+          unit={editing}
+          onClose={() => setDialogOpen(false)}
+          onSave={(values) =>
+            canManage
+              ? editing
+                ? updateUnit(editing.id, values)
+                : createUnit(values)
+              : Promise.resolve(false)
+          }
+        />
+      )}
     </div>
   )
 }

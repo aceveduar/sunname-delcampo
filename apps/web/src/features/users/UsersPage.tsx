@@ -1,19 +1,10 @@
 import { PageHeader } from '@/components/PageHeader'
 import { UsersRound } from 'lucide-react'
 import { LoadError } from '@/components/LoadError'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -31,7 +22,8 @@ import {
 } from '@/components/ui/table'
 import type { Database } from '@/lib/database.types'
 import { ROLE_LABELS } from '@/lib/roles'
-import { toTitleCase } from '@/lib/text'
+import { useAsyncAction } from '@/lib/useAsyncAction'
+import { UserNameForm } from './UserNameForm'
 import { InviteUserDialog } from './InviteUserDialog'
 import { useProfiles, type Profile } from './useProfiles'
 
@@ -70,37 +62,26 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
     profile: Profile
     role: Role
   } | null>(null)
-  const [changingRole, setChangingRole] = useState(false)
+  const roleAction = useAsyncAction(
+    'No se pudo cambiar el rol. Inténtalo de nuevo.',
+  )
   const [toggleTarget, setToggleTarget] = useState<Profile | null>(null)
-  const [togglingActive, setTogglingActive] = useState(false)
+  const activeAction = useAsyncAction(
+    'No se pudo cambiar el estado. Inténtalo de nuevo.',
+  )
 
   const handleConfirmRoleChange = async () => {
     if (!roleChangeTarget) return
-    setChangingRole(true)
-    const ok = await updateRole(
-      roleChangeTarget.profile.id,
-      roleChangeTarget.role,
+    const ok = await roleAction.run(() =>
+      updateRole(roleChangeTarget.profile.id, roleChangeTarget.role),
     )
-    setChangingRole(false)
     if (ok) setRoleChangeTarget(null)
   }
 
   const handleConfirmToggleActive = async () => {
     if (!toggleTarget) return
-    setTogglingActive(true)
-    const ok = await toggleActive(toggleTarget)
-    setTogglingActive(false)
+    const ok = await activeAction.run(() => toggleActive(toggleTarget))
     if (ok) setToggleTarget(null)
-  }
-
-  const handleSubmitName = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!editingName) return
-    const form = new FormData(event.currentTarget)
-    const fullName = toTitleCase(String(form.get('full_name') ?? ''))
-    if (!fullName) return
-    const ok = await updateFullName(editingName.id, fullName)
-    if (ok) setEditingName(null)
   }
 
   return (
@@ -155,13 +136,18 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     <Select
                       items={ROLE_ITEMS}
                       value={profile.role}
-                      onValueChange={(value) =>
-                        value &&
+                      onValueChange={(value) => {
+                        if (!value) return
+                        roleAction.clearError()
                         setRoleChangeTarget({ profile, role: value as Role })
-                      }
+                      }}
                       disabled={isSelf}
                     >
-                      <SelectTrigger className="w-48" size="sm">
+                      <SelectTrigger
+                        className="w-48"
+                        size="sm"
+                        aria-label={`Rol de ${profile.full_name}`}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -197,7 +183,10 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                     disabled={
                       isSelf || (!canEditRoles && profile.role !== 'cashier')
                     }
-                    onClick={() => setToggleTarget(profile)}
+                    onClick={() => {
+                      activeAction.clearError()
+                      setToggleTarget(profile)
+                    }}
                   >
                     {profile.active ? 'Desactivar' : 'Activar'}
                   </Button>
@@ -208,62 +197,59 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
         </TableBody>
       </Table>
 
-      <Dialog
-        open={editingName !== null}
-        onOpenChange={(open) => !open && setEditingName(null)}
-      >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Editar nombre</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmitName} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-full-name">Nombre completo</Label>
-              <Input
-                id="edit-full-name"
-                name="full_name"
-                defaultValue={editingName?.full_name}
-                required
-                autoFocus
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit">Guardar</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {editingName && (
+        <UserNameForm
+          key={editingName.id}
+          initialName={editingName.full_name}
+          onSave={(name) => updateFullName(editingName.id, name)}
+          onClose={() => setEditingName(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={roleChangeTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setRoleChangeTarget(null)
+          if (!open && !roleAction.pendingRef.current) setRoleChangeTarget(null)
         }}
         title="Cambiar rol"
         description={
-          roleChangeTarget &&
-          `¿Cambiar el rol de ${roleChangeTarget.profile.full_name} a "${ROLE_LABELS[roleChangeTarget.role]}"?`
+          <>
+            {roleChangeTarget &&
+              `¿Cambiar el rol de ${roleChangeTarget.profile.full_name} a "${ROLE_LABELS[roleChangeTarget.role]}"?`}
+            {roleAction.error && (
+              <p role="alert" className="text-destructive mt-2">
+                {roleAction.error}
+              </p>
+            )}
+          </>
         }
         confirmLabel="Cambiar rol"
         confirmingLabel="Cambiando…"
-        confirming={changingRole}
+        confirming={roleAction.pending}
         onConfirm={handleConfirmRoleChange}
       />
 
       <ConfirmDialog
         open={toggleTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setToggleTarget(null)
+          if (!open && !activeAction.pendingRef.current) setToggleTarget(null)
         }}
         title={toggleTarget?.active ? 'Desactivar usuario' : 'Activar usuario'}
         description={
-          toggleTarget &&
-          `¿${toggleTarget.active ? 'Desactivar' : 'Activar'} a ${toggleTarget.full_name}?`
+          <>
+            {toggleTarget &&
+              `¿${toggleTarget.active ? 'Desactivar' : 'Activar'} a ${toggleTarget.full_name}?`}
+            {activeAction.error && (
+              <p role="alert" className="text-destructive mt-2">
+                {activeAction.error}
+              </p>
+            )}
+          </>
         }
         confirmLabel={toggleTarget?.active ? 'Desactivar' : 'Activar'}
         confirmingLabel="Guardando…"
         variant={toggleTarget?.active ? 'destructive' : 'default'}
-        confirming={togglingActive}
+        confirming={activeAction.pending}
         onConfirm={handleConfirmToggleActive}
       />
     </div>
