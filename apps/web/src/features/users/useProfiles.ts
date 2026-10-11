@@ -4,13 +4,24 @@ import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
 import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
+import { readAllPages } from '@/lib/readAllPages'
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
 type Role = Database['public']['Enums']['user_role']
 
 export function useProfiles() {
   const fetchProfiles = useCallback(
-    () => supabase.from('profiles').select('*').order('full_name'),
+    async () => ({
+      data: await readAllPages((from, to) =>
+        supabase
+          .from('profiles')
+          .select('*', { count: 'exact' })
+          .order('full_name')
+          .order('id')
+          .range(from, to),
+      ),
+      error: null,
+    }),
     [],
   )
   const {

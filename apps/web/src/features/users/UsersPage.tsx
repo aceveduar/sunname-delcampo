@@ -1,38 +1,18 @@
 import { PageHeader } from '@/components/PageHeader'
-import { UsersRound } from 'lucide-react'
+import { UsersRound, RefreshCw } from 'lucide-react'
 import { LoadError } from '@/components/LoadError'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import type { Database } from '@/lib/database.types'
 import { ROLE_LABELS } from '@/lib/roles'
 import { useAsyncAction } from '@/lib/useAsyncAction'
 import { UserNameForm } from './UserNameForm'
+import { UserDirectory } from './UserDirectory'
 import { InviteUserDialog } from './InviteUserDialog'
 import { useProfiles, type Profile } from './useProfiles'
 
 type Role = Database['public']['Enums']['user_role']
-
-const ROLE_ITEMS = (Object.keys(ROLE_LABELS) as Role[]).map((role) => ({
-  value: role,
-  label: ROLE_LABELS[role],
-}))
 
 export function UsersPage({ currentUserId }: { currentUserId: string }) {
   const {
@@ -71,7 +51,14 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   )
 
   const handleConfirmRoleChange = async () => {
-    if (!roleChangeTarget) return
+    if (
+      !roleChangeTarget ||
+      !canEditRoles ||
+      roleChangeTarget.profile.id === currentUserId ||
+      loading ||
+      error
+    )
+      return
     const ok = await roleAction.run(() =>
       updateRole(roleChangeTarget.profile.id, roleChangeTarget.role),
     )
@@ -79,7 +66,15 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   }
 
   const handleConfirmToggleActive = async () => {
-    if (!toggleTarget) return
+    if (
+      !toggleTarget ||
+      toggleTarget.id === currentUserId ||
+      loading ||
+      error ||
+      (!canEditRoles &&
+        (currentUserRole !== 'local_admin' || toggleTarget.role !== 'cashier'))
+    )
+      return
     const ok = await activeAction.run(() => toggleActive(toggleTarget))
     if (ok) setToggleTarget(null)
   }
@@ -92,7 +87,16 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
         title="Usuarios"
         description="Organiza tu equipo y sus permisos de acceso."
         actions={
-          <div className="self-start">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={loading}
+              onClick={() => void refresh()}
+            >
+              <RefreshCw className={loading ? 'animate-spin' : ''} />
+              Actualizar
+            </Button>
             <InviteUserDialog
               onInvited={refresh}
               currentUserRole={currentUserRole}
@@ -101,101 +105,22 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
         }
       />
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Rol</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {!loading && !error && profiles.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={4}
-                className="text-muted-foreground text-center"
-              >
-                No hay usuarios todavía.
-              </TableCell>
-            </TableRow>
-          )}
-          {profiles.map((profile) => {
-            const isSelf = profile.id === currentUserId
-            return (
-              <TableRow key={profile.id}>
-                <TableCell className="font-medium">
-                  {profile.full_name}
-                  {isSelf && (
-                    <span className="text-muted-foreground"> (tú)</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {canEditRoles ? (
-                    <Select
-                      items={ROLE_ITEMS}
-                      value={profile.role}
-                      onValueChange={(value) => {
-                        if (!value) return
-                        roleAction.clearError()
-                        setRoleChangeTarget({ profile, role: value as Role })
-                      }}
-                      disabled={isSelf}
-                    >
-                      <SelectTrigger
-                        className="w-48"
-                        size="sm"
-                        aria-label={`Rol de ${profile.full_name}`}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ROLE_ITEMS.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge variant="secondary">
-                      {ROLE_LABELS[profile.role]}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={profile.active ? 'default' : 'secondary'}>
-                    {profile.active ? 'Activo' : 'Inactivo'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="flex justify-end gap-2 text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingName(profile)}
-                  >
-                    Editar nombre
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={
-                      isSelf || (!canEditRoles && profile.role !== 'cashier')
-                    }
-                    onClick={() => {
-                      activeAction.clearError()
-                      setToggleTarget(profile)
-                    }}
-                  >
-                    {profile.active ? 'Desactivar' : 'Activar'}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+      <UserDirectory
+        profiles={profiles}
+        loading={loading}
+        error={error}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        onEdit={setEditingName}
+        onRoleChange={(profile, role) => {
+          roleAction.clearError()
+          setRoleChangeTarget({ profile, role })
+        }}
+        onToggle={(profile) => {
+          activeAction.clearError()
+          setToggleTarget(profile)
+        }}
+      />
 
       {editingName && (
         <UserNameForm

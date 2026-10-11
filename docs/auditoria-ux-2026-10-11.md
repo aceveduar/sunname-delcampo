@@ -10,11 +10,30 @@ de descarte. Las confirmaciones de cambios de rol/estado quedan protegidas duran
 la operación. También se protegió la carga del nombre del negocio y se distingue
 el error de consulta fiscal en Facturación.
 
-Quedan para las siguientes entregas la presentación móvil de Usuarios y la
-revisión de importes, consulta de cortes e historial de Facturación (3, 6, 7 y 9).
+Segunda entrega: corregidos los puntos 3, 6, 7 y 9. Usuarios incorpora tarjetas
+móviles, búsqueda sin acentos, filtros de rol/estado y paginación; las acciones
+conservan los permisos del directorio. Facturación separa efectivo contado,
+ventas del corte y total registrado en la solicitud. Añade filtros de fecha/estado
+en servidor, páginas de veinte cortes, detalle de solicitud y errores recuperables.
 Los hallazgos originales se conservan debajo como referencia de la auditoría.
 
-La siguiente mejora debe concentrarse en Configuración, Usuarios, Categorías,
+La vista previa suma todas las páginas de ventas completadas, en centavos, con
+el mismo criterio de la RPC existente. No bloquea el importe mientras se revisa:
+si hay una anulación concurrente, la RPC calcula el total vigente al registrar
+la solicitud y la interfaz muestra después ese total guardado. Un reintento
+consulta primero si el corte ya tiene una solicitud, y también reconcilia una
+respuesta fallida antes de informar que no pudo confirmarse. El timbrado con PAC
+sigue pendiente; esta entrega no genera CFDI ni modifica las migraciones.
+
+Validación de la segunda entrega: Chrome a 1366 × 900 y 390 × 844, modo oscuro
+y texto al 125 %, con API simulada de 26 usuarios, 23 cortes y un corte de
+501 ventas. Se comprobó búsqueda, formulario de nombre, paginación, filtros,
+detalle con error y recuperación tras una consulta rechazada; cero escrituras
+y cero peticiones a servicios reales. Pruebas automatizadas adicionales cubren
+permisos de acciones, fechas inválidas, centavos, páginas incompletas, reintentos
+y protección del diálogo durante el envío.
+
+La revisión inicial se concentró en Configuración, Usuarios, Categorías,
 Unidades y Facturación. Comparten el diseño del sistema, pero varios estados de
 carga, permisos y guardado todavía dejan al usuario sin una respuesta clara.
 

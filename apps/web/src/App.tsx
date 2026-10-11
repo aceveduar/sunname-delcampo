@@ -294,7 +294,7 @@ function Workspace({
                 path="/facturacion"
                 element={
                   isAdmin && isModuleEnabled('billing') ? (
-                    <BillingPage />
+                    <BillingPage canConfigure={isOwner} />
                   ) : (
                     <Navigate to="/caja" replace />
                   )

@@ -19,7 +19,7 @@ export function PaginationControls({
   const to = Math.min(page * pageSize, totalItems)
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-muted-foreground text-sm">
         {from}–{to} de {totalItems}
         {totalPages > 1 && ` · página ${page} de ${totalPages}`}
