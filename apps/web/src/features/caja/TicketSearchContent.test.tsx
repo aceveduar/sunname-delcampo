@@ -10,6 +10,7 @@ import { TicketSearchContent } from './TicketSearchContent'
 import { loadTickets, type TicketQuery } from './ticketSearch'
 import { ticketDates, ticketPeriodLabel } from './ticketFilters'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+vi.mock('@/lib/supabase', () => ({ supabase: { from: vi.fn() } }))
 vi.mock('./ticketSearch', async (original) => ({
   ...(await original<typeof import('./ticketSearch')>()),
   loadTickets: vi.fn(),
