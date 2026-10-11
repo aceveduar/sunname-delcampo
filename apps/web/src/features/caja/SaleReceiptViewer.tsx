@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, type RefObject } from 'react'
 import { LoadError } from '@/components/LoadError'
 import {
   Dialog,
@@ -12,9 +12,11 @@ import { fetchSaleReceipt } from './saleReceipt'
 export function SaleReceiptViewer({
   saleId,
   onClose,
+  returnFocus,
 }: {
   saleId: string
   onClose: () => void
+  returnFocus?: RefObject<HTMLElement | null>
 }) {
   const fetcher = useCallback(() => fetchSaleReceipt(saleId), [saleId])
   const { data, error, loading, refresh } =
@@ -23,7 +25,15 @@ export function SaleReceiptViewer({
       'No se pudo cargar el ticket',
       null,
     )
-  if (data) return <ReceiptDialog receipt={data} onClose={onClose} copy />
+  if (data)
+    return (
+      <ReceiptDialog
+        receipt={data}
+        onClose={onClose}
+        returnFocus={returnFocus}
+        copy
+      />
+    )
   return (
     <Dialog
       open
@@ -31,7 +41,7 @@ export function SaleReceiptViewer({
         if (!open) onClose()
       }}
     >
-      <DialogContent>
+      <DialogContent finalFocus={returnFocus}>
         <DialogHeader>
           <DialogTitle>Consultar ticket</DialogTitle>
         </DialogHeader>
