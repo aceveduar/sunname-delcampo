@@ -310,3 +310,11 @@ simulados, modo oscuro y texto ampliado. Se comprobó la sincronización desde a
 controles, el margen interior de fotos, las tarifas pendientes y las alertas,
 además del ancho de cada tarjeta y de la página: sin desbordamientos, escrituras
 ni peticiones a servicios externos. Compilación y pruebas de los cambios aprobadas.
+El segundo ajuste de textos elimina el conteo adicional sobre la paginación:
+la superior muestra el rango y total, también cuando solo hay una página.
+La inferior aparece únicamente si hay varias páginas. Cero resultados conserva
+su mensaje explícito. Si faltan ambas tarifas de granel queda una sola indicación
+«Sin precio»; una tarifa de 100 g válida sigue visible y el aviso específico de
+100 g faltante se conserva cuando sí hay precio por kilo. Se mantienen las alertas
+operativas y no se modifican importes. Regresiones cubren tabla, tarjetas y un
+filtro que reduce varias páginas a un solo resultado.

@@ -202,6 +202,9 @@ it('el cajero consulta el catálogo sin costos ni acciones de administración', 
 it('sincroniza las dos paginaciones y mantiene sus límites al recorrer el catálogo', () => {
   resource.count = 51
   render(<ProductsTab role="owner" />)
+  expect(
+    screen.queryByText('51 productos en el catálogo'),
+  ).not.toBeInTheDocument()
   const upper = within(
     screen.getByRole('navigation', {
       name: 'Paginación superior de productos',
@@ -227,4 +230,13 @@ it('sincroniza las dos paginaciones y mantiene sus límites al recorrer el catá
   expect(cards.getAllByRole('article')).toHaveLength(1)
   fireEvent.click(upper.getByRole('button', { name: 'Anterior' }))
   expect(lower.getByText('26–50 de 51 · página 2 de 3')).toBeInTheDocument()
+  fireEvent.change(screen.getByRole('textbox', { name: 'Buscar productos' }), {
+    target: { value: 'Producto 50' },
+  })
+  expect(upper.getByText('1–1 de 1')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('navigation', {
+      name: 'Paginación inferior de productos',
+    }),
+  ).not.toBeInTheDocument()
 })

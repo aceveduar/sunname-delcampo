@@ -51,6 +51,17 @@ const products = [
     category_id: null,
     unit_id: 'u',
   },
+  {
+    id: 'd',
+    name: 'Chile',
+    active: true,
+    price: 120,
+    sold_by_weight: true,
+    price_per_100g: null,
+    sku: null,
+    category_id: null,
+    unit_id: 'u',
+  },
 ] as Product[]
 
 it.each(['cards', 'table'] as ProductView[])(
@@ -78,6 +89,12 @@ it.each(['cards', 'table'] as ProductView[])(
     expect(directory.getAllByText('Sin precio', { exact: true })).toHaveLength(
       2,
     )
+    const noPrices = within(
+      directory
+        .getByText('Almendra')
+        .closest(view === 'cards' ? 'article' : 'tr')!,
+    )
+    expect(noPrices.queryByText('Sin precio por 100 g')).not.toBeInTheDocument()
     expect(directory.getByText('Sin precio por 100 g')).toBeInTheDocument()
     expect(directory.getByText('Activo sin precio')).toBeInTheDocument()
     expect(directory.getByText('$13.00 / 100 g')).toBeInTheDocument()

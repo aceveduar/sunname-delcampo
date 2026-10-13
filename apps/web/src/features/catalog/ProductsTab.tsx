@@ -212,10 +212,9 @@ export function ProductsTab({ role }: { role: Role | null }) {
           {rowAction.error}
         </p>
       )}
-      {!loading && !error && (
+      {!loading && !error && filters.totalItems === 0 && (
         <p role="status" className="text-muted-foreground text-sm">
-          {filters.totalItems}{' '}
-          {filters.totalItems === 1 ? 'producto' : 'productos'}
+          0 productos
           {filters.filtersActive || filters.search.trim()
             ? ' con estos filtros'
             : ' en el catálogo'}
@@ -226,7 +225,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
           Actualizando productos…
         </p>
       )}
-      {!loading && !error && filters.totalPages > 1 && (
+      {!loading && !error && filters.totalItems > 0 && (
         <nav aria-label="Paginación superior de productos">
           <PaginationControls {...filters} onPageChange={filters.setPage} />
         </nav>
@@ -275,7 +274,7 @@ export function ProductsTab({ role }: { role: Role | null }) {
             : undefined
         }
       />
-      {!loading && !error && filters.totalItems > 0 && (
+      {!loading && !error && filters.totalPages > 1 && (
         <nav aria-label="Paginación inferior de productos">
           <PaginationControls {...filters} onPageChange={filters.setPage} />
         </nav>

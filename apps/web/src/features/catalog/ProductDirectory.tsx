@@ -80,17 +80,18 @@ export function ProductDirectory({
           / {product.sold_by_weight ? 'kg' : unitCode(product.unit_id)}
         </span>
       </p>
-      {product.sold_by_weight && (
-        <p className="text-muted-foreground text-xs">
-          {product.price_per_100g == null || product.price_per_100g === 0 ? (
-            'Sin precio por 100 g'
-          ) : (
-            <span className="whitespace-nowrap">
-              {formatCurrency(product.price_per_100g)} / 100 g
-            </span>
-          )}
-        </p>
-      )}
+      {product.sold_by_weight &&
+        (product.price > 0 || (product.price_per_100g ?? 0) > 0) && (
+          <p className="text-muted-foreground text-xs">
+            {product.price_per_100g == null || product.price_per_100g === 0 ? (
+              'Sin precio por 100 g'
+            ) : (
+              <span className="whitespace-nowrap">
+                {formatCurrency(product.price_per_100g)} / 100 g
+              </span>
+            )}
+          </p>
+        )}
     </div>
   )
   const warnings = (product: Product) => {
