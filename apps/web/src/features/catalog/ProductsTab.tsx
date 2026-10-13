@@ -1,63 +1,12 @@
-import { PriceEditor } from './PriceEditor'
-import { ProductActions } from './ProductActions'
+import { useMemo, useState } from 'react'
 import { LoadError } from '@/components/LoadError'
-import { useState } from 'react'
-import {
-  AlertTriangle,
-  FileImage,
-  ImageOff,
-  LayoutGrid,
-  Package,
-  PackageSearch,
-  ScanBarcode,
-  SlidersHorizontal,
-  Pencil,
-  Plus,
-  TableIcon,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { SearchInput } from '@/components/ui/search-input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PaginationControls } from '@/components/PaginationControls'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
-import { EmptyState } from '@/components/EmptyState'
-import { Skeleton } from '@/components/ui/skeleton'
-import { formatCurrency } from '@/lib/currency'
+import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
+import { useAsyncAction } from '@/lib/useAsyncAction'
 import type { Database } from '@/lib/database.types'
 import { useProducts, type Product } from './useProducts'
 import { useProductCosts } from './useProductCosts'
-import { isEnPerdida } from '@/lib/pricing'
 import { useCategories } from './useCategories'
 import { useUnits } from './useUnits'
 import { useProductFilters } from './useProductFilters'
@@ -65,12 +14,16 @@ import { ProductForm } from './ProductForm'
 import { LabelPrintDialog } from './LabelPrintDialog'
 import { PriceSheetDialog } from './PriceSheetDialog'
 import { StockAdjustDialog } from './StockAdjustDialog'
-import { BarcodeScannerDialog } from '@/components/BarcodeScannerDialog'
+import { PriceEditor } from './PriceEditor'
+import { ProductActions } from './ProductActions'
+import { ProductDirectory, type ProductView } from './ProductDirectory'
+import { ProductsToolbar } from './ProductsToolbar'
 
 type Role = Database['public']['Enums']['user_role']
-const CAN_MANAGE_PRODUCTS: Role[] = ['owner', 'local_admin']
 
 export function ProductsTab({ role }: { role: Role | null }) {
+  const canManage = role === 'owner' || role === 'local_admin'
+  const canDelete = role === 'owner'
   const {
     products,
     loading,
@@ -83,797 +36,322 @@ export function ProductsTab({ role }: { role: Role | null }) {
     deleteProduct,
     fetchCost,
   } = useProducts()
-  const {
-    categories,
-    error: categoriesError,
-    loading: categoriesLoading,
-    refresh: refreshCategories,
-  } = useCategories()
-  const {
-    units,
-    error: unitsError,
-    loading: unitsLoading,
-    refresh: refreshUnits,
-  } = useUnits()
-  const { costsById } = useProductCosts()
-
-  const canManage = role !== null && CAN_MANAGE_PRODUCTS.includes(role)
-  const enPerdida = (product: Product) => {
-    const cost = costsById.get(product.id)
-    return (
-      cost !== undefined &&
-      isEnPerdida({ active: product.active, price: product.price, cost })
-    )
-  }
-  // Un producto sin precio debería quedar inactivo hasta que se le ponga
-  // uno (regla ya usada en todo el sistema -- venta por monto, GranelDialog,
-  // la captura de precios por foto activa solo al confirmar precio real).
-  // Si de todos modos quedó activo con precio en cero -- por ejemplo, se
-  // activó a mano sin querer -- Caja ya lo bloquea con "Sin precio", pero
-  // nada lo señalaba aquí, donde se administra el catálogo.
-  const sinPrecioActivo = (product: Product) =>
-    product.active && product.price === 0
-  // Borrar del catálogo es decisión de dueño: un administrador de local
-  // desactiva, no borra (CLAUDE.md §6). El servidor lo vuelve a exigir --
-  // esconder el botón es comodidad, no la seguridad.
-  const canDelete = role === 'owner'
-
-  // Búsqueda, los 4 filtros y paginación -- ver useProductFilters.
-  const {
-    search,
-    setSearch,
-    filterCategory,
-    setFilterCategory,
-    filterActive,
-    setFilterActive,
-    filterGranel,
-    setFilterGranel,
-    filterNoPrice,
-    filterMissing,
-    setFilterMissing,
-    setFilterNoPrice,
-    filtersOpen,
-    setFiltersOpen,
-    categoryFilterItems,
-    statusFilterItems,
-    granelFilterItems,
-    filtersActive,
-    clearFilters,
-    filteredProducts,
-    pageItems,
-    page,
-    setPage,
-    totalPages,
-    totalItems,
-    pageSize,
-  } = useProductFilters(products, categories)
-
-  // Alta/edición -- el formulario completo vive en ProductForm.
+  const categories = useCategories()
+  const units = useUnits()
+  const costs = useProductCosts(canManage)
+  const filters = useProductFilters(products, categories.categories)
+  const [view, setView] = useState<ProductView>('table')
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const openCreate = () => {
-    setEditingProduct(null)
-    setProductFormOpen(true)
-  }
-  const openEdit = (product: Product) => {
-    setEditingProduct(product)
-    setProductFormOpen(true)
-  }
-
-  // Se guarda el id, no el objeto: así, cuando se genera un código dentro
-  // del diálogo, el refresh de useProducts trae el producto actualizado y
-  // el diálogo lo ve sin quedarse con el snapshot viejo (sin SKU).
   const [labelProductId, setLabelProductId] = useState<string | null>(null)
   const [stockAdjustProductId, setStockAdjustProductId] = useState<
     string | null
   >(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    const ok = await deleteProduct(deleteTarget.id)
-    setDeleting(false)
-    if (ok) setDeleteTarget(null)
-  }
-  const labelProduct = products.find((p) => p.id === labelProductId) ?? null
-  const stockAdjustProduct =
-    products.find((p) => p.id === stockAdjustProductId) ?? null
   const [searchScannerOpen, setSearchScannerOpen] = useState(false)
   const [priceSheetOpen, setPriceSheetOpen] = useState(false)
-  // En pantallas chicas la tabla obliga a hacer scroll lateral para ver
-  // precio/estado/acciones; tarjetas en 2 columnas se ve todo sin cortes.
-  const [view, setView] = useState<'table' | 'cards'>(() =>
-    window.innerWidth < 640 ? 'cards' : 'table',
-  )
-
   const [priceEditMode, setPriceEditMode] = useState(false)
+  const [pending, setPending] = useState<{ id: string; label: string } | null>(
+    null,
+  )
+  const rowAction = useAsyncAction(
+    'No se pudo completar la acción. Revisa el estado del producto y vuelve a intentarlo.',
+  )
+  const referencesLoading = categories.loading || units.loading
+  const ready =
+    !loading &&
+    !error &&
+    !referencesLoading &&
+    !categories.error &&
+    !units.error
+  const disabled = !ready || rowAction.pending
 
-  const activeUnits = units.filter((u) => u.active)
-  // La lista de unidades se ordena alfabéticamente por nombre -- sin esto,
-  // cualquier unidad que quede primera en ese orden (ej. "Costal") se
-  // convierte en el default de todo producto nuevo, sin relación alguna
-  // con qué tan común es esa unidad. "Pieza" es el default neutral más
-  // razonable para un producto genérico; si el negocio no la tiene dada
-  // de alta, cae a la primera unidad disponible.
-  const defaultUnitId =
-    activeUnits.find((u) => u.code === 'PZA')?.id ?? activeUnits[0]?.id ?? ''
-
+  const categoryNames = useMemo(
+    () =>
+      new Map(
+        categories.categories.map((category) => [
+          category.id,
+          `${category.name}${category.active ? '' : ' (inactiva)'}`,
+        ]),
+      ),
+    [categories.categories],
+  )
+  const unitCodes = useMemo(
+    () => new Map(units.units.map((unit) => [unit.id, unit.code])),
+    [units.units],
+  )
   const categoryName = (id: string | null) =>
-    categories.find((c) => c.id === id)?.name ?? '—'
-  const unitCode = (id: string) => units.find((u) => u.id === id)?.code ?? '—'
+    id ? (categoryNames.get(id) ?? 'Categoría no disponible') : 'Sin categoría'
+  const unitCode = (id: string) => unitCodes.get(id) ?? 'Unidad no disponible'
+  const activeUnits = units.units.filter((unit) => unit.active)
+  const defaultUnitId =
+    activeUnits.find((unit) => unit.code === 'PZA')?.id ??
+    activeUnits[0]?.id ??
+    ''
+  const labelProduct =
+    products.find((product) => product.id === labelProductId) ?? null
+  const stockProduct =
+    products.find((product) => product.id === stockAdjustProductId) ?? null
 
+  const allowAction = () => canManage && ready && !rowAction.pendingRef.current
+  const openForm = (product: Product | null) => {
+    if (!allowAction() || (!product && !activeUnits.length)) return
+    setEditingProduct(product)
+    setProductFormOpen(true)
+  }
+  const runRow = (
+    product: Product,
+    label: string,
+    action: () => Promise<boolean>,
+  ) => {
+    if (!allowAction()) return
+    void rowAction.run(async () => {
+      setPending({ id: product.id, label })
+      try {
+        return await action()
+      } finally {
+        setPending(null)
+      }
+    })
+  }
+  const refreshAll = async () => {
+    if (rowAction.pendingRef.current) return
+    await Promise.all([
+      refresh(),
+      categories.refresh(),
+      units.refresh(),
+      costs.refresh(),
+    ])
+  }
+  const saveProduct: typeof updateProduct = async (id, values) => {
+    if (!allowAction()) return false
+    const ok = await updateProduct(id, values)
+    if (ok) await costs.refresh()
+    return ok
+  }
+  const addProduct: typeof createProduct = async (values) => {
+    if (!allowAction()) return null
+    const id = await createProduct(values)
+    if (id) await costs.refresh()
+    return id
+  }
+  const savePrices: typeof updatePrices = async (changes) =>
+    allowAction() ? updatePrices(changes) : false
+
+  const loadErrors = (
+    <>
+      <LoadError message={error} onRetry={refresh} loading={loading} />
+      <LoadError
+        message={categories.error}
+        onRetry={categories.refresh}
+        loading={categories.loading}
+      />
+      <LoadError
+        message={units.error}
+        onRetry={units.refresh}
+        loading={units.loading}
+      />
+    </>
+  )
   if (priceEditMode && canManage)
     return (
-      <PriceEditor
-        products={products}
-        onSave={updatePrices}
-        onClose={() => setPriceEditMode(false)}
-        unitCode={unitCode}
-      />
+      <div className="space-y-4">
+        {loadErrors}
+        <PriceEditor
+          products={products}
+          onSave={savePrices}
+          onClose={() => setPriceEditMode(false)}
+          unitCode={unitCode}
+          unavailable={!ready}
+        />
+      </div>
     )
 
   return (
-    <div className="flex flex-col gap-4">
-      <LoadError message={error} onRetry={refresh} loading={loading} />
+    <div className="flex min-w-0 flex-col gap-4">
+      {loadErrors}
       <LoadError
-        message={categoriesError}
-        onRetry={refreshCategories}
-        loading={categoriesLoading}
+        message={costs.error}
+        onRetry={costs.refresh}
+        loading={costs.loading}
       />
-      <LoadError
-        message={unitsError}
-        onRetry={refreshUnits}
-        loading={unitsLoading}
-      />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-muted-foreground text-sm">
-          Productos que vendes, con su precio, categoría y unidad.
-        </p>
-        {canManage && (
-          <div className="flex flex-wrap gap-2">
-            <div className="hidden gap-2 sm:flex">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setPriceEditMode(true)
-                }}
-              >
-                <Pencil /> Editar precios
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPriceSheetOpen(true)}
-              >
-                <FileImage /> Precios por foto
-              </Button>
-              <Button
-                onClick={openCreate}
-                size="sm"
-                disabled={activeUnits.length === 0}
-              >
-                <Plus /> Nuevo producto
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {!unitsLoading && !unitsError && activeUnits.length === 0 && (
-        <p className="text-muted-foreground text-sm">
-          Antes de dar de alta productos, crea al menos una unidad de medida en
-          la pestaña "Unidades".
-        </p>
-      )}
-
-      {/* Sin justify-between: con los botones nuevos, si la fila se ve
-          obligada a bajar de línea en mobile, space-between separaba lo
-          que quedaba en cada línea a los extremos en vez de agruparlo. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar producto por nombre o SKU…"
-          containerClassName="max-w-sm min-w-0 flex-1 sm:min-w-[300px]"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Buscar por código de barras con la cámara"
-          onClick={() => setSearchScannerOpen(true)}
-        >
-          <ScanBarcode />
-        </Button>
-        {/* Filtros solo en mobile: en sm+ los 4 controles ya están
-            visibles justo abajo, no hace falta un botón para abrirlos. */}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="relative sm:hidden"
-          aria-label="Filtros"
-          onClick={() => setFiltersOpen(true)}
-        >
-          <SlidersHorizontal />
-          {filtersActive && (
-            <span className="bg-primary absolute top-1.5 right-1.5 size-1.5 rounded-full" />
-          )}
-        </Button>
-        {/* Acciones (Nuevo producto/Editar precios/Precios por foto) solo
-            en mobile: en sm+ ya están arriba como botones completos.
-            Sin variant="outline" a propósito -- relleno, como ya es
-            "Nuevo producto" en escritorio (el único de los tres que no
-            es outline), para que se distinga de los íconos neutros de
-            buscar/escanear/filtro que tiene al lado. */}
-        {canManage && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  size="icon"
-                  aria-label="Acciones de catálogo"
-                  className="sm:hidden"
-                />
-              }
-            >
-              <Plus />
-            </DropdownMenuTrigger>
-            {/* w-56 explícito: el ancho por default del menú sigue al
-                del botón que lo abre (w-(--anchor-width) en
-                dropdown-menu.tsx) -- con un trigger de solo ícono
-                (32px), "Precios por foto" partía en dos líneas y el
-                ícono quedaba descentrado contra el texto. */}
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem
-                className="py-2"
-                onClick={openCreate}
-                disabled={activeUnits.length === 0}
-              >
-                <Plus /> Nuevo producto
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="py-2"
-                onClick={() => {
-                  setPriceEditMode(true)
-                }}
-              >
-                <Pencil /> Editar precios
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="py-2"
-                onClick={() => setPriceSheetOpen(true)}
-              >
-                <FileImage /> Precios por foto
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {/* Selector de presentación del catálogo en escritorio. */}
-        <div className="border-border hidden items-center gap-1 rounded-lg border p-0.5 sm:flex">
-          <Button
-            variant={view === 'table' ? 'default' : 'ghost'}
-            size="icon-sm"
-            onClick={() => setView('table')}
-            aria-label="Vista de tabla"
-          >
-            <TableIcon />
-          </Button>
-          <Button
-            variant={view === 'cards' ? 'default' : 'ghost'}
-            size="icon-sm"
-            onClick={() => setView('cards')}
-            aria-label="Vista de tarjetas"
-          >
-            <LayoutGrid />
-          </Button>
-        </div>
-      </div>
-
-      {/* Solo en sm+: en mobile estos mismos 4 controles viven en la
-          hoja de "Filtros" de abajo, para no apilar seis controles
-          antes del primer producto. */}
-      <div className="hidden gap-3 sm:flex sm:flex-wrap sm:items-center">
-        <Select
-          items={categoryFilterItems}
-          value={filterCategory}
-          onValueChange={(value) => setFilterCategory(value ?? 'all')}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Todas las categorías" />
-          </SelectTrigger>
-          <SelectContent>
-            {categoryFilterItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          items={statusFilterItems}
-          value={filterActive}
-          onValueChange={(value) =>
-            setFilterActive((value as typeof filterActive) ?? 'all')
-          }
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Todos los estados" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusFilterItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          items={granelFilterItems}
-          value={filterGranel}
-          onValueChange={(value) =>
-            setFilterGranel((value as typeof filterGranel) ?? 'all')
-          }
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="A granel: todos" />
-          </SelectTrigger>
-          <SelectContent>
-            {granelFilterItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <label className="flex items-center gap-2 text-sm">
-          <Switch checked={filterNoPrice} onCheckedChange={setFilterNoPrice} />
-          Sin precio
-        </label>
-      </div>
-
-      <div
-        className="flex flex-wrap items-center gap-2"
-        aria-label="Pendientes del catálogo"
-      >
-        <Button
-          size="sm"
-          variant={filterMissing === 'all' ? 'default' : 'outline'}
-          aria-pressed={filterMissing === 'all'}
-          onClick={() => setFilterMissing('all')}
-        >
-          Todos
-        </Button>
-        <Button
-          size="sm"
-          variant={filterMissing === 'photo' ? 'default' : 'outline'}
-          aria-pressed={filterMissing === 'photo'}
-          onClick={() => setFilterMissing('photo')}
-        >
-          Sin foto ({products.filter((p) => !p.image_url).length})
-        </Button>
-        <Button
-          size="sm"
-          variant={filterMissing === 'sku' ? 'default' : 'outline'}
-          aria-pressed={filterMissing === 'sku'}
-          onClick={() => setFilterMissing('sku')}
-        >
-          Sin código ({products.filter((p) => !p.sku?.trim()).length})
-        </Button>
-        <span className="text-muted-foreground text-sm" role="status">
-          {filteredProducts.length} productos
-        </span>
-        {(filtersActive || search) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              clearFilters()
-              setSearch('')
-              setPage(1)
-            }}
-          >
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
-      {view === 'cards' ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {loading &&
-            Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border bg-card flex flex-col overflow-hidden rounded-xl border"
-              >
-                <Skeleton className="aspect-square w-full rounded-none" />
-                <div className="flex flex-col gap-1.5 p-3">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="mt-1 h-4 w-1/3" />
-                </div>
-              </div>
-            ))}
-          {!loading && !error && filteredProducts.length === 0 && (
-            <div className="col-span-full">
-              <EmptyState
-                icon={PackageSearch}
-                title={
-                  products.length === 0
-                    ? 'Aún no hay productos en el catálogo'
-                    : 'Sin resultados'
-                }
-                description={
-                  products.length === 0
-                    ? 'Da de alta tu primer producto para empezar a vender.'
-                    : `No se encontraron productos para "${search}".`
-                }
-              />
-            </div>
-          )}
-          {pageItems.map((product) => (
-            <div
-              key={product.id}
-              className="border-border bg-card flex flex-col overflow-hidden rounded-xl border transition-shadow hover:shadow-md"
-            >
-              <div className="bg-muted relative aspect-square w-full">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  // Package, no ImageOff: en un catálogo apenas cargando
-                  // fotos, este placeholder es lo que se ve en casi toda
-                  // la cuadrícula -- una imagen "tachada" se lee como un
-                  // error, no como "todavía sin foto".
-                  <div className="text-muted-foreground/50 flex size-full items-center justify-center">
-                    <Package className="size-10" />
-                  </div>
-                )}
-                {!product.active && (
-                  <Badge variant="secondary" className="absolute top-2 right-2">
-                    Inactivo
-                  </Badge>
-                )}
-              </div>
-              <div className="flex flex-1 flex-col gap-0.5 p-3">
-                <p className="leading-tight font-medium">{product.name}</p>
-                <p className="text-muted-foreground text-xs">
-                  {categoryName(product.category_id)}
-                </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {product.sold_by_weight ? (
-                    <>
-                      {formatCurrency(product.price)}/kg
-                      <span className="text-muted-foreground font-normal">
-                        {' '}
-                        · {formatCurrency(product.price_per_100g ?? 0)}/100g
-                      </span>
-                    </>
-                  ) : (
-                    formatCurrency(product.price)
-                  )}
-                </p>
-                {canManage && enPerdida(product) && (
-                  <p className="text-destructive flex items-center gap-1 text-xs font-medium">
-                    <AlertTriangle className="size-3" /> En pérdida
-                  </p>
-                )}
-                {canManage && sinPrecioActivo(product) && (
-                  <p className="text-destructive flex items-center gap-1 text-xs font-medium">
-                    <AlertTriangle className="size-3" /> Activo sin precio
-                  </p>
-                )}
-                {canManage && (
-                  <div className="border-border mt-2 border-t pt-2">
-                    <ProductActions
-                      product={product}
-                      canDelete={canDelete}
-                      onEdit={() => openEdit(product)}
-                      onToggle={() => {
-                        void toggleActive(product)
-                      }}
-                      onLabel={() => setLabelProductId(product.id)}
-                      onStock={() => setStockAdjustProductId(product.id)}
-                      onDelete={() => setDeleteTarget(product)}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12"></TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Unidad</TableHead>
-              <TableHead>Precio</TableHead>
-              <TableHead>Estado</TableHead>
-              {canManage && (
-                <TableHead className="text-right">Acciones</TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && (
-              <TableSkeletonRows rows={6} columns={canManage ? 8 : 7} />
-            )}
-            {!loading && !error && filteredProducts.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={canManage ? 8 : 7}>
-                  <EmptyState
-                    icon={PackageSearch}
-                    title={
-                      products.length === 0
-                        ? 'Aún no hay productos en el catálogo'
-                        : 'Sin resultados'
-                    }
-                    description={
-                      products.length === 0
-                        ? 'Da de alta tu primer producto para empezar a vender.'
-                        : `No se encontraron productos para "${search}".`
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-            {pageItems.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt=""
-                      className="border-border size-9 min-w-9 rounded-md border object-cover"
-                    />
-                  ) : (
-                    <div className="bg-muted text-muted-foreground border-border flex size-9 items-center justify-center rounded-md border">
-                      <ImageOff className="size-4" />
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>{product.sku ?? '—'}</TableCell>
-                <TableCell>{categoryName(product.category_id)}</TableCell>
-                <TableCell>{unitCode(product.unit_id)}</TableCell>
-                <TableCell>
-                  {product.sold_by_weight ? (
-                    <span>
-                      {formatCurrency(product.price)}/kg ·{' '}
-                      {formatCurrency(product.price_per_100g ?? 0)}/100g
-                    </span>
-                  ) : (
-                    formatCurrency(product.price)
-                  )}
-                  {canManage && enPerdida(product) && (
-                    <p className="text-destructive mt-0.5 flex items-center gap-1 text-xs font-medium">
-                      <AlertTriangle className="size-3" /> En pérdida
-                    </p>
-                  )}
-                  {canManage && sinPrecioActivo(product) && (
-                    <p className="text-destructive mt-0.5 flex items-center gap-1 text-xs font-medium">
-                      <AlertTriangle className="size-3" /> Activo sin precio
-                    </p>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={product.active ? 'default' : 'secondary'}>
-                    {product.active ? 'Activo' : 'Inactivo'}
-                  </Badge>
-                </TableCell>
-                {canManage && (
-                  <TableCell className="flex justify-end gap-2 text-right">
-                    <ProductActions
-                      product={product}
-                      canDelete={canDelete}
-                      onEdit={() => openEdit(product)}
-                      onToggle={() => {
-                        void toggleActive(product)
-                      }}
-                      onLabel={() => setLabelProductId(product.id)}
-                      onStock={() => setStockAdjustProductId(product.id)}
-                      onDelete={() => setDeleteTarget(product)}
-                    />
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      <PaginationControls
-        page={page}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        pageSize={pageSize}
-        onPageChange={setPage}
-      />
-
-      <ProductForm
-        product={editingProduct}
-        open={productFormOpen}
-        onOpenChange={setProductFormOpen}
-        categories={categories}
-        units={units}
-        defaultUnitId={defaultUnitId}
-        createProduct={createProduct}
-        updateProduct={updateProduct}
-        fetchCost={fetchCost}
-      />
-
-      <PriceSheetDialog
-        open={priceSheetOpen}
-        onOpenChange={setPriceSheetOpen}
-        products={products}
-        units={activeUnits}
-        onApply={updatePrices}
-        onCreateProduct={createProduct}
-      />
-
-      {/* Hoja de filtros de mobile: mismos 4 controles que la fila de
-          sm+, en un diálogo aparte para no forzar el scroll antes de ver
-          un producto. "Aplicar" solo cierra -- los filtros ya actúan en
-          vivo, igual que en escritorio. */}
-      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Filtros</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label>Categoría</Label>
-              <Select
-                items={categoryFilterItems}
-                value={filterCategory}
-                onValueChange={(value) => setFilterCategory(value ?? 'all')}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Todas las categorías" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoryFilterItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Estado</Label>
-              <Select
-                items={statusFilterItems}
-                value={filterActive}
-                onValueChange={(value) =>
-                  setFilterActive((value as typeof filterActive) ?? 'all')
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusFilterItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Venta a granel</Label>
-              <Select
-                items={granelFilterItems}
-                value={filterGranel}
-                onValueChange={(value) =>
-                  setFilterGranel((value as typeof filterGranel) ?? 'all')
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="A granel: todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  {granelFilterItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <label className="border-border flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-              Sin precio
-              <Switch
-                checked={filterNoPrice}
-                onCheckedChange={setFilterNoPrice}
-              />
-            </label>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={clearFilters}
-              disabled={!filtersActive}
-            >
-              Limpiar
-            </Button>
-            <Button onClick={() => setFiltersOpen(false)}>
-              Aplicar filtros
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <LabelPrintDialog
-        product={labelProduct}
-        onOpenChange={(open) => {
-          if (!open) setLabelProductId(null)
-        }}
-        onAssignSku={(id, sku) => updateProduct(id, { sku })}
-      />
-
-      <StockAdjustDialog
-        product={stockAdjustProduct}
-        unitLabel={
-          stockAdjustProduct ? unitCode(stockAdjustProduct.unit_id) : ''
+      <ProductsToolbar
+        filters={filters}
+        view={view}
+        onView={setView}
+        canManage={canManage}
+        disabled={disabled}
+        noUnits={!activeUnits.length}
+        refreshing={
+          loading || referencesLoading || costs.loading || rowAction.pending
         }
-        onOpenChange={(open) => {
-          if (!open) setStockAdjustProductId(null)
+        onRefresh={() => void refreshAll()}
+        onCreate={() => openForm(null)}
+        onEditPrices={() => {
+          if (allowAction()) setPriceEditMode(true)
         }}
-        onDone={() => {}}
+        onPriceSheet={() => {
+          if (allowAction()) setPriceSheetOpen(true)
+        }}
+        onScan={() => setSearchScannerOpen(true)}
       />
-
+      {canManage && !units.loading && !units.error && !activeUnits.length && (
+        <p className="text-muted-foreground text-sm">
+          Para crear productos, activa o crea una unidad de medida en la pestaña
+          Unidades.
+        </p>
+      )}
+      {(error || categories.error || units.error) && products.length > 0 && (
+        <p className="text-muted-foreground text-sm">
+          Mostrando la última consulta correcta. Actualiza para editar
+          productos.
+        </p>
+      )}
+      {rowAction.error && !deleteTarget && (
+        <p role="alert" className="text-destructive text-sm">
+          {rowAction.error}
+        </p>
+      )}
+      {!loading && !error && (
+        <p role="status" className="text-muted-foreground text-sm">
+          {filters.totalItems}{' '}
+          {filters.totalItems === 1 ? 'producto' : 'productos'}
+          {filters.filtersActive || filters.search.trim()
+            ? ' con estos filtros'
+            : ' en el catálogo'}
+        </p>
+      )}
+      {loading && products.length > 0 && (
+        <p role="status" className="text-muted-foreground text-sm">
+          Actualizando productos…
+        </p>
+      )}
+      <ProductDirectory
+        products={filters.pageItems}
+        view={view}
+        loading={loading}
+        error={error}
+        hasFilters={filters.filtersActive || !!filters.search.trim()}
+        categoryName={categoryName}
+        unitCode={unitCode}
+        costsById={costs.costsById}
+        actions={
+          canManage
+            ? (product) => (
+                <ProductActions
+                  product={product}
+                  canDelete={canDelete}
+                  disabled={disabled}
+                  pendingLabel={
+                    pending?.id === product.id ? pending.label : undefined
+                  }
+                  onEdit={() => openForm(product)}
+                  onToggle={() =>
+                    runRow(
+                      product,
+                      product.active ? 'Desactivando…' : 'Activando…',
+                      () => toggleActive(product),
+                    )
+                  }
+                  onLabel={() => {
+                    if (allowAction()) setLabelProductId(product.id)
+                  }}
+                  onStock={() => {
+                    if (allowAction()) setStockAdjustProductId(product.id)
+                  }}
+                  onDelete={() => {
+                    if (allowAction() && canDelete) {
+                      rowAction.clearError()
+                      setDeleteTarget(product)
+                    }
+                  }}
+                />
+              )
+            : undefined
+        }
+      />
+      {!loading && !error && (
+        <PaginationControls {...filters} onPageChange={filters.setPage} />
+      )}
+      {canManage && (
+        <>
+          <ProductForm
+            product={editingProduct}
+            open={productFormOpen}
+            onOpenChange={setProductFormOpen}
+            categories={categories.categories}
+            units={units.units}
+            defaultUnitId={defaultUnitId}
+            createProduct={addProduct}
+            updateProduct={saveProduct}
+            fetchCost={fetchCost}
+          />
+          <PriceSheetDialog
+            open={priceSheetOpen}
+            onOpenChange={setPriceSheetOpen}
+            products={products}
+            units={activeUnits}
+            onApply={savePrices}
+            onCreateProduct={addProduct}
+          />
+          <LabelPrintDialog
+            product={labelProduct}
+            onOpenChange={(open) => {
+              if (!open) setLabelProductId(null)
+            }}
+            onAssignSku={(id, sku) => saveProduct(id, { sku })}
+          />
+          <StockAdjustDialog
+            product={stockProduct}
+            unitLabel={stockProduct ? unitCode(stockProduct.unit_id) : ''}
+            onOpenChange={(open) => {
+              if (!open) setStockAdjustProductId(null)
+            }}
+            onDone={() => {}}
+          />
+        </>
+      )}
       <BarcodeScannerDialog
         open={searchScannerOpen}
         onOpenChange={setSearchScannerOpen}
-        onDetected={setSearch}
+        onDetected={filters.setSearch}
       />
-
-      {/* Borrar es irreversible, así que se confirma nombrando el producto:
-          en una lista larga es fácil apretar el renglón de al lado. No se
-          promete que vaya a funcionar -- si el producto ya tiene ventas o
-          compras, el servidor lo rechaza y aquí se ve el motivo. */}
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
+          if (!open && !rowAction.pendingRef.current) setDeleteTarget(null)
         }}
         title="Borrar producto"
-        description={
-          <div className="flex flex-col gap-3">
-            <p className="text-foreground">
-              Se va a borrar{' '}
-              <span className="font-semibold">{deleteTarget?.name}</span> del
-              catálogo. No se puede deshacer.
-            </p>
-            <p>
-              Solo se puede borrar un producto que nunca se vendió, ni entró a
-              inventario, ni se compró. Si ya tiene historia, el sistema no lo
-              va a permitir y lo correcto es desactivarlo.
-            </p>
-          </div>
-        }
         confirmLabel="Borrar"
         confirmingLabel="Borrando…"
         variant="destructive"
-        confirming={deleting}
-        onConfirm={handleConfirmDelete}
+        confirming={rowAction.pending}
+        description={
+          <div className="space-y-3">
+            <p className="text-foreground wrap-anywhere">
+              Se va a borrar <strong>{deleteTarget?.name}</strong> del catálogo.
+              No se puede deshacer.
+            </p>
+            <p>
+              Solo se puede borrar un producto sin ventas, inventario ni
+              compras. Si ya tiene historial, desactívalo.
+            </p>
+            {rowAction.error && (
+              <p role="alert" className="text-destructive">
+                {rowAction.error}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={() => {
+          if (!deleteTarget || !canDelete) return
+          const target = deleteTarget
+          runRow(target, 'Borrando…', async () => {
+            const ok = await deleteProduct(target.id)
+            if (ok) setDeleteTarget(null)
+            return ok
+          })
+        }}
       />
     </div>
   )

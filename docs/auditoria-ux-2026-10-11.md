@@ -256,3 +256,37 @@ extraer comportamiento compartido cuando evite duplicación. Validar los cambios
 con respuestas lentas, fallos de red, roles distintos, teclado y texto ampliado.
 El objetivo es que la siguiente acción y el resultado de cada operación sean
 claros en todas las pantallas.
+
+## Seguimiento: Productos — 13 de octubre
+
+Cuarta entrega: el directorio de Productos separa sus controles, presentación y
+operaciones. La tabla de escritorio agrupa foto, nombre y código; las tarjetas
+móviles conservan el nombre completo, categoría, unidad, precios, estado y acciones.
+La presentación responde a cambios de tamaño sin recargar y ofrece tabla/tarjetas
+en escritorio. Las fotos tienen espacio interior y mantienen sus proporciones.
+
+La búsqueda acepta palabras repartidas entre nombre y código sin depender de
+acentos. Todos los filtros vuelven a la primera página y «Limpiar filtros» también
+limpia la búsqueda. Las categorías inactivas aparecen identificadas para poder
+encontrar productos que todavía las tienen asignadas.
+
+La lectura pública recorre todas las páginas de la API con orden estable. Los
+costos se consultan por separado y únicamente para administradores; sus alertas de
+margen se ocultan durante la carga o ante errores. Una página fallida no reemplaza
+el catálogo anterior con un resultado parcial. Se ofrece reintento y se bloquean
+acciones mientras la consulta de productos o sus referencias no esté disponible.
+
+Cambiar estado y borrar comparten un bloqueo síncrono contra pulsaciones repetidas.
+El borrado pendiente impide cerrar la confirmación; un fallo conserva el producto
+para reintentar. Las actualizaciones exigen recibir la fila afectada antes de
+anunciar éxito. El editor de precios conserva el borrador y bloquea confirmar
+mientras una consulta esté fallando.
+
+Validación: pruebas de 501 productos/costos, fallos en páginas posteriores,
+actualizaciones sin fila devuelta, filtros/paginación, roles, concurrencia,
+reintentos y recuperación del editor. Revisión en Chrome a 1366 × 900,
+390 × 844 y 360 × 800, con nombres/categorías largos, modo oscuro y texto al 125 %.
+Se verificaron consulta por código posterior al registro 500, categorías inactivas,
+cambio de ancho, formulario móvil, error/reintento y cajero sin costos.
+API totalmente simulada: cero escrituras y cero peticiones a servicios reales.
+Esta entrega no modifica SQL ni certifica los flujos de lectura de fotos.

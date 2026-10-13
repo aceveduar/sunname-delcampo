@@ -1,4 +1,11 @@
-import { Boxes, MoreHorizontal, Power, Tag, Trash2 } from 'lucide-react'
+import {
+  Boxes,
+  LoaderCircle,
+  MoreHorizontal,
+  Power,
+  Tag,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -11,6 +18,8 @@ import type { Product } from './useProducts'
 export function ProductActions({
   product,
   canDelete,
+  disabled = false,
+  pendingLabel,
   onEdit,
   onToggle,
   onLabel,
@@ -19,6 +28,8 @@ export function ProductActions({
 }: {
   product: Product
   canDelete: boolean
+  disabled?: boolean
+  pendingLabel?: string
   onEdit: () => void
   onToggle: () => void
   onLabel: () => void
@@ -26,11 +37,21 @@ export function ProductActions({
   onDelete: () => void
 }) {
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {pendingLabel && (
+        <span
+          role="status"
+          className="text-muted-foreground flex items-center gap-1 text-xs"
+        >
+          <LoaderCircle className="size-3 animate-spin" />
+          {pendingLabel}
+        </span>
+      )}
       <Button
         variant="ghost"
         size="sm"
         onClick={onEdit}
+        disabled={disabled}
         aria-label={`Editar ${product.name}`}
       >
         Editar
@@ -41,6 +62,7 @@ export function ProductActions({
             <Button
               variant="ghost"
               size="icon-sm"
+              disabled={disabled}
               aria-label={`Más acciones de ${product.name}`}
             />
           }
@@ -48,21 +70,24 @@ export function ProductActions({
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={onLabel}>
-            <Tag /> Imprimir etiqueta
+          <DropdownMenuItem disabled={disabled} onClick={onLabel}>
+            <Tag />
+            Imprimir etiqueta
           </DropdownMenuItem>
           {product.track_inventory && (
-            <DropdownMenuItem onClick={onStock}>
-              <Boxes /> Ajustar existencia
+            <DropdownMenuItem disabled={disabled} onClick={onStock}>
+              <Boxes />
+              Ajustar existencia
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={onToggle}>
-            <Power />{' '}
+          <DropdownMenuItem disabled={disabled} onClick={onToggle}>
+            <Power />
             {product.active ? 'Desactivar producto' : 'Activar producto'}
           </DropdownMenuItem>
           {canDelete && (
-            <DropdownMenuItem onClick={onDelete}>
-              <Trash2 /> Borrar producto
+            <DropdownMenuItem disabled={disabled} onClick={onDelete}>
+              <Trash2 />
+              Borrar producto
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

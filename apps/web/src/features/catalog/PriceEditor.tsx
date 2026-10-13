@@ -30,7 +30,9 @@ export function PriceEditor({
   onSave,
   onClose,
   unitCode,
+  unavailable = false,
 }: {
+  unavailable?: boolean
   products: Product[]
   onSave: ReturnType<typeof useProducts>['updatePrices']
   onClose: () => void
@@ -63,7 +65,14 @@ export function PriceEditor({
       [id]: { ...current[id], [field]: value },
     }))
   async function save() {
-    if (lock.current || !online || errors.length || !changes.length) return
+    if (
+      lock.current ||
+      unavailable ||
+      !online ||
+      errors.length ||
+      !changes.length
+    )
+      return
     lock.current = true
     setSaving(true)
     setSaveError('')
@@ -105,7 +114,9 @@ export function PriceEditor({
                 Volver al catálogo
               </Button>
               <Button
-                disabled={!online || !changes.length || !!errors.length}
+                disabled={
+                  unavailable || !online || !changes.length || !!errors.length
+                }
                 onClick={() => {
                   setSaveError('')
                   setReview(true)
@@ -307,7 +318,13 @@ export function PriceEditor({
               Seguir editando
             </Button>
             <Button
-              disabled={saving || !online || !!errors.length || !changes.length}
+              disabled={
+                unavailable ||
+                saving ||
+                !online ||
+                !!errors.length ||
+                !changes.length
+              }
               onClick={save}
             >
               {saving ? 'Guardando…' : 'Confirmar precios'}

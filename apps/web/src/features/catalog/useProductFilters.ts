@@ -7,31 +7,26 @@ import { NO_CATEGORY, type ProductCategory } from './useCategories'
 type ActiveFilter = 'all' | 'active' | 'inactive'
 type GranelFilter = 'all' | 'yes' | 'no'
 
-/** Búsqueda + los 4 filtros de Catálogo + paginación, en un solo lugar --
- * separado de ProductsTab para que la pantalla no cargue con este estado
- * además de la del formulario y la tabla/tarjetas. */
 export function useProductFilters(
   products: Product[],
   categories: ProductCategory[],
 ) {
   const [search, setSearch] = useState('')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterCategory, setFilterCategory] = useState('all')
   const [filterActive, setFilterActive] = useState<ActiveFilter>('all')
   const [filterGranel, setFilterGranel] = useState<GranelFilter>('all')
   const [filterNoPrice, setFilterNoPrice] = useState(false)
   const [filterMissing, setFilterMissing] = useState<'all' | 'photo' | 'sku'>(
     'all',
   )
-  // Hoja de filtros: solo existe para el toolbar compacto de mobile --
-  // en sm+ los 4 controles ya se ven inline, no hay nada que abrir.
   const [filtersOpen, setFiltersOpen] = useState(false)
-
-  const activeCategories = categories.filter((c) => c.active)
-
   const categoryFilterItems = [
     { value: 'all', label: 'Todas las categorías' },
     { value: NO_CATEGORY, label: 'Sin categoría' },
-    ...activeCategories.map((c) => ({ value: c.id, label: c.name })),
+    ...categories.map((category) => ({
+      value: category.id,
+      label: `${category.name}${category.active ? '' : ' (inactiva)'}`,
+    })),
   ]
   const statusFilterItems = [
     { value: 'all', label: 'Todos los estados' },
@@ -39,7 +34,7 @@ export function useProductFilters(
     { value: 'inactive', label: 'Inactivos' },
   ]
   const granelFilterItems = [
-    { value: 'all', label: 'A granel: todos' },
+    { value: 'all', label: 'Todas las modalidades' },
     { value: 'yes', label: 'Solo a granel' },
     { value: 'no', label: 'Solo precio fijo' },
   ]
@@ -49,37 +44,25 @@ export function useProductFilters(
     filterGranel !== 'all' ||
     filterNoPrice ||
     filterMissing !== 'all'
-  const clearFilters = () => {
-    setFilterCategory('all')
-    setFilterActive('all')
-    setFilterGranel('all')
-    setFilterNoPrice(false)
-    setFilterMissing('all')
-  }
-
   const filteredProducts = useMemo(() => {
-    const query = normalizeSearch(search)
-    return products.filter((p) => {
-      if (
-        query &&
-        !normalizeSearch(p.name).includes(query) &&
-        !(p.sku && normalizeSearch(p.sku).includes(query))
-      )
-        return false
-      if (filterCategory === NO_CATEGORY && p.category_id) return false
+    const tokens = normalizeSearch(search).split(/\s+/).filter(Boolean)
+    return products.filter((product) => {
+      const text = normalizeSearch(`${product.name} ${product.sku ?? ''}`)
+      if (!tokens.every((token) => text.includes(token))) return false
+      if (filterCategory === NO_CATEGORY && product.category_id) return false
       if (
         filterCategory !== 'all' &&
         filterCategory !== NO_CATEGORY &&
-        p.category_id !== filterCategory
+        product.category_id !== filterCategory
       )
         return false
-      if (filterActive === 'active' && !p.active) return false
-      if (filterActive === 'inactive' && p.active) return false
-      if (filterGranel === 'yes' && !p.sold_by_weight) return false
-      if (filterGranel === 'no' && p.sold_by_weight) return false
-      if (filterNoPrice && p.price !== 0) return false
-      if (filterMissing === 'photo' && p.image_url) return false
-      if (filterMissing === 'sku' && p.sku?.trim()) return false
+      if (filterActive === 'active' && !product.active) return false
+      if (filterActive === 'inactive' && product.active) return false
+      if (filterGranel === 'yes' && !product.sold_by_weight) return false
+      if (filterGranel === 'no' && product.sold_by_weight) return false
+      if (filterNoPrice && product.price !== 0) return false
+      if (filterMissing === 'photo' && product.image_url) return false
+      if (filterMissing === 'sku' && product.sku?.trim()) return false
       return true
     })
   }, [
@@ -91,24 +74,49 @@ export function useProductFilters(
     filterNoPrice,
     filterMissing,
   ])
-
   const pagination = usePagination(filteredProducts)
-
+  const resetPage = () => {
+    if (pagination.page > 1) pagination.setPage(1)
+  }
+  const clearFilters = () => {
+    setSearch('')
+    setFilterCategory('all')
+    setFilterActive('all')
+    setFilterGranel('all')
+    setFilterNoPrice(false)
+    setFilterMissing('all')
+    resetPage()
+  }
   return {
     search,
-    setSearch,
+    setSearch: (value: string) => {
+      setSearch(value)
+      resetPage()
+    },
     filterCategory,
-    setFilterCategory,
+    setFilterCategory: (value: string) => {
+      setFilterCategory(value)
+      resetPage()
+    },
     filterActive,
-    setFilterActive,
+    setFilterActive: (value: ActiveFilter) => {
+      setFilterActive(value)
+      resetPage()
+    },
     filterGranel,
-    setFilterGranel,
+    setFilterGranel: (value: GranelFilter) => {
+      setFilterGranel(value)
+      resetPage()
+    },
     filterNoPrice,
-    setFilterNoPrice,
+    setFilterNoPrice: (value: boolean) => {
+      setFilterNoPrice(value)
+      resetPage()
+    },
     filterMissing,
     setFilterMissing: (value: typeof filterMissing) => {
       setFilterMissing(value)
-      pagination.setPage(1)
+      resetPage()
     },
     filtersOpen,
     setFiltersOpen,

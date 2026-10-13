@@ -79,3 +79,36 @@ it('bloquea todos los cambios si otro producto tiene un importe inválido', () =
   expect(screen.getByRole('alert')).toHaveTextContent('Arroz')
   expect(save).not.toHaveBeenCalled()
 })
+
+it('conserva el borrador durante una consulta fallida y solo confirma al recuperar datos', async () => {
+  const save = vi.fn().mockResolvedValue(true)
+  const props = {
+    products,
+    onSave: save,
+    onClose: vi.fn(),
+    unitCode: () => 'PZA',
+  }
+  const { rerender } = render(<PriceEditor {...props} />)
+  fireEvent.change(screen.getAllByRole('spinbutton')[0], {
+    target: { value: '25' },
+  })
+  rerender(<PriceEditor {...props} unavailable />)
+  expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(25)
+  expect(
+    screen.getByRole('button', { name: 'Revisar 1 cambio' }),
+  ).toBeDisabled()
+  rerender(<PriceEditor {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Revisar 1 cambio' }))
+  rerender(<PriceEditor {...props} unavailable />)
+  expect(
+    screen.getByRole('button', { name: 'Confirmar precios' }),
+  ).toBeDisabled()
+  expect(save).not.toHaveBeenCalled()
+  rerender(<PriceEditor {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar precios' }))
+  await waitFor(() =>
+    expect(save).toHaveBeenCalledWith([
+      { id: 'a', price: 25, price_per_100g: null },
+    ]),
+  )
+})
