@@ -40,8 +40,10 @@ export function ProductDirectory({
   costsById: ReadonlyMap<string, number>
   actions?: (product: Product) => ReactNode
 }) {
-  const photo = (product: Product) => (
-    <div className="bg-muted border-border size-14 shrink-0 overflow-hidden rounded-lg border p-1">
+  const photo = (product: Product, table = false) => (
+    <div
+      className={`bg-muted border-border shrink-0 overflow-hidden rounded-lg border p-1.5 ${table ? 'size-14' : 'size-16'}`}
+    >
       {product.image_url ? (
         <img
           src={product.image_url}
@@ -72,7 +74,7 @@ export function ProductDirectory({
     <div className="space-y-0.5">
       <p className="font-semibold tabular-nums">
         <span className="whitespace-nowrap">
-          {formatCurrency(product.price)}
+          {product.price === 0 ? 'Sin precio' : formatCurrency(product.price)}
         </span>
         <span className="text-muted-foreground ml-1 text-xs font-normal wrap-anywhere">
           / {product.sold_by_weight ? 'kg' : unitCode(product.unit_id)}
@@ -80,7 +82,7 @@ export function ProductDirectory({
       </p>
       {product.sold_by_weight && (
         <p className="text-muted-foreground text-xs">
-          {product.price_per_100g == null ? (
+          {product.price_per_100g == null || product.price_per_100g === 0 ? (
             'Sin precio por 100 g'
           ) : (
             <span className="whitespace-nowrap">
@@ -144,7 +146,7 @@ export function ProductDirectory({
           <article
             key={product.id}
             aria-label={product.name}
-            className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-3 shadow-sm"
+            className="bg-card flex min-w-0 flex-col gap-2 rounded-xl border p-3 shadow-sm"
           >
             <div className="flex items-start gap-3">
               {photo(product)}
@@ -160,14 +162,16 @@ export function ProductDirectory({
                 </p>
               </div>
             </div>
-            <div className="mt-auto flex flex-wrap items-start justify-between gap-2">
+            <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-2">
               <div>
                 {price(product)}
                 {warnings(product)}
               </div>
-              {state(product)}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {state(product)}
+                {actions?.(product)}
+              </div>
             </div>
-            {actions && <div className="border-t pt-2">{actions(product)}</div>}
           </article>
         ))}
       </div>
@@ -193,7 +197,7 @@ export function ProductDirectory({
                 <TableRow key={product.id}>
                   <TableCell className="max-w-sm whitespace-normal">
                     <div className="flex items-center gap-3">
-                      {photo(product)}
+                      {photo(product, true)}
                       <div className="min-w-0">
                         <p className="font-medium wrap-anywhere">
                           {product.name}

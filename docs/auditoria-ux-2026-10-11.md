@@ -290,3 +290,23 @@ Se verificaron consulta por código posterior al registro 500, categorías inact
 cambio de ancho, formulario móvil, error/reintento y cajero sin costos.
 API totalmente simulada: cero escrituras y cero peticiones a servicios reales.
 Esta entrega no modifica SQL ni certifica los flujos de lectura de fotos.
+
+### Pulido tras revisar la captura de producción
+
+Las tarjetas reúnen precio, estado y acciones en un pie adaptable para reducir
+su altura; las fotos crecen a 64 px conservando margen interior y proporciones.
+La tabla mantiene fotos de 56 px. No se recortan los nombres de los productos.
+
+Se añade paginación superior cuando hay varias páginas, compartiendo estado con
+la inferior. Ambas regiones tienen nombres accesibles distintos. Los precios en
+cero se identifican como «Sin precio»; en granel se conserva visible cualquier
+tarifa válida de 100 g y se identifican tarifas pendientes. La alerta de producto
+activo sin precio permanece. Los datos y cálculos de venta no se modifican.
+
+Pruebas de regresión cubren recorrido desde ambos controles y sus límites,
+además de precios pendientes/vigentes en tabla y tarjetas.
+Revisión visual en Chrome a 1366 × 900, 390 × 844 y 360 × 800 con 212 productos
+simulados, modo oscuro y texto ampliado. Se comprobó la sincronización desde ambos
+controles, el margen interior de fotos, las tarifas pendientes y las alertas,
+además del ancho de cada tarjeta y de la página: sin desbordamientos, escrituras
+ni peticiones a servicios externos. Compilación y pruebas de los cambios aprobadas.

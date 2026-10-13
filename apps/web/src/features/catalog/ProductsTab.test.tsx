@@ -14,24 +14,22 @@ const { toggleActive, deleteProduct, useCosts, resource } = vi.hoisted(() => ({
   toggleActive: vi.fn(),
   deleteProduct: vi.fn(),
   useCosts: vi.fn(),
-  resource: { loading: false, error: null as string | null },
+  resource: { loading: false, error: null as string | null, count: 1 },
 }))
 vi.mock('@/lib/errors', () => ({ reportError: vi.fn() }))
 vi.mock('./useProducts', () => ({
   useProducts: () => ({
-    products: [
-      {
-        id: 'p1',
-        name: 'Chile ancho',
-        price: 220,
-        sku: 'CH1',
-        active: true,
-        unit_id: 'u1',
-        category_id: null,
-        sold_by_weight: true,
-        price_per_100g: 26,
-      },
-    ],
+    products: Array.from({ length: resource.count }, (_, index) => ({
+      id: 'p' + index,
+      name: index ? 'Producto ' + index : 'Chile ancho',
+      price: 220,
+      sku: 'CH1',
+      active: true,
+      unit_id: 'u1',
+      category_id: null,
+      sold_by_weight: true,
+      price_per_100g: 26,
+    })),
     ...resource,
     refresh: vi.fn(),
     createProduct: vi.fn(),
@@ -85,6 +83,8 @@ beforeEach(() => {
     error: null,
     refresh: vi.fn(),
   })
+  vi.stubGlobal('scrollTo', vi.fn())
+  resource.count = 1
   resource.loading = false
   resource.error = null
 })
@@ -197,4 +197,34 @@ it('el cajero consulta el catálogo sin costos ni acciones de administración', 
       name: /Nuevo producto|Precios|Editar Chile|Más acciones/,
     }),
   ).not.toBeInTheDocument()
+})
+
+it('sincroniza las dos paginaciones y mantiene sus límites al recorrer el catálogo', () => {
+  resource.count = 51
+  render(<ProductsTab role="owner" />)
+  const upper = within(
+    screen.getByRole('navigation', {
+      name: 'Paginación superior de productos',
+    }),
+  )
+  const lower = within(
+    screen.getByRole('navigation', {
+      name: 'Paginación inferior de productos',
+    }),
+  )
+  expect(upper.getByRole('button', { name: 'Anterior' })).toBeDisabled()
+  fireEvent.click(upper.getByRole('button', { name: 'Siguiente' }))
+  expect(upper.getByText('26–50 de 51 · página 2 de 3')).toBeInTheDocument()
+  expect(lower.getByText('26–50 de 51 · página 2 de 3')).toBeInTheDocument()
+  const cards = within(screen.getByLabelText('Tarjetas de productos'))
+  expect(cards.getAllByRole('article')).toHaveLength(25)
+  expect(
+    cards.getByRole('article', { name: 'Producto 25' }),
+  ).toBeInTheDocument()
+  fireEvent.click(lower.getByRole('button', { name: 'Siguiente' }))
+  expect(upper.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+  expect(lower.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+  expect(cards.getAllByRole('article')).toHaveLength(1)
+  fireEvent.click(upper.getByRole('button', { name: 'Anterior' }))
+  expect(lower.getByText('26–50 de 51 · página 2 de 3')).toBeInTheDocument()
 })

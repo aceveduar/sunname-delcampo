@@ -226,6 +226,11 @@ export function ProductsTab({ role }: { role: Role | null }) {
           Actualizando productos…
         </p>
       )}
+      {!loading && !error && filters.totalPages > 1 && (
+        <nav aria-label="Paginación superior de productos">
+          <PaginationControls {...filters} onPageChange={filters.setPage} />
+        </nav>
+      )}
       <ProductDirectory
         products={filters.pageItems}
         view={view}
@@ -270,8 +275,10 @@ export function ProductsTab({ role }: { role: Role | null }) {
             : undefined
         }
       />
-      {!loading && !error && (
-        <PaginationControls {...filters} onPageChange={filters.setPage} />
+      {!loading && !error && filters.totalItems > 0 && (
+        <nav aria-label="Paginación inferior de productos">
+          <PaginationControls {...filters} onPageChange={filters.setPage} />
+        </nav>
       )}
       {canManage && (
         <>
