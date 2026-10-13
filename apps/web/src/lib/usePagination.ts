@@ -22,6 +22,7 @@ export function usePagination<T>(items: T[], pageSize = 25) {
     pageItems,
     page: currentPage,
     setPage: goToPage,
+    resetPage: () => setPage(1),
     totalPages,
     totalItems: items.length,
     pageSize,

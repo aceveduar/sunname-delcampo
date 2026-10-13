@@ -40,3 +40,10 @@ Evitar duplicar funciones ya implementadas.
 
 Después, revisar Inicio para que los pendientes y accesos ayuden a organizar la
 operación diaria.
+
+## Seguimiento del 13 de octubre
+
+La revisión de Compras y recepción se completó; alcance y validación en
+auditoria-compras-recepcion-2026-10-13.md. La auditoría dedicada de rendimiento
+queda como siguiente prioridad. Esta revisión no sustituye las mediciones de
+velocidad pendientes.

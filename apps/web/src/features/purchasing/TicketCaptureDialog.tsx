@@ -13,7 +13,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/currency'
-import { bestUnambiguous, matchScore, rankCandidates, type Candidate } from '@/lib/match'
+import {
+  bestUnambiguous,
+  matchScore,
+  rankCandidates,
+  type Candidate,
+} from '@/lib/match'
 import { empaqueDesdeTicket, normalizeSearch, toTitleCase } from '@/lib/text'
 import {
   numero,
@@ -24,7 +29,11 @@ import {
 import type { Product } from '@/features/catalog/useProducts'
 import type { UnitOfMeasure } from '@/features/catalog/useUnits'
 import type { Supplier } from './useSuppliers'
-import { useTicketCapture, type TicketLectura, type TicketRenglon } from './useTicketCapture'
+import {
+  useTicketCapture,
+  type TicketLectura,
+  type TicketRenglon,
+} from './useTicketCapture'
 import { useSupplierAliases } from './useSupplierAliases'
 import { useSupplierNameAliases } from './useSupplierNameAliases'
 
@@ -60,7 +69,9 @@ export function TicketCaptureDialog({
   onCreate,
   onCreateSupplier,
   onCreateProduct,
+  disabled = false,
 }: {
+  disabled?: boolean
   suppliers: Supplier[]
   products: Product[]
   units: UnitOfMeasure[]
@@ -89,11 +100,11 @@ export function TicketCaptureDialog({
     rememberSupplierName,
   } = useSupplierNameAliases()
 
-  const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers])
-  const unitById = useMemo(
-    () => new Map(units.map((u) => [u.id, u])),
-    [units],
+  const activeSuppliers = useMemo(
+    () => suppliers.filter((s) => s.active),
+    [suppliers],
   )
+  const unitById = useMemo(() => new Map(units.map((u) => [u.id, u])), [units])
 
   const {
     lectura,
@@ -147,7 +158,9 @@ export function TicketCaptureDialog({
       const proveedor =
         proveedorConfirmado ??
         (nombreProveedor
-          ? mejorInequivoco(rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name))
+          ? mejorInequivoco(
+              rankCandidates(nombreProveedor, activeSuppliers, (s) => s.name),
+            )
           : null)
       if (proveedor) setSupplierId(proveedor.id)
       const supplierIdResuelto = proveedor?.id ?? ''
@@ -170,16 +183,26 @@ export function TicketCaptureDialog({
         // en garrafas.
         const factor = alias ? Number(alias.units_per_package) : 1
         const sugerenciaEmpaque =
-          !alias && renglon.descripcion ? empaqueDesdeTicket(renglon.descripcion) : null
+          !alias && renglon.descripcion
+            ? empaqueDesdeTicket(renglon.descripcion)
+            : null
 
         const sugerido =
           productoAprendido ??
           (renglon.descripcion
             ? (mejorInequivoco(
-                rankCandidates(renglon.descripcion, activeProducts, (p) => p.name ?? ''),
+                rankCandidates(
+                  renglon.descripcion,
+                  activeProducts,
+                  (p) => p.name ?? '',
+                ),
               ) ??
               mejorInequivoco(
-                rankCandidates(renglon.descripcion, inactiveProducts, (p) => p.name ?? ''),
+                rankCandidates(
+                  renglon.descripcion,
+                  inactiveProducts,
+                  (p) => p.name ?? '',
+                ),
               ))
             : null)
 
@@ -188,7 +211,9 @@ export function TicketCaptureDialog({
           origen: renglon,
           productId: sugerido?.id ?? '',
           quantity:
-            renglon.cantidad !== null ? String(redondear(renglon.cantidad * factor, 3)) : '',
+            renglon.cantidad !== null
+              ? String(redondear(renglon.cantidad * factor, 3))
+              : '',
           unitCost:
             renglon.precio_unitario !== null
               ? String(redondear(renglon.precio_unitario / factor, 2))
@@ -253,7 +278,11 @@ export function TicketCaptureDialog({
     setLines((prev) =>
       prev.map((line) => {
         if (line.productId) return line
-        const alias = findAlias(nuevoId, line.origen.descripcion, line.origen.codigo_proveedor)
+        const alias = findAlias(
+          nuevoId,
+          line.origen.descripcion,
+          line.origen.codigo_proveedor,
+        )
         if (!alias) return line
         const factor = Number(alias.units_per_package)
         return {
@@ -282,7 +311,11 @@ export function TicketCaptureDialog({
     (l) => !l.productId || numero(l.quantity) <= 0 || numero(l.unitCost) <= 0,
   ).length
   const puedeGuardar =
-    !!supplierId && includedLines.length > 0 && lineasIncompletas === 0 && !submitting
+    !!supplierId &&
+    includedLines.length > 0 &&
+    lineasIncompletas === 0 &&
+    !submitting &&
+    !disabled
 
   const handleSubmit = async () => {
     if (!puedeGuardar || !lectura) return
@@ -294,7 +327,9 @@ export function TicketCaptureDialog({
     const notas = [
       'Capturada por foto.',
       doc.folio ? `Folio ${doc.folio}.` : null,
-      doc.total !== null ? `Total del ticket: ${formatCurrency(doc.total)}.` : null,
+      doc.total !== null
+        ? `Total del ticket: ${formatCurrency(doc.total)}.`
+        : null,
       `Foto: ${lectura.storagePath}`,
     ]
       .filter(Boolean)
@@ -343,7 +378,9 @@ export function TicketCaptureDialog({
 
     setSubmitting(false)
     if (ok) {
-      toast.success('Orden creada. Recíbela para que entre a inventario y actualice costos.')
+      toast.success(
+        'Orden creada. Recíbela para que entre a inventario y actualice costos.',
+      )
       handleOpenChange(false)
     }
   }
@@ -360,7 +397,8 @@ export function TicketCaptureDialog({
   const proveedorPorNombreCoincide =
     !!proveedorSeleccionado &&
     !!nombreTicketProveedor &&
-    matchScore(nombreTicketProveedor, proveedorSeleccionado.name) >= UMBRAL_AUTOSELECCION
+    matchScore(nombreTicketProveedor, proveedorSeleccionado.name) >=
+      UMBRAL_AUTOSELECCION
   const proveedorNoCoincide =
     !!nombreTicketProveedor &&
     !proveedorPorNombreCoincide &&
@@ -369,6 +407,7 @@ export function TicketCaptureDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
+        disabled={disabled}
         render={
           <Button variant="outline">
             <Camera className="size-4" /> Capturar por foto
@@ -387,8 +426,8 @@ export function TicketCaptureDialog({
               <div>
                 <p className="font-medium">Toma o sube la foto del ticket</p>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  Se lee sola y después la revisas renglón por renglón antes de guardar.
-                  Nada se guarda hasta que tú lo confirmes.
+                  Se lee sola y después la revisas renglón por renglón antes de
+                  guardar. Nada se guarda hasta que tú lo confirmes.
                 </p>
               </div>
               {/* Sin capture="environment" a propósito: ese atributo no
@@ -408,10 +447,14 @@ export function TicketCaptureDialog({
                   e.target.value = ''
                 }}
               />
-              <Button onClick={() => fileInputRef.current?.click()} disabled={analyzing}>
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={analyzing}
+              >
                 {analyzing ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Leyendo el ticket…
+                    <Loader2 className="size-4 animate-spin" /> Leyendo el
+                    ticket…
                   </>
                 ) : (
                   <>
@@ -429,12 +472,14 @@ export function TicketCaptureDialog({
                   la persona lo descubra bajando por la lista. */}
               <div
                 className={`flex items-start gap-3 rounded-md border p-3 text-sm ${
-                  verificacion.renglones_por_revisar > 0 || verificacion.cuadra === false
+                  verificacion.renglones_por_revisar > 0 ||
+                  verificacion.cuadra === false
                     ? 'border-destructive/40 bg-destructive/5'
                     : 'border-success/40 bg-success/5'
                 }`}
               >
-                {verificacion.renglones_por_revisar > 0 || verificacion.cuadra === false ? (
+                {verificacion.renglones_por_revisar > 0 ||
+                verificacion.cuadra === false ? (
                   <AlertTriangle className="text-destructive mt-0.5 size-4 shrink-0" />
                 ) : (
                   <Check className="text-success mt-0.5 size-4 shrink-0" />
@@ -447,21 +492,24 @@ export function TicketCaptureDialog({
                       : ' · todos cuadran'}
                   </p>
                   <p className="text-muted-foreground">
-                    Suma de renglones {formatCurrency(verificacion.suma_renglones ?? 0)}
+                    Suma de renglones{' '}
+                    {formatCurrency(verificacion.suma_renglones ?? 0)}
                     {verificacion.total_documento !== null && (
                       <>
                         {' · '}total del ticket{' '}
                         {formatCurrency(verificacion.total_documento)}
                       </>
                     )}
-                    {verificacion.cuadra === false && verificacion.diferencia !== null && (
-                      <>
-                        {' · '}
-                        <span className="text-destructive font-medium">
-                          diferencia de {formatCurrency(verificacion.diferencia)}
-                        </span>
-                      </>
-                    )}
+                    {verificacion.cuadra === false &&
+                      verificacion.diferencia !== null && (
+                        <>
+                          {' · '}
+                          <span className="text-destructive font-medium">
+                            diferencia de{' '}
+                            {formatCurrency(verificacion.diferencia)}
+                          </span>
+                        </>
+                      )}
                   </p>
                 </div>
               </div>
@@ -473,7 +521,7 @@ export function TicketCaptureDialog({
                     id="ticket-proveedor"
                     value={supplierId}
                     onChange={(e) => handleSupplierChange(e.target.value)}
-                    className="border-input bg-transparent h-9 rounded-md border px-3 text-sm"
+                    className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
                   >
                     <option value="">Elige un proveedor…</option>
                     {activeSuppliers.map((s) => (
@@ -492,8 +540,13 @@ export function TicketCaptureDialog({
                           : 'text-muted-foreground'
                       }`}
                     >
-                      {proveedorNoCoincide && supplierId ? '¿No es este proveedor? El ' : ''}
-                      {proveedorNoCoincide && supplierId ? 'ticket' : 'El ticket'} dice:{' '}
+                      {proveedorNoCoincide && supplierId
+                        ? '¿No es este proveedor? El '
+                        : ''}
+                      {proveedorNoCoincide && supplierId
+                        ? 'ticket'
+                        : 'El ticket'}{' '}
+                      dice:{' '}
                       <span className="text-foreground font-medium">
                         {lectura.extraccion.proveedor.nombre}
                       </span>
@@ -554,8 +607,11 @@ export function TicketCaptureDialog({
                           </p>
                           <p className="text-muted-foreground text-xs">
                             El ticket dice:{' '}
-                            {line.origen.cantidad !== null ? line.origen.cantidad : '—'}
-                            {line.origen.unidad ? ` ${line.origen.unidad}` : ''} ×{' '}
+                            {line.origen.cantidad !== null
+                              ? line.origen.cantidad
+                              : '—'}
+                            {line.origen.unidad ? ` ${line.origen.unidad}` : ''}{' '}
+                            ×{' '}
                             {line.origen.precio_unitario !== null
                               ? formatCurrency(line.origen.precio_unitario)
                               : '—'}{' '}
@@ -563,7 +619,8 @@ export function TicketCaptureDialog({
                             {line.origen.importe !== null
                               ? formatCurrency(line.origen.importe)
                               : '—'}
-                            {line.origen.cantidad_deducida && ' · cantidad deducida'}
+                            {line.origen.cantidad_deducida &&
+                              ' · cantidad deducida'}
                           </p>
                         </div>
                         <label className="flex shrink-0 items-center gap-1.5 text-xs">
@@ -571,7 +628,9 @@ export function TicketCaptureDialog({
                             type="checkbox"
                             checked={line.include}
                             onChange={(e) =>
-                              updateLine(line.key, { include: e.target.checked })
+                              updateLine(line.key, {
+                                include: e.target.checked,
+                              })
                             }
                           />
                           Incluir
@@ -596,14 +655,19 @@ export function TicketCaptureDialog({
                             <select
                               value={line.productId}
                               onChange={(e) =>
-                                updateLine(line.key, { productId: e.target.value })
+                                updateLine(line.key, {
+                                  productId: e.target.value,
+                                })
                               }
-                              className={`border-input bg-transparent h-9 rounded-md border px-2 text-sm ${
+                              className={`border-input h-9 rounded-md border bg-transparent px-2 text-sm ${
                                 line.productId ? '' : 'border-destructive'
                               }`}
                             >
                               <option value="">Elige el producto…</option>
-                              {opcionesOrdenadas(line.origen.descripcion, products).map((p) => (
+                              {opcionesOrdenadas(
+                                line.origen.descripcion,
+                                products,
+                              ).map((p) => (
                                 <option key={p.id} value={p.id ?? ''}>
                                   {p.name}
                                   {p.active ? '' : ' (inactivo)'}
@@ -613,12 +677,17 @@ export function TicketCaptureDialog({
                           </div>
                           <div className="flex flex-col gap-1">
                             <Label className="text-xs">
-                              Cantidad{unidadProducto ? ` (${unidadProducto.code})` : ''}
+                              Cantidad
+                              {unidadProducto
+                                ? ` (${unidadProducto.code})`
+                                : ''}
                             </Label>
                             <Input
                               value={line.quantity}
                               onChange={(e) =>
-                                updateLine(line.key, { quantity: e.target.value })
+                                updateLine(line.key, {
+                                  quantity: e.target.value,
+                                })
                               }
                               inputMode="decimal"
                               autoComplete="off"
@@ -629,7 +698,9 @@ export function TicketCaptureDialog({
                             <Input
                               value={line.unitCost}
                               onChange={(e) =>
-                                updateLine(line.key, { unitCost: e.target.value })
+                                updateLine(line.key, {
+                                  unitCost: e.target.value,
+                                })
                               }
                               inputMode="decimal"
                               autoComplete="off"
@@ -638,7 +709,9 @@ export function TicketCaptureDialog({
                           <div className="flex flex-col gap-1">
                             <Label className="text-xs">Importe</Label>
                             <p className="flex h-9 items-center text-sm font-medium">
-                              {formatCurrency(numero(line.quantity) * numero(line.unitCost))}
+                              {formatCurrency(
+                                numero(line.quantity) * numero(line.unitCost),
+                              )}
                             </p>
                           </div>
                         </div>
@@ -647,7 +720,8 @@ export function TicketCaptureDialog({
                       {line.include && line.packHint && (
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                           <span className="text-muted-foreground">
-                            El ticket dice que cada {line.origen.unidad ?? 'empaque'} trae{' '}
+                            El ticket dice que cada{' '}
+                            {line.origen.unidad ?? 'empaque'} trae{' '}
                             {line.packHint}
                             {unidadProducto ? ` ${unidadProducto.code}` : ''}.
                           </span>
@@ -664,8 +738,8 @@ export function TicketCaptureDialog({
                       {line.include && line.packFactor !== 1 && (
                         <p className="text-muted-foreground mt-2 text-xs">
                           Convertido: {line.origen.cantidad}{' '}
-                          {line.origen.unidad ?? 'empaque'} × {line.packFactor} ={' '}
-                          {line.quantity}
+                          {line.origen.unidad ?? 'empaque'} × {line.packFactor}{' '}
+                          = {line.quantity}
                           {unidadProducto ? ` ${unidadProducto.code}` : ''}.
                         </p>
                       )}
@@ -673,11 +747,16 @@ export function TicketCaptureDialog({
                       {line.include && altaEnLinea === line.key && (
                         <div className="bg-muted/50 mt-3 flex flex-wrap items-end gap-3 rounded-md border p-3">
                           <div className="flex min-w-[200px] flex-1 flex-col gap-1">
-                            <Label className="text-xs">Nombre en tu catálogo</Label>
+                            <Label className="text-xs">
+                              Nombre en tu catálogo
+                            </Label>
                             <Input
                               value={nuevoProducto.name}
                               onChange={(e) =>
-                                setNuevoProducto((p) => ({ ...p, name: e.target.value }))
+                                setNuevoProducto((p) => ({
+                                  ...p,
+                                  name: e.target.value,
+                                }))
                               }
                               autoComplete="off"
                             />
@@ -687,9 +766,12 @@ export function TicketCaptureDialog({
                             <select
                               value={nuevoProducto.unitId}
                               onChange={(e) =>
-                                setNuevoProducto((p) => ({ ...p, unitId: e.target.value }))
+                                setNuevoProducto((p) => ({
+                                  ...p,
+                                  unitId: e.target.value,
+                                }))
                               }
-                              className="border-input bg-transparent h-9 rounded-md border px-2 text-sm"
+                              className="border-input h-9 rounded-md border bg-transparent px-2 text-sm"
                             >
                               {units.map((u) => (
                                 <option key={u.id} value={u.id}>
@@ -702,7 +784,9 @@ export function TicketCaptureDialog({
                             <Button
                               type="button"
                               size="sm"
-                              disabled={creandoProducto || !nuevoProducto.name.trim()}
+                              disabled={
+                                creandoProducto || !nuevoProducto.name.trim()
+                              }
                               onClick={() => handleCreateProduct(line.key)}
                             >
                               {creandoProducto ? 'Creando…' : 'Crear producto'}
@@ -717,18 +801,20 @@ export function TicketCaptureDialog({
                             </Button>
                           </div>
                           <p className="text-muted-foreground w-full text-xs">
-                            Se crea sin precio y desactivado, para que no se pueda vender
-                            por error. Ponle precio en Catálogo cuando lo tengas; el costo
-                            se lo pone esta misma compra al recibirla.
+                            Se crea sin precio y desactivado, para que no se
+                            pueda vender por error. Ponle precio en Catálogo
+                            cuando lo tengas; el costo se lo pone esta misma
+                            compra al recibirla.
                           </p>
                         </div>
                       )}
 
                       {line.include && unidadDistinta && (
                         <p className="text-destructive mt-2 text-xs">
-                          El ticket cobra por {line.origen.unidad} y este producto se mide en{' '}
-                          {unidadProducto?.code}. Captura la cantidad y el costo en{' '}
-                          {unidadProducto?.code}, no como viene en el ticket.
+                          El ticket cobra por {line.origen.unidad} y este
+                          producto se mide en {unidadProducto?.code}. Captura la
+                          cantidad y el costo en {unidadProducto?.code}, no como
+                          viene en el ticket.
                         </p>
                       )}
                     </div>
@@ -750,7 +836,9 @@ export function TicketCaptureDialog({
               <span className="text-muted-foreground">
                 {includedLines.length} de {lines.length} renglones ·{' '}
               </span>
-              <span className="text-foreground font-semibold">{formatCurrency(total)}</span>
+              <span className="text-foreground font-semibold">
+                {formatCurrency(total)}
+              </span>
               {lineasIncompletas > 0 && (
                 <span className="text-destructive ml-2 text-xs">
                   {lineasIncompletas} sin completar

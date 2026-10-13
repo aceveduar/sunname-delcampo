@@ -78,3 +78,20 @@ it('permite cancelar el cierre sin perder las cantidades', async () => {
   await waitFor(() => expect(screen.getByRole('spinbutton')).toHaveValue(2))
   expect(submit).not.toHaveBeenCalled()
 })
+
+it('explica el exceso de cantidad junto al producto y conserva la captura durante una consulta fallida', () => {
+  const props = { order, userId: 'user', onSaved: vi.fn() }
+  const { rerender } = render(<ReceivePurchaseDialog {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Recibir' }))
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '8' } })
+  expect(screen.getByRole('alert')).toHaveTextContent('7 kg')
+  expect(screen.getByRole('spinbutton')).toHaveAttribute('aria-invalid', 'true')
+  expect(screen.getByRole('button', { name: 'Revisar entrega' })).toBeDisabled()
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
+  rerender(<ReceivePurchaseDialog {...props} disabled />)
+  expect(screen.getByRole('spinbutton')).toHaveValue(2)
+  expect(screen.getByRole('button', { name: 'Revisar entrega' })).toBeDisabled()
+  rerender(<ReceivePurchaseDialog {...props} />)
+  expect(screen.getByRole('button', { name: 'Revisar entrega' })).toBeEnabled()
+  expect(submit).not.toHaveBeenCalled()
+})

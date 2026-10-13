@@ -14,7 +14,9 @@ export function PurchaseOrderCard({
   userId,
   onView,
   onSaved,
+  disabled = false,
 }: {
+  disabled?: boolean
   order: PurchaseOrder
   userId: string
   onView: () => void
@@ -22,7 +24,10 @@ export function PurchaseOrderCard({
 }) {
   const pending = pendingOrderItems(order)
   return (
-    <article className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-4">
+    <article
+      aria-label={'Orden ' + order.id.slice(0, 8)}
+      className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-4"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="font-semibold break-words">
@@ -66,7 +71,7 @@ export function PurchaseOrderCard({
                   {item.product?.name ?? 'Producto'}
                 </span>
                 <span className="shrink-0 tabular-nums">
-                  {item.remaining} de {item.quantity}
+                  {item.remaining} / {item.quantity} {item.product?.unit?.code}
                 </span>
               </li>
             ))}
@@ -78,6 +83,20 @@ export function PurchaseOrderCard({
           )}
         </div>
       )}
+      {(order.status === 'ordered' || order.status === 'received') &&
+        order.purchase_order_items.length > 0 && (
+          <p className="text-muted-foreground text-xs">
+            {
+              order.purchase_order_items.filter((item) =>
+                order.status === 'received'
+                  ? item.received_quantity >= item.quantity
+                  : item.received_quantity > 0,
+              ).length
+            }{' '}
+            de {order.purchase_order_items.length} renglones{' '}
+            {order.status === 'received' ? 'completos' : 'con entregas'}
+          </p>
+        )}
       <div className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t pt-3">
         <Button
           variant="outline"
@@ -89,6 +108,7 @@ export function PurchaseOrderCard({
         </Button>
         <ReceivePurchaseDialog
           order={order}
+          disabled={disabled}
           userId={userId}
           onSaved={onSaved}
         />

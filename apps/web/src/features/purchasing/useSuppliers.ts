@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { readAllPages } from '@/lib/readAllPages'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
@@ -10,7 +11,17 @@ type SupplierInsert = Database['public']['Tables']['suppliers']['Insert']
 
 export function useSuppliers() {
   const fetchSuppliers = useCallback(
-    () => supabase.from('suppliers').select('*').order('name'),
+    async () => ({
+      data: await readAllPages((from, to) =>
+        supabase
+          .from('suppliers')
+          .select('*', { count: 'exact' })
+          .order('name')
+          .order('id')
+          .range(from, to),
+      ),
+      error: null,
+    }),
     [],
   )
   const {

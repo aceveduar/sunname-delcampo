@@ -1,6 +1,8 @@
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DeliveryReview } from './DeliveryReview'
 import { PurchaseQuantities } from './PurchaseQuantities'
+import { deliveryQuantityError } from './deliveryQuantityError'
+import { remainingQuantity } from './orderPresentation'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -24,7 +26,9 @@ export function ReceivePurchaseDialog({
   order,
   userId,
   onSaved,
+  disabled = false,
 }: {
+  disabled?: boolean
   order: PurchaseOrder
   userId: string
   onSaved: () => Promise<void>
@@ -60,12 +64,12 @@ export function ReceivePurchaseDialog({
     selected.every((row) => {
       const item = items.find((item) => item.id === row.item_id)!
       return (
-        Number.isFinite(row.quantity) &&
         row.quantity > 0 &&
-        Math.abs(row.quantity * 1000 - Math.round(row.quantity * 1000)) <
-          1e-6 &&
-        row.quantity <=
-          Math.round((item.quantity - item.received_quantity) * 1000) / 1000
+        !deliveryQuantityError(
+          String(row.quantity),
+          remainingQuantity(item),
+          item.product?.unit?.code ?? '',
+        )
       )
     })
   if (order.status !== 'ordered' && !delivery.pending && !delivery.blocked)
@@ -73,6 +77,7 @@ export function ReceivePurchaseDialog({
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (
+      (disabled && !delivery.pending) ||
       delivery.busy ||
       delivery.blocked ||
       (!valid && !delivery.pending) ||
@@ -110,19 +115,24 @@ export function ReceivePurchaseDialog({
   }
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={(disabled && !delivery.pending) || delivery.busy}
+        onClick={() => setOpen(true)}
+      >
         {delivery.pending ? 'Verificar entrega' : 'Recibir'}
       </Button>
       <Dialog open={open} onOpenChange={changeOpen}>
         <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl"
+          className="flex max-h-[calc(100dvh-2rem)] min-w-0 flex-col overflow-hidden sm:max-w-xl"
           showCloseButton={!delivery.busy}
         >
-          <DialogHeader>
+          <DialogHeader className="pr-6">
             <DialogTitle>
               {showReview ? 'Revisar entrega' : 'Recibir mercancía'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="wrap-anywhere">
               {order.supplier?.name}. Captura solo lo que llegó hoy. Lo demás
               quedará pendiente.
             </DialogDescription>
@@ -138,93 +148,138 @@ export function ReceivePurchaseDialog({
               el inventario.
             </p>
           )}
-          <form onSubmit={submit} className="space-y-4">
-            {showReview && (
-              <DeliveryReview
-                order={order}
-                delivery={
-                  delivery.pending ?? { items: selected, notes: notes.trim() }
+          <form
+            onSubmit={submit}
+            className="flex min-h-0 flex-1 flex-col gap-4"
+          >
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-1">
+              {showReview && (
+                <DeliveryReview
+                  order={order}
+                  delivery={
+                    delivery.pending ?? { items: selected, notes: notes.trim() }
+                  }
+                  pending={!!delivery.pending}
+                />
+              )}
+              <fieldset
+                disabled={
+                  disabled ||
+                  delivery.busy ||
+                  !!delivery.pending ||
+                  delivery.blocked
                 }
-                pending={!!delivery.pending}
-              />
-            )}
-            <fieldset
-              disabled={delivery.busy || !!delivery.pending || delivery.blocked}
-              className="space-y-3"
-              hidden={showReview}
-            >
-              <legend className="sr-only">Cantidades recibidas</legend>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setQuantities(
-                    Object.fromEntries(
-                      items.map((item) => [
-                        item.id,
-                        String(
+                className="space-y-3"
+                hidden={showReview}
+              >
+                <legend className="sr-only">Cantidades recibidas</legend>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setQuantities(
+                      Object.fromEntries(
+                        items.map((item) => [
+                          item.id,
+                          String(
+                            Math.round(
+                              (item.quantity - item.received_quantity) * 1000,
+                            ) / 1000,
+                          ),
+                        ]),
+                      ),
+                    )
+                  }
+                >
+                  Completar lo pendiente
+                </Button>
+                {items.map((item) => {
+                  const unit = item.product?.unit?.code ?? ''
+                  const quantityError = deliveryQuantityError(
+                    quantities[item.id] ?? '',
+                    remainingQuantity(item),
+                    unit,
+                  )
+                  return (
+                    <div
+                      key={item.id}
+                      className="space-y-2 rounded-md border p-3"
+                    >
+                      <Label
+                        className="wrap-anywhere"
+                        htmlFor={`receive-${item.id}`}
+                      >
+                        {item.product?.name ?? 'Producto'}
+                      </Label>
+                      <PurchaseQuantities item={item} />
+                      <Input
+                        id={`receive-${item.id}`}
+                        aria-invalid={!!quantityError}
+                        aria-describedby={'quantity-hint-' + item.id}
+                        aria-label={`Recibir ${item.product?.name ?? 'producto'}`}
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        max={
                           Math.round(
                             (item.quantity - item.received_quantity) * 1000,
-                          ) / 1000,
-                        ),
-                      ]),
-                    ),
+                          ) / 1000
+                        }
+                        step="0.001"
+                        disabled={item.received_quantity === item.quantity}
+                        placeholder="0"
+                        value={
+                          delivery.pending?.items.find(
+                            (row) => row.item_id === item.id,
+                          )?.quantity ??
+                          quantities[item.id] ??
+                          ''
+                        }
+                        onChange={(event) =>
+                          setQuantities((current) => ({
+                            ...current,
+                            [item.id]: event.target.value,
+                          }))
+                        }
+                      />
+                      <p
+                        id={'quantity-hint-' + item.id}
+                        className={
+                          quantityError
+                            ? 'text-destructive text-xs'
+                            : 'text-muted-foreground text-xs'
+                        }
+                        role={quantityError ? 'alert' : undefined}
+                      >
+                        {quantityError ??
+                          'Cantidad que llegó hoy' +
+                            (unit ? ', en ' + unit : '') +
+                            '.'}
+                      </p>
+                    </div>
                   )
-                }
-              >
-                Completar lo pendiente
-              </Button>
-              {items.map((item) => (
-                <div key={item.id} className="space-y-2 rounded-md border p-3">
-                  <Label htmlFor={`receive-${item.id}`}>
-                    {item.product?.name ?? 'Producto'}
-                  </Label>
-                  <PurchaseQuantities item={item} />
-                  <Input
-                    id={`receive-${item.id}`}
-                    aria-label={`Recibir ${item.product?.name ?? 'producto'}`}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    max={
-                      Math.round(
-                        (item.quantity - item.received_quantity) * 1000,
-                      ) / 1000
-                    }
-                    step="0.001"
-                    disabled={item.received_quantity === item.quantity}
-                    placeholder="0"
-                    value={
-                      delivery.pending?.items.find(
-                        (row) => row.item_id === item.id,
-                      )?.quantity ??
-                      quantities[item.id] ??
-                      ''
-                    }
-                    onChange={(event) =>
-                      setQuantities((current) => ({
-                        ...current,
-                        [item.id]: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              ))}
-              <Label htmlFor={`delivery-notes-${order.id}`}>
-                Nota de la entrega (opcional)
-              </Label>
-              <Textarea
-                id={`delivery-notes-${order.id}`}
-                maxLength={1000}
-                value={delivery.pending?.notes ?? notes}
-                onChange={(event) => setNotes(event.target.value)}
-              />
-            </fieldset>
-            {!online && (
-              <p role="status">Necesitas conexión para recibir mercancía.</p>
+                })}
+                <Label htmlFor={`delivery-notes-${order.id}`}>
+                  Nota de la entrega (opcional)
+                </Label>
+                <Textarea
+                  id={`delivery-notes-${order.id}`}
+                  maxLength={1000}
+                  value={delivery.pending?.notes ?? notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </fieldset>
+              {!online && (
+                <p role="status">Necesitas conexión para recibir mercancía.</p>
+              )}
+            </div>
+            {disabled && !delivery.pending && (
+              <p role="status" className="text-sm">
+                Actualiza Compras antes de registrar esta entrega.
+              </p>
             )}
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -241,6 +296,7 @@ export function ReceivePurchaseDialog({
               <Button
                 type="submit"
                 disabled={
+                  (disabled && !delivery.pending) ||
                   delivery.busy ||
                   delivery.blocked ||
                   !online ||

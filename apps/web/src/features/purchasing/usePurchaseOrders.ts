@@ -1,5 +1,6 @@
 import { useCreatePurchaseOrder } from './useCreatePurchaseOrder'
 import { useCallback } from 'react'
+import { readAllPages } from '@/lib/readAllPages'
 import { supabase } from '../../lib/supabase'
 import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
@@ -31,11 +32,15 @@ export function usePurchaseOrders() {
   // anidadas salen más laxas de lo que sabemos que son) -- se castea
   // aquí y en el historial paginado por proveedor.
   const fetchOrders = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('purchase_orders')
-      .select(PURCHASE_ORDER_SELECT)
-      .order('created_at', { ascending: false })
-    return { data: data as PurchaseOrder[] | null, error }
+    const data = await readAllPages((from, to) =>
+      supabase
+        .from('purchase_orders')
+        .select(PURCHASE_ORDER_SELECT, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to),
+    )
+    return { data: data as PurchaseOrder[], error: null }
   }, [])
   const {
     items: orders,

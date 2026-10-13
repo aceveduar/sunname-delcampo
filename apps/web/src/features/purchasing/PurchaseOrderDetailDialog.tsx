@@ -1,9 +1,11 @@
 import { PurchaseQuantities } from './PurchaseQuantities'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogFooter,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -34,15 +36,17 @@ export function PurchaseOrderDetailDialog({
 
   return (
     <Dialog open={order !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{order?.supplier?.name ?? '—'}</DialogTitle>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] min-w-0 flex-col overflow-hidden sm:max-w-3xl">
+        <DialogHeader className="pr-6">
+          <DialogTitle className="wrap-anywhere">
+            {order?.supplier?.name ?? '—'}
+          </DialogTitle>
           <DialogDescription>
             Orden {order?.id.slice(0, 8)} · Cantidades y entregas registradas.
           </DialogDescription>
         </DialogHeader>
         {order && (
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="text-muted-foreground">
                 {new Date(
@@ -122,11 +126,6 @@ export function PurchaseOrderDetailDialog({
               </Table>
             </div>
 
-            <div className="flex items-center justify-between text-sm font-semibold">
-              <span>Total</span>
-              <span>{formatCurrency(total)}</span>
-            </div>
-
             <PurchaseReceiptHistory key={order.id} orderId={order.id} />
             {order.notes && (
               <div className="flex flex-col gap-1">
@@ -135,6 +134,17 @@ export function PurchaseOrderDetailDialog({
               </div>
             )}
           </div>
+        )}
+        {order && (
+          <DialogFooter className="shrink-0">
+            <div className="flex flex-1 items-center justify-between gap-3 text-sm font-semibold">
+              <span>Total de la orden</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Volver a órdenes
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

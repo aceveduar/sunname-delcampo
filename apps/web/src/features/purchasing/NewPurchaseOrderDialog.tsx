@@ -115,7 +115,7 @@ export function NewPurchaseOrderDialog({
   }
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!valid || !online || busy.current) return
+    if (!valid || !online || busy.current || disabled) return
     busy.current = true
     setSubmitting(true)
     try {
@@ -257,7 +257,10 @@ export function NewPurchaseOrderDialog({
             >
               Cerrar
             </Button>
-            <Button type="submit" disabled={!valid || !online || submitting}>
+            <Button
+              type="submit"
+              disabled={!valid || !online || submitting || disabled}
+            >
               {submitting ? 'Confirmando…' : 'Crear orden'}
             </Button>
           </DialogFooter>
