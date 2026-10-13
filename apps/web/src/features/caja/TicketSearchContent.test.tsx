@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -161,14 +162,24 @@ it('identifica resultados anteriores tras fallo y reintenta la búsqueda pendien
     screen.getByText(new RegExp(ticketPeriodLabel(ticketDates('today')))),
   ).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+  let completeRetry!: () => void
+  vi.mocked(loadTickets).mockImplementationOnce(
+    (query) =>
+      new Promise((resolve) => {
+        completeRetry = () => resolve(result(query))
+      }),
+  )
   fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+  // El aviso desaparece al empezar la recarga; paginar exige terminarla.
+  expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+  await act(async () => completeRetry())
   await waitFor(() =>
-    expect(
-      screen.queryByText('Mostrando la última búsqueda correcta.'),
-    ).not.toBeInTheDocument(),
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled(),
   )
   expect(vi.mocked(loadTickets).mock.lastCall?.[0].values).toMatchObject(
     ticketDates('yesterday'),
   )
-  expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled()
+  expect(
+    screen.getByText(new RegExp(ticketPeriodLabel(ticketDates('yesterday')))),
+  ).toBeInTheDocument()
 })
