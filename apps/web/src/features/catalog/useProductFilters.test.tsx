@@ -4,6 +4,8 @@ import { useProductFilters } from './useProductFilters'
 import type { Product } from './useProducts'
 import type { ProductCategory } from './useCategories'
 
+vi.mock('@/lib/supabase', () => ({ supabase: {} }))
+
 const products = Array.from({ length: 60 }, (_, i) => ({
   id: String(i),
   name: 'Piñán de Chío ' + i,
