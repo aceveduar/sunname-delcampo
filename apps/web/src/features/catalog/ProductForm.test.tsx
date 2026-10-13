@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProductForm } from './ProductForm'
 import type { Product } from './useProducts'
 import type { UnitOfMeasure } from './useUnits'
+import type { ProductCategory } from './useCategories'
 
 const { registerMovement } = vi.hoisted(() => ({ registerMovement: vi.fn() }))
 
@@ -33,7 +34,7 @@ function props() {
     product: null as Product | null,
     open: true,
     onOpenChange: vi.fn(),
-    categories: [],
+    categories: [] as ProductCategory[],
     units: [
       {
         id: 'unit-1',
@@ -50,6 +51,55 @@ function props() {
 }
 
 describe('Guardado de productos', () => {
+  it('conserva la unidad y categoría inactivas asignadas al editar otro dato', async () => {
+    const input = props()
+    input.units[0].active = false
+    input.categories = [
+      {
+        id: 'inactive-category',
+        name: 'Anterior',
+        active: false,
+        parent_id: null,
+      },
+    ]
+    input.product = {
+      id: 'existing',
+      name: 'Producto',
+      unit_id: 'unit-1',
+      category_id: 'inactive-category',
+      price: 30,
+      track_inventory: false,
+    } as Product
+    render(<ProductForm {...input} />)
+    await waitFor(() =>
+      expect(screen.getByLabelText('Unidad')).toHaveTextContent(
+        'PZA — Pieza (inactiva)',
+      ),
+    )
+    expect(screen.getByLabelText('Categoría')).toHaveTextContent(
+      'Anterior (inactiva)',
+    )
+    fireEvent.change(screen.getByLabelText('Nombre'), {
+      target: { value: 'Nombre corregido' },
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Guardar cambios' }),
+      ).toBeEnabled(),
+    )
+    fireEvent.submit(document.querySelector('form')!)
+    await waitFor(() =>
+      expect(input.updateProduct).toHaveBeenCalledWith(
+        'existing',
+        expect.objectContaining({
+          unit_id: 'unit-1',
+          category_id: 'inactive-category',
+          name: 'Nombre Corregido',
+        }),
+      ),
+    )
+  })
+
   it('captura los campos y evita envíos duplicados mientras espera al servidor', async () => {
     const input = props()
     let finish!: (value: string) => void

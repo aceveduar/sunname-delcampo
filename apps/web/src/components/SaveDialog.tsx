@@ -66,13 +66,13 @@ export function SaveDialog({
         </DialogHeader>
         <form
           aria-busy={action.pending}
-          className="space-y-4"
+          className="min-w-0 space-y-4"
           onSubmit={async (event) => {
             event.preventDefault()
             if (await action.run(onSave)) onClose()
           }}
         >
-          <fieldset disabled={action.pending} className="space-y-4">
+          <fieldset disabled={action.pending} className="min-w-0 space-y-4">
             {children(action.pending)}
           </fieldset>
           {action.error && (

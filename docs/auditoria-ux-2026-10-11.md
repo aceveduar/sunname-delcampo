@@ -37,6 +37,39 @@ La revisión inicial se concentró en Configuración, Usuarios, Categorías,
 Unidades y Facturación. Comparten el diseño del sistema, pero varios estados de
 carga, permisos y guardado todavía dejan al usuario sin una respuesta clara.
 
+## Seguimiento: Categorías y Unidades
+
+Tercera entrega: ambos directorios comparten una presentación con búsqueda por
+palabras sin acentos, filtros de estado, conteos y páginas de 25 registros.
+Escritorio conserva tabla; móvil muestra tarjetas con nombre, categoría padre o
+código, estado y acciones visibles. La consulta lee todas las páginas de la API
+con orden estable para no omitir registros al buscar o contar.
+
+Una actualización fallida conserva la última lista correcta, explica su estado
+y bloquea crear, editar y cambiar estados hasta recuperar la consulta. Los cambios
+de estado se ejecutan de uno en uno y permiten reintentar tras un fallo.
+
+El formulario de categoría muestra la ruta completa del padre y excluye la
+categoría editada y sus descendientes. Tolera relaciones antiguas incompletas o
+cíclicas sin bloquear la pantalla. Es una prevención de selección en esta
+interfaz; no añade una restricción transaccional a la base de datos. Las rutas
+largas se ajustan tanto en el selector como en sus opciones. También se permite
+encoger el formulario compartido para evitar desbordamientos con texto ampliado.
+
+Al editar un producto se conserva visible su categoría o unidad original aunque
+esté inactiva, identificada como tal. Esto evita un selector vacío y cambios
+accidentales de asignación al modificar otros campos. Las demás opciones
+inactivas siguen excluidas del formulario de producto.
+
+Validación: Chrome a 1366 × 900, 390 × 844 y 360 × 740, con modo oscuro y texto
+al 125 %. API simulada con 27 categorías, rutas largas y una unidad inactiva;
+búsqueda, paginación, opciones jerárquicas, error/reintento y permisos de propietario
+y cajero. Se comprobó el ancho del contenido de los diálogos y las opciones,
+además del ancho de la página: cero escrituras y cero servicios externos.
+Las pruebas automatizadas cubren además 501 categorías/unidades, filtros,
+concurrencia de acciones, jerarquías cíclicas y conservación de asignaciones
+inactivas al guardar un producto. Sin migraciones.
+
 ## Alcance y método
 
 - Revisión de componentes, hooks, navegación y políticas SQL del repositorio.

@@ -42,7 +42,14 @@ export function UnitForm({
               onChange={(e) => setCode(e.target.value)}
               required
               placeholder="KG"
+              autoCapitalize="characters"
+              spellCheck={false}
+              aria-describedby="unit-code-help"
             />
+            <p id="unit-code-help" className="text-muted-foreground text-xs">
+              Abreviatura que identifica la medida, como KG, PZA o LT. Se guarda
+              en mayúsculas.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="unit-name">Nombre</Label>

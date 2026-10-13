@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
 import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
+import { readAllPages } from '@/lib/readAllPages'
 
 export type ProductCategory =
   Database['public']['Tables']['product_categories']['Row']
@@ -19,7 +20,17 @@ export const NO_CATEGORY = 'none'
 
 export function useCategories() {
   const fetchCategories = useCallback(
-    () => supabase.from('product_categories').select('*').order('name'),
+    async () => ({
+      data: await readAllPages((from, to) =>
+        supabase
+          .from('product_categories')
+          .select('*', { count: 'exact' })
+          .order('name')
+          .order('id')
+          .range(from, to),
+      ),
+      error: null,
+    }),
     [],
   )
   const {

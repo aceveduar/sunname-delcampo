@@ -10,10 +10,14 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogPage } from './CatalogPage'
 
-const { createCategory, createUnit } = vi.hoisted(() => ({
-  createCategory: vi.fn(),
-  createUnit: vi.fn(),
-}))
+const { createCategory, createUnit, toggleActive, resource } = vi.hoisted(
+  () => ({
+    createCategory: vi.fn(),
+    createUnit: vi.fn(),
+    toggleActive: vi.fn(),
+    resource: { loading: false, error: null as string | null },
+  }),
+)
 vi.mock('@/lib/errors', () => ({ reportError: vi.fn() }))
 vi.mock('./ProductsTab', () => ({ ProductsTab: () => null }))
 vi.mock('./useCategories', () => ({
@@ -21,23 +25,21 @@ vi.mock('./useCategories', () => ({
     categories: [
       { id: 'cat-1', name: 'Chiles', parent_id: null, active: true },
     ],
-    loading: false,
-    error: null,
+    ...resource,
     refresh: vi.fn(),
     createCategory,
     updateCategory: vi.fn(),
-    toggleActive: vi.fn(),
+    toggleActive,
   }),
 }))
 vi.mock('./useUnits', () => ({
   useUnits: () => ({
     units: [{ id: 'unit-1', code: 'KG', name: 'Kilogramo', active: true }],
-    loading: false,
-    error: null,
+    ...resource,
     refresh: vi.fn(),
     createUnit,
     updateUnit: vi.fn(),
-    toggleActive: vi.fn(),
+    toggleActive,
   }),
 }))
 beforeEach(() => {
@@ -51,6 +53,9 @@ beforeEach(() => {
   )
   createCategory.mockReset().mockResolvedValue(true)
   createUnit.mockReset().mockResolvedValue(true)
+  toggleActive.mockReset().mockResolvedValue(true)
+  resource.loading = false
+  resource.error = null
 })
 afterEach(() => {
   cleanup()
@@ -58,6 +63,56 @@ afterEach(() => {
 })
 
 describe('Administración del catálogo', () => {
+  it('conserva registros tras un error de consulta sin permitir editar ni crear', async () => {
+    const { rerender } = render(<CatalogPage role="owner" />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Categorías' }))
+    await screen.findByRole('button', { name: 'Nueva categoría' })
+    resource.error = 'No se pudieron cargar las categorías'
+    rerender(<CatalogPage role="owner" />)
+    expect(
+      screen.getByRole('button', { name: 'Nueva categoría' }),
+    ).toBeDisabled()
+    const cards = within(screen.getByLabelText('Tarjetas de categorías'))
+    expect(cards.getByRole('article', { name: 'Chiles' })).toBeInTheDocument()
+    for (const button of cards.getAllByRole('button'))
+      expect(button).toBeDisabled()
+    expect(screen.queryByText('Aún no hay categorías')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Unidades' }))
+    expect(
+      await screen.findByRole('button', { name: 'Nueva unidad' }),
+    ).toBeDisabled()
+  })
+
+  it('bloquea cambios simultáneos y permite reintentar el estado tras un fallo', async () => {
+    let finish!: (ok: boolean) => void
+    toggleActive.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        finish = resolve
+      }),
+    )
+    render(<CatalogPage role="owner" />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Unidades' }))
+    const cards = within(await screen.findByLabelText('Tarjetas de unidades'))
+    const toggle = cards.getByRole('button', { name: 'Desactivar Kilogramo' })
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
+    expect(toggleActive).toHaveBeenCalledTimes(1)
+    expect(
+      cards.getByRole('button', { name: 'Guardando… Kilogramo' }),
+    ).toBeDisabled()
+    expect(
+      cards.getByRole('button', { name: 'Editar Kilogramo' }),
+    ).toBeDisabled()
+    await act(async () => {
+      finish(false)
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No se pudo cambiar el estado',
+    )
+    fireEvent.click(cards.getByRole('button', { name: 'Desactivar Kilogramo' }))
+    await waitFor(() => expect(toggleActive).toHaveBeenCalledTimes(2))
+  })
+
   it('el cajero consulta categorías y unidades sin acciones de escritura', async () => {
     render(<CatalogPage role="cashier" />)
     for (const [tab, text] of [
@@ -65,7 +120,7 @@ describe('Administración del catálogo', () => {
       ['Unidades', 'Kilogramo'],
     ]) {
       fireEvent.click(screen.getByRole('tab', { name: tab }))
-      await screen.findByText(text)
+      expect((await screen.findAllByText(text)).length).toBeGreaterThan(0)
       expect(
         screen.queryByRole('button', { name: /Nueva|Editar|Desactivar/ }),
       ).not.toBeInTheDocument()

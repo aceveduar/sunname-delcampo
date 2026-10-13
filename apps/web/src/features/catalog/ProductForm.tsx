@@ -90,8 +90,14 @@ export function ProductForm({
   const [costError, setCostError] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
-  const activeUnits = units.filter((u) => u.active)
-  const activeCategories = categories.filter((c) => c.active)
+  // Conservar la asignación original aunque se haya desactivado evita un
+  // selector vacío o sustituir la medida al editar otro dato del producto.
+  const selectableUnits = units.filter(
+    (u) => u.active || u.id === product?.unit_id,
+  )
+  const selectableCategories = categories.filter(
+    (c) => c.active || c.id === product?.category_id,
+  )
 
   // Se dispara al abrir -- crear parte de blanco (con la unidad default),
   // editar carga los valores reales del producto, incluido su costo
@@ -293,9 +299,9 @@ export function ProductForm({
                     <Select
                       items={[
                         { value: NO_CATEGORY, label: 'Sin categoría' },
-                        ...activeCategories.map((c) => ({
+                        ...selectableCategories.map((c) => ({
                           value: c.id,
-                          label: c.name,
+                          label: `${c.name}${c.active ? '' : ' (inactiva)'}`,
                         })),
                       ]}
                       value={categoryId}
@@ -311,9 +317,10 @@ export function ProductForm({
                         <SelectItem value={NO_CATEGORY}>
                           Sin categoría
                         </SelectItem>
-                        {activeCategories.map((c) => (
+                        {selectableCategories.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.name}
+                            {!c.active && ' (inactiva)'}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -323,9 +330,9 @@ export function ProductForm({
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="product-unit">Unidad</Label>
                     <Select
-                      items={activeUnits.map((u) => ({
+                      items={selectableUnits.map((u) => ({
                         value: u.id,
-                        label: `${u.code} — ${u.name}`,
+                        label: `${u.code} — ${u.name}${u.active ? '' : ' (inactiva)'}`,
                       }))}
                       value={unitId}
                       onValueChange={(value) => {
@@ -337,9 +344,10 @@ export function ProductForm({
                         <SelectValue placeholder="Unidad" />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeUnits.map((u) => (
+                        {selectableUnits.map((u) => (
                           <SelectItem key={u.id} value={u.id}>
                             {u.code} — {u.name}
+                            {!u.active && ' (inactiva)'}
                           </SelectItem>
                         ))}
                       </SelectContent>

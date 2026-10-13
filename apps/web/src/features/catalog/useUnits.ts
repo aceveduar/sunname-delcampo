@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { reportError } from '../../lib/errors'
 import { useSupabaseList } from '../../lib/useSupabaseList'
 import type { Database } from '../../lib/database.types'
+import { readAllPages } from '@/lib/readAllPages'
 
 export type UnitOfMeasure =
   Database['public']['Tables']['units_of_measure']['Row']
@@ -11,7 +12,17 @@ type UnitInsert = Database['public']['Tables']['units_of_measure']['Insert']
 
 export function useUnits() {
   const fetchUnits = useCallback(
-    () => supabase.from('units_of_measure').select('*').order('name'),
+    async () => ({
+      data: await readAllPages((from, to) =>
+        supabase
+          .from('units_of_measure')
+          .select('*', { count: 'exact' })
+          .order('name')
+          .order('id')
+          .range(from, to),
+      ),
+      error: null,
+    }),
     [],
   )
   const {
