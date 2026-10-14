@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ProductDirectory, type ProductView } from './ProductDirectory'
 import type { Product } from './useProducts'
@@ -101,3 +101,67 @@ it.each(['cards', 'table'] as ProductView[])(
     expect(directory.getByText('$28.00')).toBeInTheDocument()
   },
 )
+
+it('monta una sola presentación y responde al cambio de ancho sin perder productos', () => {
+  let matches = true
+  const listeners = new Set<() => void>()
+  const remove = vi.fn((_: string, listener: () => void) =>
+    listeners.delete(listener),
+  )
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({
+      get matches() {
+        return matches
+      },
+      addEventListener: (_: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: remove,
+    })),
+  )
+  const catalog = Array.from({ length: 25 }, (_, i) => ({
+    ...products[2],
+    id: String(i),
+    name: 'Producto ' + i,
+    image_url: 'https://qa.invalid/' + i,
+  }))
+  const actions = vi.fn((product: Product) => (
+    <button>Editar {product.id}</button>
+  ))
+  const props = {
+    products: catalog,
+    view: 'table' as const,
+    loading: false,
+    error: null,
+    hasFilters: false,
+    categoryName: () => 'Sin categoría',
+    unitCode: () => 'KG',
+    costsById: new Map(),
+    actions,
+  }
+  const { container, rerender, unmount } = render(
+    <ProductDirectory {...props} />,
+  )
+  expect(screen.getByLabelText('Tabla de productos')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Tarjetas de productos')).toBeNull()
+  expect(container.querySelectorAll('img')).toHaveLength(25)
+  expect(actions).toHaveBeenCalledTimes(25)
+  act(() => {
+    matches = false
+    listeners.forEach((notify) => notify())
+  })
+  expect(screen.getByLabelText('Tarjetas de productos')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Tabla de productos')).toBeNull()
+  expect(screen.getAllByRole('article')).toHaveLength(25)
+  expect(container.querySelectorAll('img')).toHaveLength(25)
+  act(() => {
+    matches = true
+    listeners.forEach((notify) => notify())
+  })
+  rerender(<ProductDirectory {...props} view="cards" />)
+  expect(screen.queryByLabelText('Tabla de productos')).toBeNull()
+  expect(screen.getAllByRole('article')).toHaveLength(25)
+  unmount()
+  expect(listeners.size).toBe(0)
+  expect(remove).toHaveBeenCalled()
+})

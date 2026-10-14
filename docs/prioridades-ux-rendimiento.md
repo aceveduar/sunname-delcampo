@@ -60,3 +60,8 @@ builds de producción verifica 65.077 bytes menos de JavaScript inicial sin
 comprimir y conserva las consultas. Alcance y límites en
 rendimiento-catalogo-2026-10-13.md. Sigue pendiente el recorrido de navegación
 con carga/latencia controladas y el estudio de imágenes y renders.
+## Tercera optimización medida
+
+Catálogo monta solo la presentación visible. Comparación y límites de la
+reducción de DOM en rendimiento-directorio-2026-10-13.md. Sigue pendiente medir
+transferencia de fotografías, renders y recorridos entre módulos.

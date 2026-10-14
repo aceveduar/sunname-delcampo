@@ -68,6 +68,14 @@ vi.mock('@/components/BarcodeScannerDialog', () => ({
 
 beforeEach(() => {
   vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  )
+  vi.stubGlobal(
     'ResizeObserver',
     class {
       observe() {}

@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ReactNode } from 'react'
 import { AlertTriangle, Package, PackageSearch } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +41,8 @@ export function ProductDirectory({
   costsById: ReadonlyMap<string, number>
   actions?: (product: Product) => ReactNode
 }) {
+  const wide = useMediaQuery('(min-width: 64rem)')
+  const showTable = view === 'table' && wide
   const photo = (product: Product, table = false) => (
     <div
       className={`bg-muted border-border shrink-0 overflow-hidden rounded-lg border p-1.5 ${table ? 'size-14' : 'size-16'}`}
@@ -134,49 +137,51 @@ export function ProductDirectory({
   }
   return (
     <section aria-label="Resultados de productos" aria-busy={loading}>
-      <div
-        aria-label="Tarjetas de productos"
-        className={`grid gap-3 md:grid-cols-2 ${view === 'table' ? 'lg:hidden' : 'xl:grid-cols-3'}`}
-      >
-        {loading &&
-          !products.length &&
-          Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-40 rounded-xl" />
+      {!showTable && (
+        <div
+          aria-label="Tarjetas de productos"
+          className={`grid gap-3 md:grid-cols-2 ${view === 'table' ? 'lg:hidden' : 'xl:grid-cols-3'}`}
+        >
+          {loading &&
+            !products.length &&
+            Array.from({ length: 4 }, (_, index) => (
+              <Skeleton key={index} className="h-40 rounded-xl" />
+            ))}
+          {products.map((product) => (
+            <article
+              key={product.id}
+              aria-label={product.name}
+              className="bg-card flex min-w-0 flex-col gap-2 rounded-xl border p-3 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                {photo(product)}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm leading-snug font-semibold wrap-anywhere">
+                    {product.name}
+                  </h3>
+                  <p className="text-muted-foreground mt-1 text-xs wrap-anywhere">
+                    {categoryName(product.category_id)}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs wrap-anywhere">
+                    Código: {product.sku?.trim() || 'Sin código'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-2">
+                <div>
+                  {price(product)}
+                  {warnings(product)}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {state(product)}
+                  {actions?.(product)}
+                </div>
+              </div>
+            </article>
           ))}
-        {products.map((product) => (
-          <article
-            key={product.id}
-            aria-label={product.name}
-            className="bg-card flex min-w-0 flex-col gap-2 rounded-xl border p-3 shadow-sm"
-          >
-            <div className="flex items-start gap-3">
-              {photo(product)}
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm leading-snug font-semibold wrap-anywhere">
-                  {product.name}
-                </h3>
-                <p className="text-muted-foreground mt-1 text-xs wrap-anywhere">
-                  {categoryName(product.category_id)}
-                </p>
-                <p className="text-muted-foreground mt-1 text-xs wrap-anywhere">
-                  Código: {product.sku?.trim() || 'Sin código'}
-                </p>
-              </div>
-            </div>
-            <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-2">
-              <div>
-                {price(product)}
-                {warnings(product)}
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {state(product)}
-                {actions?.(product)}
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-      {view === 'table' && (
+        </div>
+      )}
+      {showTable && (
         <div className="hidden lg:block" aria-label="Tabla de productos">
           <Table>
             <TableHeader>
