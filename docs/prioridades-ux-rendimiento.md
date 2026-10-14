@@ -47,3 +47,9 @@ La revisión de Compras y recepción se completó; alcance y validación en
 auditoria-compras-recepcion-2026-10-13.md. La auditoría dedicada de rendimiento
 queda como siguiente prioridad. Esta revisión no sustituye las mediciones de
 velocidad pendientes.
+## Primera optimización medida
+
+Búsqueda de Caja con índice local por versión de catálogo y comparación del
+algoritmo anterior/nuevo. Resultados y límites en
+rendimiento-busqueda-caja-2026-10-13.md. La medición de carga/navegación, red,
+fotografías y renders sigue pendiente; no se considera cerrada la auditoría.

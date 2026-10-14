@@ -12,7 +12,7 @@ import {
 import { useCheckoutHeight } from './useCheckoutHeight'
 import { LoadError } from '@/components/LoadError'
 import { DraftRecovery } from './DraftRecovery'
-import { searchProducts } from './productSearch'
+import { createProductSearch } from './productSearch'
 import {
   useEffect,
   useId,
@@ -212,9 +212,13 @@ export function SaleScreen({
   const activeCategories = categories.filter((c) => c.active)
 
   const [resultLimit, setResultLimit] = useState(20)
+  const searchProducts = useMemo(
+    () => createProductSearch(products),
+    [products],
+  )
   const allResults = useMemo(
-    () => searchProducts(products, search, filterCategory),
-    [products, search, filterCategory],
+    () => searchProducts(search, filterCategory),
+    [searchProducts, search, filterCategory],
   )
   const results = allResults.slice(0, resultLimit)
   const changeSearch = (value: string) => {
