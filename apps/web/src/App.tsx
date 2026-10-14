@@ -1,3 +1,15 @@
+import {
+  OperationsHome,
+  CajaPage,
+  CatalogPage,
+  InventoryPage,
+  CustomersPage,
+  PurchasingPage,
+  ReportsPage,
+  BillingPage,
+  UsersPage,
+  SettingsPage,
+} from '@/components/layout/routePages'
 import { ModuleRecovery } from '@/components/integrations/ModuleRecovery'
 import { LoadError } from '@/components/LoadError'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
@@ -18,12 +30,6 @@ const CustomerPurchaseHistory = lazy(() =>
   })),
 )
 
-const OperationsHome = lazy(() =>
-  import('@/components/integrations/OperationsHome').then((module) => ({
-    default: module.OperationsHome,
-  })),
-)
-
 const ReplenishmentOrder = lazy(() =>
   import('@/components/integrations/ReplenishmentOrder').then((module) => ({
     default: module.ReplenishmentOrder,
@@ -32,52 +38,6 @@ const ReplenishmentOrder = lazy(() =>
 const SaleReceiptViewer = lazy(() =>
   import('@/features/caja/SaleReceiptViewer').then((module) => ({
     default: module.SaleReceiptViewer,
-  })),
-)
-
-const CatalogPage = lazy(() =>
-  import('@/features/catalog/CatalogPage').then((module) => ({
-    default: module.CatalogPage,
-  })),
-)
-const CajaPage = lazy(() =>
-  import('@/features/caja/CajaPage').then((module) => ({
-    default: module.CajaPage,
-  })),
-)
-const BillingPage = lazy(() =>
-  import('@/features/billing/BillingPage').then((module) => ({
-    default: module.BillingPage,
-  })),
-)
-const CustomersPage = lazy(() =>
-  import('@/features/crm/CustomersPage').then((module) => ({
-    default: module.CustomersPage,
-  })),
-)
-const InventoryPage = lazy(() =>
-  import('@/features/inventory/InventoryPage').then((module) => ({
-    default: module.InventoryPage,
-  })),
-)
-const ReportsPage = lazy(() =>
-  import('@/features/reports/ReportsPage').then((module) => ({
-    default: module.ReportsPage,
-  })),
-)
-const PurchasingPage = lazy(() =>
-  import('@/features/purchasing/PurchasingPage').then((module) => ({
-    default: module.PurchasingPage,
-  })),
-)
-const UsersPage = lazy(() =>
-  import('@/features/users/UsersPage').then((module) => ({
-    default: module.UsersPage,
-  })),
-)
-const SettingsPage = lazy(() =>
-  import('@/features/settings/SettingsPage').then((module) => ({
-    default: module.SettingsPage,
   })),
 )
 

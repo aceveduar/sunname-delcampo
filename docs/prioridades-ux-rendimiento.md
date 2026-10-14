@@ -65,3 +65,9 @@ con carga/latencia controladas y el estudio de imágenes y renders.
 Catálogo monta solo la presentación visible. Comparación y límites de la
 reducción de DOM en rendimiento-directorio-2026-10-13.md. Sigue pendiente medir
 transferencia de fotografías, renders y recorridos entre módulos.
+## Cuarta entrega: navegación por intención
+
+Código del destino anticipado sin consultas de datos; cargador compartido,
+cancelación y respeto a conexiones limitadas. Medición controlada y límites
+en rendimiento-navegacion-2026-10-13.md. Fotos existentes y perfiles con volúmenes
+representativos siguen pendientes; la auditoría completa continúa abierta.

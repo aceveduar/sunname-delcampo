@@ -1,5 +1,5 @@
 import { Tooltip } from '@base-ui/react/tooltip'
-import { NavLink } from 'react-router-dom'
+import { IntentLink } from './IntentLink'
 import type { LucideIcon } from 'lucide-react'
 
 export function SidebarLink({
@@ -14,7 +14,7 @@ export function SidebarLink({
   collapsed: boolean
 }) {
   const link = (
-    <NavLink
+    <IntentLink
       to={to}
       className={({ isActive }) =>
         'focus-visible:outline-ring flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium focus-visible:outline-2 ' +
@@ -25,7 +25,7 @@ export function SidebarLink({
     >
       <Icon aria-hidden className="size-5 shrink-0" />
       <span className={collapsed ? 'sr-only' : ''}>{label}</span>
-    </NavLink>
+    </IntentLink>
   )
   if (!collapsed) return link
   return (

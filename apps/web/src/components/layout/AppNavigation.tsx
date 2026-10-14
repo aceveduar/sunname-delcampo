@@ -1,4 +1,5 @@
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
+import { IntentLink } from './IntentLink'
 import { Menu } from 'lucide-react'
 import { navigationItems } from './navigation'
 import { Button } from '@/components/ui/button'
@@ -36,7 +37,7 @@ export function AppNavigation({
     >
       {!isLargeText &&
         primaryItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
+          <IntentLink
             key={to}
             to={to}
             className={({ isActive }) =>
@@ -48,7 +49,7 @@ export function AppNavigation({
           >
             <Icon className="size-4" />
             {label}
-          </NavLink>
+          </IntentLink>
         ))}
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -88,7 +89,7 @@ export function AppNavigation({
               <DropdownMenuItem
                 key={to}
                 render={
-                  <Link
+                  <IntentLink
                     to={to}
                     aria-current={pathname === to ? 'page' : undefined}
                   />
