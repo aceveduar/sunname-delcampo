@@ -53,3 +53,10 @@ Búsqueda de Caja con índice local por versión de catálogo y comparación del
 algoritmo anterior/nuevo. Resultados y límites en
 rendimiento-busqueda-caja-2026-10-13.md. La medición de carga/navegación, red,
 fotografías y renders sigue pendiente; no se considera cerrada la auditoría.
+## Segunda optimización medida
+
+Etiquetas de Catálogo se descargan al abrirlas. La medición en Chromium sobre
+builds de producción verifica 65.077 bytes menos de JavaScript inicial sin
+comprimir y conserva las consultas. Alcance y límites en
+rendimiento-catalogo-2026-10-13.md. Sigue pendiente el recorrido de navegación
+con carga/latencia controladas y el estudio de imágenes y renders.
