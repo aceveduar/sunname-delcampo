@@ -71,3 +71,8 @@ Código del destino anticipado sin consultas de datos; cargador compartido,
 cancelación y respeto a conexiones limitadas. Medición controlada y límites
 en rendimiento-navegacion-2026-10-13.md. Fotos existentes y perfiles con volúmenes
 representativos siguen pendientes; la auditoría completa continúa abierta.
+## Fotografías: descarga por proximidad (15 de octubre)
+
+Miniaturas existentes se solicitan al acercarse al área visible. Comparación y
+límites en rendimiento-fotografias-2026-10-15.md. Continúan pendientes las
+miniaturas físicas de menor peso y perfiles de render con CPU/volumen controlados.

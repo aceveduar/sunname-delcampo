@@ -1,3 +1,4 @@
+import { DeferredImage } from '@/components/DeferredImage'
 import { Boxes, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProductName } from '@/components/ProductName'
@@ -20,10 +21,9 @@ function ProductIdentity({ row }: { row: StockRow }) {
   return (
     <div className="flex items-start gap-3">
       {row.product.image_url ? (
-        <img
+        <DeferredImage
           src={row.product.image_url}
           alt=""
-          loading="lazy"
           className="border-border bg-background size-10 shrink-0 rounded-lg border object-contain p-0.5"
         />
       ) : (

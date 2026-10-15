@@ -1,3 +1,4 @@
+import { DeferredImage } from '@/components/DeferredImage'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ReactNode } from 'react'
 import { AlertTriangle, Package, PackageSearch } from 'lucide-react'
@@ -48,10 +49,9 @@ export function ProductDirectory({
       className={`bg-muted border-border shrink-0 overflow-hidden rounded-lg border p-1.5 ${table ? 'size-14' : 'size-16'}`}
     >
       {product.image_url ? (
-        <img
+        <DeferredImage
           src={product.image_url}
           alt=""
-          loading="lazy"
           className="size-full object-contain"
         />
       ) : (

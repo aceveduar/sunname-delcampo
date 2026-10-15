@@ -1,3 +1,4 @@
+import { DeferredImage } from '@/components/DeferredImage'
 import { Package, Star } from 'lucide-react'
 import { ProductName } from '@/components/ProductName'
 import { formatCurrency } from '@/lib/currency'
@@ -31,10 +32,9 @@ export function ProductResultCard({
         <span className="flex w-full items-start gap-2.5">
           <span className="relative shrink-0">
             {product.image_url ? (
-              <img
+              <DeferredImage
                 src={product.image_url}
                 alt=""
-                loading="lazy"
                 className={
                   'border-border bg-background rounded-md border object-contain p-0.5 ' +
                   (compact ? 'size-8' : 'size-10')
